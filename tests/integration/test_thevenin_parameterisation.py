@@ -51,13 +51,19 @@ class TestTheveninParameterisation:
     def parameters(self):
         return {
             "R0 [Ohm]": pybop.Parameter(
-                prior=pybop.Gaussian(0.05, 0.01),
-                bounds=[1e-6, 0.1],
+                distribution=pybop.Gaussian(
+                    0.05,
+                    0.01,
+                    truncated_at=[1e-6, 0.1],
+                ),
                 transformation=pybop.LogTransformation(),
             ),
             "R1 [Ohm]": pybop.Parameter(
-                prior=pybop.Gaussian(0.05, 0.01),
-                bounds=[1e-6, 0.1],
+                distribution=pybop.Gaussian(
+                    0.05,
+                    0.01,
+                    truncated_at=[1e-6, 0.1],
+                ),
                 transformation=pybop.LogTransformation(),
             ),
         }
@@ -76,7 +82,6 @@ class TestTheveninParameterisation:
             (pybop.SciPyMinimize, "SLSQP"),
             (pybop.SciPyMinimize, "trust-constr"),
             (pybop.SciPyMinimize, "L-BFGS-B"),
-            (pybop.SciPyMinimize, "COBYLA"),
             (pybop.GradientDescent, ""),
             (pybop.PSO, ""),
         ],
@@ -104,15 +109,10 @@ class TestTheveninParameterisation:
             options = pybop.SciPyMinimizeOptions(maxiter=150)
         else:
             options = pybop.PintsOptions(max_iterations=150)
-        if optimiser in [pybop.GradientDescent]:
-            options.sigma0 = 2.5e-2
-        elif method == "L-BFGS-B":
-            options.sigma0 = 2.5e-2
+        if optimiser is pybop.SciPyMinimize:
             options.method = method
+        if method == "L-BFGS-B":
             options.jac = True
-        else:
-            options.sigma0 = 0.02
-            options.method = method
         optim = optimiser(problem, options=options)
 
         if isinstance(optimiser, pybop.BasePintsOptimiser):

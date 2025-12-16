@@ -14,6 +14,7 @@
   [![nbviewer](https://raw.githubusercontent.com/jupyter/design/master/logos/Badges/nbviewer_badge.svg)](https://nbviewer.org/github/pybop-team/PyBOP/tree/develop/examples/notebooks/)
   [![Static Badge](https://img.shields.io/badge/https%3A%2F%2Fpybop-team.github.io%2Fpybop-bench%2F?label=Benchmarks)](https://pybop-team.github.io/pybop-bench/)
   [![Releases](https://img.shields.io/github/v/release/pybop-team/PyBOP?color=gold)](https://github.com/pybop-team/PyBOP/releases)
+  [![DOI](https://joss.theoj.org/papers/10.21105/joss.07874/status.svg)](https://doi.org/10.21105/joss.07874)
 
 [<ins>Main Branch Examples</ins>](https://github.com/pybop-team/PyBOP/tree/main/examples) [<ins>Develop Branch Examples</ins>](https://github.com/pybop-team/PyBOP/tree/develop/examples)
 
@@ -31,7 +32,7 @@ To understand how to update your use of PyBOP, please take a look at the example
 </p>
 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/pybop-team/PyBOP/develop/assets/PyBOP_components.drawio.pdf" alt="A diagram showing the main PyBOP classes: the Simulator and Cost, which together define the optimisation Problem, and the Optimiser or Sampler which generates the Result." width="700" />
+    <img src="assets/PyBOP_components.svg" alt="A diagram showing the main PyBOP classes: the Simulator and Cost, which together define the optimisation Problem, and the Optimiser or Sampler which generates the Result." width="700" />
 </p>
 
 ## 💻 Installation
