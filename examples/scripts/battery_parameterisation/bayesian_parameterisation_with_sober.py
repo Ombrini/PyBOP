@@ -73,9 +73,7 @@ class Diffusive_Relaxation:
 
 
 class SiliconVoltageRelaxation(pybop.BaseSimulator):
-    def __init__(
-        self, parameters, fixed_parameters, timepoints: np.ndarray | None = None
-    ):
+    def __init__(self, parameters, timepoints: np.ndarray | None = None):
         citations.register("""@article{
             Köbbing2024,
             title={{Slow Voltage Relaxation of Silicon Nanoparticles with a Chemo-Mechanical Core-Shell Model}},
@@ -86,7 +84,6 @@ class SiliconVoltageRelaxation(pybop.BaseSimulator):
             year={2024}
         }""")
         super().__init__(parameters)
-        self.fixed_parameters = fixed_parameters
         self.timepoints = np.asarray(timepoints)
         self.output_variables = ["Voltage change [V]"]
 
@@ -164,12 +161,12 @@ class SiliconVoltageRelaxation(pybop.BaseSimulator):
     def batch_solve(self, inputs, calculate_sensitivities=False):
         inputs_array = tensor([entry for entry in inputs[0].values()])
         relaxations = self.voltage_relaxation(inputs_array)
-        sols = []
+        solutions = []
         for entry, rel in zip(inputs, relaxations):
             sol = pybop.Solution(entry)
             sol.set_solution_variable("Voltage change [V]", rel)
-            sols.append(sol)
-        return sols
+            solutions.append(sol)
+        return solutions
 
 
 if __name__ == "__main__":
@@ -260,12 +257,14 @@ if __name__ == "__main__":
             np.asarray([[0.01, 0.2], [0.001, 0.2], [1e3, 1e7]])
         ),
     )
-    simulator = SiliconVoltageRelaxation(unknowns, {}, timepoints=t)
+    simulator = SiliconVoltageRelaxation(unknowns, timepoints=t)
+
     # Override the forced univariate Parameters
     simulator.parameters = unknowns
     problem = pybop.MetaProblem(
         pybop.Problem(simulator, mid_term), pybop.Problem(simulator, long_term)
     )
+
     # Copy the MultivariateParameters to the meta-problem
     problem.parameters = simulator.parameters
     options = SOBER_BASQ_EPLFI_Options(
@@ -281,10 +280,11 @@ if __name__ == "__main__":
         integration_nodes=512,
         batched_input=True,
     )
-    pybop_wrapper = SOBER_BASQ_EPLFI(problem, options)
-    pybop_result = pybop_wrapper.run()
+    optim = SOBER_BASQ_EPLFI(problem, options=options)
+    result = optim.run()
+
     # Calculate the correlation matrix in addition to the full plot.
-    raw_taken_samples = pybop_result.posterior.distribution.distribution.dataset
+    raw_taken_samples = result.posterior.distribution.distribution.dataset
     raw_mean = np.mean(raw_taken_samples, axis=1)
     raw_cov = np.cov(raw_taken_samples)
     raw_std = np.var(raw_taken_samples, axis=1) ** 0.5
@@ -300,8 +300,8 @@ if __name__ == "__main__":
     )
 
     # Re-sample the posterior for the predictive posterior.
-    posterior_resamples = pybop_result.posterior.rvs(64, apply_transform=True)
-    posterior_resamples_pdf = pybop_result.posterior.pdf(posterior_resamples)
+    posterior_resamples = result.posterior.rvs(64, apply_transform=True)
+    posterior_resamples_pdf = result.posterior.pdf(posterior_resamples)
     simulations = simulator.voltage_relaxation(posterior_resamples.T)
     fig_pos, ax_pos = plt.subplots(figsize=(3 * 2**0.5, 3), layout="constrained")
     norm = matplotlib.colors.Normalize(
