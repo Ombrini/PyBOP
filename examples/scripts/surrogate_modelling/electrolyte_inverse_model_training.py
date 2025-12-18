@@ -2,13 +2,13 @@ from copy import deepcopy
 from multiprocessing import Pool
 
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import pybamm
 import sober
 import torch
 from ep_bolfi.models.solversetup import solver_setup, spectral_mesh_pts_and_method
 from ep_bolfi.utility.preprocessing import calculate_desired_voltage
-from numpy import logspace, set_printoptions
-from pandas import DataFrame
 from scipy.stats import norm
 from seaborn import kdeplot, pairplot
 from sklearn.cluster import KMeans
@@ -77,7 +77,7 @@ def simulator(parameters):
         *spectral_mesh_pts_and_method(**discretization),
         verbose=False,
     )
-    relaxation_t = logspace(-3, 2, 8)
+    relaxation_t = np.logspace(-3, 2, 8)
     solution = solver(t_eval=relaxation_t)
     # relaxation_t = solution["Time [s]"].entries
     relaxation_U = calculate_desired_voltage(
@@ -225,7 +225,7 @@ if __name__ == "__main__":
         entry_color="black",
     )
 
-    set_printoptions(precision=3)
+    np.set_printoptions(precision=3)
     # Cluster the optimal evaulation points for analysis.
     normalized_X = inverse_modelling.tm.numpy(inverse_modelling.X_all)
     observations = inverse_modelling.tm.numpy(inverse_modelling.observations_all)
@@ -236,7 +236,7 @@ if __name__ == "__main__":
         print()
         print("Silhouette score of #" + str(i + 2) + " clusters:", score)
         labelled_X = (
-            DataFrame(normalized_X)
+            pd.DataFrame(normalized_X)
             .set_axis(names, axis="columns")
             .assign(labels=labels)
         )

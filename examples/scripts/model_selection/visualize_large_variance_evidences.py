@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from numpy import array, exp, log, logspace
+import numpy as np
 from scipy.stats import lognorm
 
 """
@@ -10,32 +10,32 @@ distributed with ``s = sigma`` and ``scale = exp(mu)``.
 
 
 def calculate_distribution_parameters(log_evidence, log_variance):
-    sigma = log(1 + exp(log_variance) / exp(log_evidence) ** 2) ** 0.5
+    sigma = np.log(1 + np.exp(log_variance) / np.exp(log_evidence) ** 2) ** 0.5
     mu = log_evidence - sigma**2 / 2
-    mean = exp(log_evidence)
-    lower = mean / exp(sigma)
-    upper = mean * exp(sigma)
+    mean = np.exp(log_evidence)
+    lower = mean / np.exp(sigma)
+    upper = mean * np.exp(sigma)
     print(mean, "within one confidence interval: [", lower, ",", upper, "]")
     return mu, sigma
 
 
 def plot_evidence_distribution(log_evidences, log_variances, labels, title):
     fig, ax = plt.subplots(figsize=(3**0.5, 3))
-    log_evidences = array(log_evidences)
-    log_variances = array(log_variances)
+    log_evidences = np.array(log_evidences)
+    log_variances = np.array(log_variances)
     min_extent = float("inf")
     max_extent = -float("inf")
     for le, lv, label in zip(log_evidences, log_variances, labels, strict=False):
         mu, sigma = calculate_distribution_parameters(le, lv)
         lower = mu - 2 * sigma
         upper = mu + 2 * sigma
-        evidence_eval = logspace(lower, upper, 200, base=exp(1))
+        evidence_eval = np.logspace(lower, upper, 200, base=np.exp(1))
         min_extent = min(lower, min_extent)
         max_extent = max(upper, max_extent)
-        distribution = lognorm(s=sigma, scale=exp(mu))
+        distribution = lognorm(s=sigma, scale=np.exp(mu))
         distribution_eval = distribution.pdf(evidence_eval)
         ax.plot(evidence_eval, distribution_eval, label=label)
-    ax.set_xlim(0.9 * exp(min_extent), 1.1 * exp(max_extent))
+    ax.set_xlim(0.9 * np.exp(min_extent), 1.1 * np.exp(max_extent))
     ax.legend()
     ax.set_xscale("log")
     ax.set_yscale("log")

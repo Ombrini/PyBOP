@@ -17,7 +17,6 @@ from ep_bolfi.utility.visualization import (
     interactive_impedance_model,
     nyquist_plot,
 )
-from numpy import sqrt, tan
 from scipy import constants
 from scipy.stats import gaussian_kde
 from sober import SoberWrapper
@@ -220,8 +219,8 @@ def Z_SEI(f, parameters):
     R_SEI = L_SEI / (ε_SEI**β_SEI * κ_SEI)
 
     # Notations refer to Single2019.
-    k_electrolyte = (1 - 1j) * sqrt(εₙ ** (-βₙ) * 2 * pi * f / (2 * Dₑ))
-    k_SEI = (1 - 1j) * sqrt(ε_SEI ** (1 - β_SEI) * 2 * pi * f / (2 * Dₑ))
+    k_electrolyte = (1 - 1j) * np.sqrt(εₙ ** (-βₙ) * 2 * pi * f / (2 * Dₑ))
+    k_SEI = (1 - 1j) * np.sqrt(ε_SEI ** (1 - β_SEI) * 2 * pi * f / (2 * Dₑ))
     Theta = (
         -(nₚ + nₙ)
         / (nₚ * nₙ)
@@ -230,15 +229,15 @@ def Z_SEI(f, parameters):
         / (ρ_N * tilde_ρ_N)
         * one_plus_dlnf_dlnc
     )
-    Psi = 1 - ε_SEI ** ((1 + β_SEI) / 2) * tan(
+    Psi = 1 - ε_SEI ** ((1 + β_SEI) / 2) * np.tan(
         k_electrolyte * L_electrolyte_for_SEI_model
-    ) * tan(k_SEI * L_SEI)
+    ) * np.tan(k_SEI * L_SEI)
     Z_D_SEI = (
         L_SEI
         * Theta
         / (Dₑ * ε_SEI**β_SEI)
         * (t_SEI_minus - ρₑ_plus / ρₑ) ** 2
-        * tan(k_SEI * L_SEI)
+        * np.tan(k_SEI * L_SEI)
         / (Psi * k_SEI * L_SEI)
     )
 

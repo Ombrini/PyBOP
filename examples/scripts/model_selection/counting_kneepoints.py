@@ -5,7 +5,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from numpy import array, exp, linspace, log, ndarray, sum
 from pybamm import print_citations
 from scipy.stats import gaussian_kde
 from torch import tensor
@@ -89,7 +88,7 @@ def marginalize_pdf(raw_taken_samples, sober_basq, x_eval=None):
         if x_eval is None:
             k_p_p_min = kde.dataset[raw_i].min()
             k_p_p_max = kde.dataset[raw_i].max()
-            raw_kneepoint_edges = linspace(k_p_p_min, k_p_p_max, 101)
+            raw_kneepoint_edges = np.linspace(k_p_p_min, k_p_p_max, 101)
         else:
             raw_kneepoint_edges = np.array(
                 [
@@ -113,8 +112,8 @@ def marginalize_pdf(raw_taken_samples, sober_basq, x_eval=None):
                 )
             )
             kneepoint_pdf_part_y.append(kde.integrate_box(lower_bound, upper_bound))
-        k_norm = sum(kneepoint_pdf_part_y) * (k_p_p_max - k_p_p_min)
-        kneepoint_pdf_part_y = array(kneepoint_pdf_part_y) / k_norm
+        k_norm = np.sum(kneepoint_pdf_part_y) * (k_p_p_max - k_p_p_min)
+        kneepoint_pdf_part_y = np.array(kneepoint_pdf_part_y) / k_norm
         kneepoint_pdf_x.append(kneepoint_pdf_part_x)
         kneepoint_pdf_y.append(kneepoint_pdf_part_y)
     return kneepoint_pdf_x, kneepoint_pdf_y, kde
@@ -145,11 +144,11 @@ if __name__ == "__main__":
         ax.plot(m["Time [s]"], m["Capacity fade"])
 
     # Cast non-standard dtypes into NumPy floats to avoid PyTorch errors.
-    t = ndarray.astype(measurements[data_index]["Time [s]"].T[0], np.float64)[1:]
+    t = np.ndarray.astype(measurements[data_index]["Time [s]"].T[0], np.float64)[1:]
     t[5] = t[4] + 1
-    data = ndarray.astype(measurements[data_index]["Capacity fade"].T[0], np.float64)[
-        1:
-    ]
+    data = np.ndarray.astype(
+        measurements[data_index]["Capacity fade"].T[0], np.float64
+    )[1:]
     dataset = pybop.Dataset({"Time [s]": t, "Capacity fade": data})
     """
     ax.plot(
@@ -170,10 +169,13 @@ if __name__ == "__main__":
 
     for n_kneepoints, mean, bounds, names in zip(
         (1, 2),
-        (array([0.0002, 1500, 0.0008]), array([0.0002, 1500, 0.0008, 2000, 0.001])),
         (
-            array([[0.00001, 0.001], [200, 2000], [0.00001, 0.01]]),
-            array(
+            np.array([0.0002, 1500, 0.0008]),
+            np.array([0.0002, 1500, 0.0008, 2000, 0.001]),
+        ),
+        (
+            np.array([[0.00001, 0.001], [200, 2000], [0.00001, 0.01]]),
+            np.array(
                 [
                     [0.00001, 0.001],
                     [200, 2000],
@@ -199,7 +201,7 @@ if __name__ == "__main__":
         ),
         strict=False,
     ):
-        initial_values = exp(0.5 * (log(bounds.T[0]) + log(bounds.T[1])))
+        initial_values = np.exp(0.5 * (np.log(bounds.T[0]) + np.log(bounds.T[1])))
         pybop_prior = pybop.MultivariateParameters(
             {
                 n: pybop.Parameter(
