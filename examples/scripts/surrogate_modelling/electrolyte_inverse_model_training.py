@@ -1,14 +1,13 @@
 from copy import deepcopy
 from multiprocessing import Pool
 
-import matplotlib
 import matplotlib.pyplot as plt
 import pybamm
 import sober
 import torch
 from ep_bolfi.models.solversetup import solver_setup, spectral_mesh_pts_and_method
 from ep_bolfi.utility.preprocessing import calculate_desired_voltage
-from numpy import arange, logspace, set_printoptions
+from numpy import logspace, set_printoptions
 from pandas import DataFrame
 from scipy.stats import norm
 from seaborn import kdeplot, pairplot
@@ -16,77 +15,10 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sober import InverseModel
 
+import pybop
+
 # torch.set_default_dtype(torch.float64)
 # sober.setting_parameters(device=torch.device('cpu'))
-
-
-def visualise_correlation(
-    fig,
-    ax,
-    correlation,
-    names=None,
-    title=None,
-    cmap=plt.get_cmap("BrBG"),
-    entry_color="w",
-):
-    """
-    Produces a heatmap of a correlation matrix.
-
-    :param fig:
-        The ``matplotlib.Figure`` object for plotting.
-    :param ax:
-        The ``matplotlib.Axes`` object for plotting.
-    :param correlation:
-        A two-dimensional (NumPy) array that is the correlation matrix.
-    :param names:
-        A list of strings that are names of the variables corresponding
-        to each row or column in the correlation matrix.
-    :param title:
-        The title of the heatmap.
-    :param cmap:
-        The matplotlib colormap for the heatmap.
-    :param entry_color:
-        The colour of the correlation matrix entries.
-    """
-
-    # This one line produces the heatmap.
-    ax.imshow(correlation, cmap=cmap, norm=matplotlib.colors.Normalize(-1, 1))
-    # Define the coordinates of the ticks.
-    ax.set_xticks(arange(len(correlation)))
-    ax.set_yticks(arange(len(correlation)))
-    # Display the names alongside the rows and columns.
-    if names is not None:
-        ax.set_xticklabels(names)
-        ax.set_yticklabels(names)
-        # Rotate the labels at the x-axis for better readability.
-        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
-
-    # Plot the correlation matrix entries on the heatmap.
-    for i in range(len(correlation)):
-        for j in range(len(correlation)):
-            if i == j:
-                color = "w"
-            else:
-                color = entry_color
-            ax.text(
-                j,
-                i,
-                f"{correlation[i][j]:3.2f}",
-                ha="center",
-                va="center",
-                color=color,
-                in_layout=False,
-            )
-
-    ax.set_title(title or "Correlation matrix")
-    fig.colorbar(
-        matplotlib.cm.ScalarMappable(
-            norm=matplotlib.colors.Normalize(-1, 1), cmap=cmap
-        ),
-        ax=ax,
-        label="correlation",
-    )
-    fig.tight_layout()
 
 
 torch.set_default_dtype(torch.float32)
@@ -284,7 +216,7 @@ if __name__ == "__main__":
     std = prediction.variance[0].sqrt()
     correlation = (covariance / std[:, None]) / std[None, :]
     fig_corr, ax_corr = plt.subplots(figsize=(3.75, 3))
-    visualise_correlation(
+    pybop.plot.correlation(
         fig_corr,
         ax_corr,
         correlation.detach().cpu().numpy(),
@@ -351,7 +283,7 @@ if __name__ == "__main__":
             std = prediction.variance[0].sqrt()
             correlation = (covariance / std[:, None]) / std[None, :]
             fig_corr, ax_corr = plt.subplots(figsize=(3.75, 3))
-            visualise_correlation(
+            pybop.plot.correlation(
                 fig_corr,
                 ax_corr,
                 correlation.detach().cpu().numpy(),
