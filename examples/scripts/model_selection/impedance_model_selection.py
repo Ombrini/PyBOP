@@ -63,115 +63,61 @@ parameter_ranges = {
     },
 }
 
+no_transform = (lambda x: x, lambda x: x)
+log_transform = (lambda x: log(x), lambda x: exp(x))
 parameter_transforms = {
     "pouch_SPM": {
-        "Positive particle diffusivity [m2.s-1]": (lambda x: log(x), lambda x: exp(x)),
-        "Positive electrode double-layer capacity [F.m-2]": (
-            lambda x: log(x),
-            lambda x: exp(x),
-        ),
-        "Positive electrode exchange-current density [A.m-2]": (
-            lambda x: log(x),
-            lambda x: exp(x),
-        ),
+        "Positive particle diffusivity [m2.s-1]": log_transform,
+        "Positive electrode double-layer capacity [F.m-2]": log_transform,
+        "Positive electrode exchange-current density [A.m-2]": log_transform,
     },
     "pouch_DFN": {
-        "Positive electrode Bruggeman coefficient": (lambda x: x, lambda x: x),
-        "Positive electrode conductivity [S.m-1]": (lambda x: log(x), lambda x: exp(x)),
-        "Electrolyte diffusivity [m2.s-1]": (lambda x: log(x), lambda x: exp(x)),
-        "Positive particle diffusivity [m2.s-1]": (lambda x: log(x), lambda x: exp(x)),
-        "Positive electrode double-layer capacity [F.m-2]": (
-            lambda x: log(x),
-            lambda x: exp(x),
-        ),
-        "Positive electrode exchange-current density [A.m-2]": (
-            lambda x: log(x),
-            lambda x: exp(x),
-        ),
+        "Positive electrode Bruggeman coefficient": no_transform,
+        "Positive electrode conductivity [S.m-1]": log_transform,
+        "Electrolyte diffusivity [m2.s-1]": log_transform,
+        "Positive particle diffusivity [m2.s-1]": log_transform,
+        "Positive electrode double-layer capacity [F.m-2]": log_transform,
+        "Positive electrode exchange-current density [A.m-2]": log_transform,
     },
     "LG_MJ1_variant_1": {
-        "Positive electrode double-layer capacity [F.m-2]": (
-            lambda x: log(x),
-            lambda x: exp(x),
-        ),
-        "Positive electrode exchange-current density [A.m-2]": (
-            lambda x: log(x),
-            lambda x: exp(x),
-        ),
-        "SEI relative permittivity": (lambda x: log(x), lambda x: exp(x)),
-        "SEI Bruggeman coefficient": (lambda x: x, lambda x: x),
+        "Positive electrode double-layer capacity [F.m-2]": log_transform,
+        "Positive electrode exchange-current density [A.m-2]": log_transform,
+        "SEI relative permittivity": log_transform,
+        "SEI Bruggeman coefficient": no_transform,
     },
     "LG_MJ1_variant_2": {
-        "Positive electrode double-layer capacity [F.m-2]": (
-            lambda x: log(x),
-            lambda x: exp(x),
-        ),
-        "Positive electrode exchange-current density [A.m-2]": (
-            lambda x: log(x),
-            lambda x: exp(x),
-        ),
-        "SEI relative permittivity": (lambda x: log(x), lambda x: exp(x)),
-        "SEI Bruggeman coefficient": (lambda x: x, lambda x: x),
+        "Positive electrode double-layer capacity [F.m-2]": log_transform,
+        "Positive electrode exchange-current density [A.m-2]": log_transform,
+        "SEI relative permittivity": log_transform,
+        "SEI Bruggeman coefficient": no_transform,
     },
 }
+np_log_transform = (lambda x: np.log(x), lambda x: np.exp(x))
 parameter_transforms_numpy = {
     "pouch_SPM": {
-        "Positive particle diffusivity [m2.s-1]": (
-            lambda x: np.log(x),
-            lambda x: np.exp(x),
-        ),
-        "Positive electrode double-layer capacity [F.m-2]": (
-            lambda x: np.log(x),
-            lambda x: np.exp(x),
-        ),
-        "Positive electrode exchange-current density [A.m-2]": (
-            lambda x: np.log(x),
-            lambda x: np.exp(x),
-        ),
+        "Positive particle diffusivity [m2.s-1]": np_log_transform,
+        "Positive electrode double-layer capacity [F.m-2]": np_log_transform,
+        "Positive electrode exchange-current density [A.m-2]": np_log_transform,
     },
     "pouch_DFN": {
-        "Positive electrode Bruggeman coefficient": (lambda x: x, lambda x: x),
-        "Positive electrode conductivity [S.m-1]": (
-            lambda x: np.log(x),
-            lambda x: np.exp(x),
-        ),
-        "Electrolyte diffusivity [m2.s-1]": (lambda x: np.log(x), lambda x: np.exp(x)),
-        "Positive particle diffusivity [m2.s-1]": (
-            lambda x: np.log(x),
-            lambda x: np.exp(x),
-        ),
-        "Positive electrode double-layer capacity [F.m-2]": (
-            lambda x: np.log(x),
-            lambda x: np.exp(x),
-        ),
-        "Positive electrode exchange-current density [A.m-2]": (
-            lambda x: np.log(x),
-            lambda x: np.exp(x),
-        ),
+        "Positive electrode Bruggeman coefficient": no_transform,
+        "Positive electrode conductivity [S.m-1]": np_log_transform,
+        "Electrolyte diffusivity [m2.s-1]": np_log_transform,
+        "Positive particle diffusivity [m2.s-1]": np_log_transform,
+        "Positive electrode double-layer capacity [F.m-2]": np_log_transform,
+        "Positive electrode exchange-current density [A.m-2]": np_log_transform,
     },
     "LG_MJ1_variant_1": {
-        "Positive electrode double-layer capacity [F.m-2]": (
-            lambda x: np.log(x),
-            lambda x: np.exp(x),
-        ),
-        "Positive electrode exchange-current density [A.m-2]": (
-            lambda x: np.log(x),
-            lambda x: np.exp(x),
-        ),
-        "SEI relative permittivity": (lambda x: np.log(x), lambda x: np.exp(x)),
-        "SEI Bruggeman coefficient": (lambda x: x, lambda x: x),
+        "Positive electrode double-layer capacity [F.m-2]": np_log_transform,
+        "Positive electrode exchange-current density [A.m-2]": np_log_transform,
+        "SEI relative permittivity": np_log_transform,
+        "SEI Bruggeman coefficient": no_transform,
     },
     "LG_MJ1_variant_2": {
-        "Positive electrode double-layer capacity [F.m-2]": (
-            lambda x: np.log(x),
-            lambda x: np.exp(x),
-        ),
-        "Positive electrode exchange-current density [A.m-2]": (
-            lambda x: np.log(x),
-            lambda x: np.exp(x),
-        ),
-        "SEI relative permittivity": (lambda x: np.log(x), lambda x: np.exp(x)),
-        "SEI Bruggeman coefficient": (lambda x: x, lambda x: x),
+        "Positive electrode double-layer capacity [F.m-2]": np_log_transform,
+        "Positive electrode exchange-current density [A.m-2]": np_log_transform,
+        "SEI relative permittivity": np_log_transform,
+        "SEI Bruggeman coefficient": no_transform,
     },
 }
 
