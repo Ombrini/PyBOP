@@ -83,8 +83,13 @@ class SOBER_BASQ(BaseOptimiser):
         }""")
 
     def evaluate_problem(self, inputs_array):
-        sim = self.problem._simulator
-        inputs = {k: i for k, i in zip(self.problem.parameters.keys(), inputs_array.T)}
+        sim = self.problem.simulator
+        inputs = {
+            k: i
+            for k, i in zip(
+                self.problem.parameters.keys(), inputs_array.T, strict=False
+            )
+        }
         return sim.solve(inputs)[sim.output_variables[0]].data
 
     def _set_up_optimiser(self, **kwargs):
@@ -188,7 +193,7 @@ class SOBER_BASQ(BaseOptimiser):
         self._logger.x_search = [
             [
                 par.transformation.to_search(e)[0]
-                for e, par in zip(entry, self.problem.parameters.values())
+                for e, par in zip(entry, self.problem.parameters.values(), strict=False)
             ]
             for entry in x_list
         ]
@@ -201,7 +206,7 @@ class SOBER_BASQ(BaseOptimiser):
         x_search_best_over_time = [
             [
                 par.transformation.to_search(e)[0]
-                for e, par in zip(entry, self.problem.parameters.values())
+                for e, par in zip(entry, self.problem.parameters.values(), strict=False)
             ]
             for entry in x_best
         ]
@@ -284,11 +289,16 @@ class SOBER_BASQ_EPLFI(SOBER_BASQ):
         }""")
 
     def _collect_functions(self, inputs_array):
-        inputs = {k: i for k, i in zip(self.problem.parameters.keys(), inputs_array.T)}
+        inputs = {
+            k: i
+            for k, i in zip(
+                self.problem.parameters.keys(), inputs_array.T, strict=False
+            )
+        }
         return np.array(
             [
-                problem._simulator.solve(inputs)[
-                    problem._simulator.output_variables[0]
+                problem.simulator.solve(inputs)[
+                    problem.simulator.output_variables[0]
                 ].data
                 for problem in self.problem.problems
             ]
@@ -399,7 +409,7 @@ class SOBER_BASQ_EPLFI(SOBER_BASQ):
         self._logger.x_search = [
             [
                 par.transformation.to_search(e)[0]
-                for e, par in zip(entry, self.problem.parameters.values())
+                for e, par in zip(entry, self.problem.parameters.values(), strict=False)
             ]
             for entry in x_list
         ]
@@ -412,7 +422,7 @@ class SOBER_BASQ_EPLFI(SOBER_BASQ):
         x_search_best_over_time = [
             [
                 par.transformation.to_search(e)[0]
-                for e, par in zip(entry, self.problem.parameters.values())
+                for e, par in zip(entry, self.problem.parameters.values(), strict=False)
             ]
             for entry in x_best
         ]

@@ -25,7 +25,7 @@ def plot_evidence_distribution(log_evidences, log_variances, labels, title):
     log_variances = array(log_variances)
     min_extent = float("inf")
     max_extent = -float("inf")
-    for le, lv, label in zip(log_evidences, log_variances, labels):
+    for le, lv, label in zip(log_evidences, log_variances, labels, strict=False):
         mu, sigma = calculate_distribution_parameters(le, lv)
         lower = mu - 2 * sigma
         upper = mu + 2 * sigma

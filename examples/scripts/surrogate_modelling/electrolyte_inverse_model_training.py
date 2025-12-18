@@ -231,7 +231,7 @@ if __name__ == "__main__":
     observations = inverse_modelling.tm.numpy(inverse_modelling.observations_all)
     clusterings, labellings, scores = clustering(normalized_X, max_number_of_clusters=4)
     for i, (clustering, labels, score) in enumerate(
-        zip(clusterings, labellings, scores)
+        zip(clusterings, labellings, scores, strict=False)
     ):
         print()
         print("Silhouette score of #" + str(i + 2) + " clusters:", score)

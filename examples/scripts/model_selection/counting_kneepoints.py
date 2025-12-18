@@ -59,7 +59,7 @@ class KneepointModel(pybop.BaseSimulator):
         inputs_array = tensor(np.asarray([entry for entry in inputs[0].values()]))
         capacity_fade = self(inputs_array)
         sols = []
-        for entry, cf in zip(inputs, capacity_fade):
+        for entry, cf in zip(inputs, capacity_fade, strict=False):
             sol = pybop.Solution(entry)
             sol.set_solution_variable("Capacity fade", cf)
             sols.append(sol)
@@ -99,7 +99,9 @@ def marginalize_pdf(raw_taken_samples, sober_basq, x_eval=None):
             )
             k_p_p_min = raw_kneepoint_edges.min()
             k_p_p_max = raw_kneepoint_edges.max()
-        for k0, k1 in zip(raw_kneepoint_edges[:-1], raw_kneepoint_edges[1:]):
+        for k0, k1 in zip(
+            raw_kneepoint_edges[:-1], raw_kneepoint_edges[1:], strict=False
+        ):
             lower_bound = [kde.dataset[j].min() for j in range(dim)]
             lower_bound[raw_i] = k0
             upper_bound = [kde.dataset[j].max() for j in range(dim)]
@@ -195,6 +197,7 @@ if __name__ == "__main__":
                 "3rd degr. rate [Capacity/Cycle]",
             ],
         ),
+        strict=False,
     ):
         initial_values = exp(0.5 * (log(bounds.T[0]) + log(bounds.T[1])))
         pybop_prior = pybop.MultivariateParameters(
@@ -202,7 +205,7 @@ if __name__ == "__main__":
                 n: pybop.Parameter(
                     initial_value=i, bounds=b, transformation=pybop.LogTransformation()
                 )
-                for n, i, b in zip(names, initial_values, bounds)
+                for n, i, b in zip(names, initial_values, bounds, strict=False)
             },
             distribution=pybop.MultivariateGaussian(mean=mean, bounds=bounds),
         )
@@ -238,7 +241,7 @@ if __name__ == "__main__":
         )
         cmap = plt.get_cmap("viridis")
         for pr, pr_pdf, sim in zip(
-            posterior_resamples, posterior_resamples_pdf, simulations
+            posterior_resamples, posterior_resamples_pdf, simulations, strict=False
         ):
             ax.plot(
                 t,

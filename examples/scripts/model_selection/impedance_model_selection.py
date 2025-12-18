@@ -5,6 +5,7 @@ from contextlib import redirect_stdout
 from multiprocessing import Pool
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pybamm
 import pybammeis
 from botorch.acquisition.active_learning import qNegIntegratedPosteriorVariance
@@ -19,7 +20,8 @@ from ep_bolfi.utility.visualization import (
 from numpy import sqrt, tan
 from scipy import constants
 from scipy.stats import gaussian_kde
-from torch import pi, tensor, zeros
+from sober import SoberWrapper
+from torch import exp, log, pi, tensor, zeros
 
 spec_gunther = importlib.util.spec_from_file_location(
     "gunther", "../../data/Gunther2025/parameters.py"
@@ -33,10 +35,6 @@ spec_kuhn = importlib.util.spec_from_file_location(
 kuhn = importlib.util.module_from_spec(spec_kuhn)
 sys.modules["kuhn"] = kuhn
 spec_kuhn.loader.exec_module(kuhn)
-
-import numpy as np
-from sober import SoberWrapper
-from torch import exp, log
 
 parameter_ranges = {
     "pouch_SPM": {
@@ -317,7 +315,7 @@ def simulator(
     cell_name,
     soc,
     electrolyte=True,
-    variable_parameters=[],
+    variable_parameters=None,
 ):
     if cell_name == "18650_LG_3500_MJ1_EIS_anode_discharge":
         parameters = kuhn.get_parameters_with_switched_electrodes()
@@ -331,6 +329,9 @@ def simulator(
         working_electrode = "positive"
         three_electrode = "positive"
         reference_electrode_location = 1.0
+
+    if variable_parameters is None:
+        variable_parameters = []
 
     parameters["Positive electrode SOC"] = soc
     for i, key in enumerate(variable_parameters):
@@ -355,8 +356,11 @@ def drt_simulator(
     lambda_value=-2.0,
     num_data_peaks=None,
     electrolyte=True,
-    variable_parameters=[],
+    variable_parameters=None,
 ):
+    if variable_parameters is None:
+        variable_parameters = []
+
     parallel_arguments = [
         (t, angular_frequencies, cell_name, soc, electrolyte, variable_parameters)
         for t in trial
@@ -371,7 +375,10 @@ def drt_simulator(
         num_data_peaks = num_data_peaks or len(drt_tau)
         results.append(
             tensor(
-                [[[dr, dt]] * num_data_peaks for dr, dt in zip(drt_tau, drt_resistance)]
+                [
+                    [[dr, dt]] * num_data_peaks
+                    for dr, dt in zip(drt_tau, drt_resistance, strict=False)
+                ]
             ).log()
         )
     return results
@@ -425,7 +432,7 @@ def automated_model_assessment(
     drt_tau, drt_resistance, drt = fit_drt(
         frequencies, impedances, lambda_value or -2.0
     )
-    drt_data = tensor(list(zip(drt_tau, drt_resistance))).log()
+    drt_data = tensor(list(zip(drt_tau, drt_resistance, strict=False))).log()
     num_data_peaks = len(drt_tau)
     sober_wrapper = SoberWrapper(
         model=drt_simulator,
@@ -595,7 +602,7 @@ def visualize_automated_assessment(
         legend_text="optimal fit",
         add_frequency_colorbar=False,
     )
-    for simulated_impedances, alpha in zip(simulations, alphas):
+    for simulated_impedances, alpha in zip(simulations, alphas, strict=False):
         nyquist_plot(
             fig_imp,
             ax_imp,

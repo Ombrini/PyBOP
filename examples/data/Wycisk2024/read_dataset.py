@@ -30,7 +30,7 @@ def read_parquet_cycling(filename):
                 "Voltage change [V]": v,
                 "Cycle indices": [i] * len(t),
             }
-            for t, c, v, i in zip(timepoints, currents, voltages, indices)
+            for t, c, v, i in zip(timepoints, currents, voltages, indices, strict=False)
         ],
         domain="Time [s]",
         control_variable="Current function [A]",

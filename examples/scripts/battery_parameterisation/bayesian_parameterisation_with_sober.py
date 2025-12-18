@@ -162,7 +162,7 @@ class SiliconVoltageRelaxation(pybop.BaseSimulator):
         inputs_array = tensor([entry for entry in inputs[0].values()])
         relaxations = self.voltage_relaxation(inputs_array)
         solutions = []
-        for entry, rel in zip(inputs, relaxations):
+        for entry, rel in zip(inputs, relaxations, strict=False):
             sol = pybop.Solution(entry)
             sol.set_solution_variable("Voltage change [V]", rel)
             solutions.append(sol)

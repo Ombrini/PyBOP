@@ -153,7 +153,9 @@ if __name__ == "__main__":
     )
     """
     color_cycle = cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
-    for simulation, sample, color in zip(simulations, samples, color_cycle):
+    for simulation, sample, color in zip(
+        simulations, samples, color_cycle, strict=False
+    ):
         _, _, solution = simulation
         t = solution["Time [h]"].entries
         U = solution["Voltage [V]"].entries
