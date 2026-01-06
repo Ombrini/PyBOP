@@ -371,7 +371,7 @@ class Parameters:
         if name not in self._parameters:
             raise ParameterNotFoundError(f"Parameter for '{name}' not found")
         if not isinstance(param, Parameter):
-            raise TypeError({"Paremeter must be of type pybop.Paremter"})
+            raise TypeError({"Paremeter must be of type pybop.Parameter"})
         self._parameters[name] = param
         if check_multivariate:
             self.check_multivariate()
