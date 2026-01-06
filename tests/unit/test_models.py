@@ -1,6 +1,8 @@
 import numpy as np
 import pybamm
 import pytest
+from matplotlib.axes._axes import Axes
+from matplotlib.figure import Figure
 
 import pybop
 
@@ -45,3 +47,9 @@ class TestModels:
 
         fig = solution.plot()
         assert isinstance(fig, pybamm.QuickPlot)
+
+        if isinstance(model, pybop.lithium_ion.GroupedSPMe):
+            for split in [False, True]:
+                fig, ax = solution.plot_voltage_components(split_by_electrode=split)
+                assert isinstance(fig, Figure)
+                assert isinstance(ax, Axes)

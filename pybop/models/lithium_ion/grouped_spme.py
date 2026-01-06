@@ -328,6 +328,51 @@ class GroupedSPMe(pybamm_lithium_ion.BaseModel):
         ]
 
         ######################
+        # Voltage components
+        ######################
+        # Include the following variables to enable plotting via PyBaMM's plot_voltage_components
+        ocp_n_bulk = self.U(
+            pybamm.x_average(zeta_n * pybamm.r_average(sto_n))
+            / pybamm.x_average(zeta_n),
+            "negative",
+        )
+        ocp_p_bulk = self.U(
+            pybamm.x_average(zeta_p * pybamm.r_average(sto_p))
+            / pybamm.x_average(zeta_p),
+            "positive",
+        )
+        voltage_components = {
+            "Battery open-circuit voltage [V]": ocp_p_bulk - ocp_n_bulk,
+            "Battery particle concentration overpotential [V]": (
+                (pybamm.x_average(self.U(sto_p_surf, "positive")) - ocp_p_bulk)
+                - (pybamm.x_average(self.U(sto_n_surf, "negative")) - ocp_n_bulk)
+            ),
+            "X-averaged battery reaction overpotential [V]": pybamm.x_average(eta_p)
+            - pybamm.x_average(eta_n),
+            "X-averaged battery concentration overpotential [V]": eta_e,
+            "X-averaged battery electrolyte ohmic losses [V]": Scalar(0),
+            "X-averaged battery solid phase ohmic losses [V]": Scalar(0),
+            "Contact overpotential [V]": R0 * I,  #  includes Ohmic losses in this model
+            # and split by electrode
+            "Negative electrode bulk open-circuit potential [V]": ocp_n_bulk,
+            "Positive electrode bulk open-circuit potential [V]": ocp_p_bulk,
+            "Negative particle concentration overpotential [V]": pybamm.x_average(
+                self.U(sto_n_surf, "negative")
+            )
+            - ocp_n_bulk,
+            "Positive particle concentration overpotential [V]": pybamm.x_average(
+                self.U(sto_p_surf, "positive")
+            )
+            - ocp_p_bulk,
+            "X-averaged negative electrode reaction overpotential [V]"
+            "": pybamm.x_average(eta_n),
+            "X-averaged positive electrode reaction overpotential [V]"
+            "": pybamm.x_average(eta_p),
+            "X-averaged battery negative solid phase ohmic losses [V]": Scalar(0),
+            "X-averaged battery positive solid phase ohmic losses [V]": Scalar(0),
+        }
+
+        ######################
         # (Some) variables
         ######################
         # The `variables` dictionary contains all variables that might be useful for
@@ -367,6 +412,7 @@ class GroupedSPMe(pybamm_lithium_ion.BaseModel):
                 - pybamm.log(pybamm.concatenation(sto_e_n, sto_e_sep, sto_e_p))
             ),
             "Time [s]": pybamm_t,
+            "Time [h]": pybamm_t / 3600,
             "Current [A]": I,
             "Current variable [A]": I,  # for compatibility with pybamm.Experiment
             "Discharge capacity [A.h]": Q,
@@ -374,6 +420,7 @@ class GroupedSPMe(pybamm_lithium_ion.BaseModel):
             "Voltage [V]": V,
             "Battery voltage [V]": V,
             "Open-circuit voltage [V]": U_p - U_n,
+            **voltage_components,
         }
 
     def U(self, sto, domain):
