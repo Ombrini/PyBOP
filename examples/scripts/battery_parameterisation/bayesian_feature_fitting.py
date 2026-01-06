@@ -11,9 +11,27 @@ parameter_values = pybamm.ParameterValues("Chen2020")
 original_D_n = parameter_values["Negative particle diffusivity [m2.s-1]"]
 original_D_p = parameter_values["Positive particle diffusivity [m2.s-1]"]
 
-# Put empty Parameter slots as placeholders
-parameter_values["Negative particle diffusivity [m2.s-1]"] = pybop.Parameter()
-parameter_values["Positive particle diffusivity [m2.s-1]"] = pybop.Parameter()
+# Set multivariate parameters
+parameter_values["Negative particle diffusivity [m2.s-1]"] = (
+    pybop.MultivariateParameter(
+        distribution_param="Negative particle diffusivity [m2.s-1]",
+        initial_value=0.9 * original_D_n,
+        bounds=[original_D_n / 2, original_D_n * 2],
+        transformation=pybop.LogTransformation(),
+        distribution=pybop.MultivariateGaussian(
+            [np.log(original_D_n), np.log(original_D_p)],
+            [[np.log(2), 0.0], [0.0, np.log(2)]],
+        ),
+    )
+)
+parameter_values["Positive particle diffusivity [m2.s-1]"] = (
+    pybop.MultivariateParameter(
+        distribution_param="Negative particle diffusivity [m2.s-1]",
+        initial_value=1.1 * original_D_p,
+        bounds=[original_D_p / 2, original_D_p * 2],
+        transformation=pybop.LogTransformation(),
+    )
+)
 
 # Set up simulator with custom settings
 submesh_types, var_pts, spatial_methods = spectral_mesh_pts_and_method(10, 10, 10)
@@ -56,28 +74,6 @@ dataset = pybop.Dataset(
         "Current function [A]": synthetic_data["Current [A]"].data,
         "Voltage [V]": synthetic_data["Voltage [V]"].data,
     }
-)
-
-# Override the forced univariate Parameters
-simulator.parameters = pybop.Parameters(
-    {
-        "Negative particle diffusivity [m2.s-1]": pybop.MultivariateParameter(
-            distribution_param="Negative particle diffusivity [m2.s-1]",
-            initial_value=0.9 * original_D_n,
-            bounds=[original_D_n / 2, original_D_n * 2],
-            transformation=pybop.LogTransformation(),
-            distribution=pybop.MultivariateGaussian(
-                [np.log(original_D_n), np.log(original_D_p)],
-                [[np.log(2), 0.0], [0.0, np.log(2)]],
-            ),
-        ),
-        "Positive particle diffusivity [m2.s-1]": pybop.MultivariateParameter(
-            distribution_param="Negative particle diffusivity [m2.s-1]",
-            initial_value=1.1 * original_D_p,
-            bounds=[original_D_p / 2, original_D_p * 2],
-            transformation=pybop.LogTransformation(),
-        ),
-    },
 )
 
 ICI_cost = pybop.SquareRootFeatureDistance(
