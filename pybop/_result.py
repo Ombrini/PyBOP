@@ -5,7 +5,7 @@ import numpy as np
 if TYPE_CHECKING:
     from pybop import BaseOptimiser, BaseSampler
 from pybop import Logger, plot
-from pybop.parameters.multivariate_parameters import MultivariateParameters
+from pybop.parameters.parameter import Parameters
 
 
 class OptimisationResult:
@@ -390,7 +390,7 @@ class BayesianOptimisationResult(OptimisationResult):
         The lower confidence parameter boundaries.
     upper_bounds: ndarray
         The upper confidence parameter boundaries.
-    posterior : MultivariateParameters
+    posterior : Parameters
         The probability distribution of the optimisation.
     maximum_a_posteriori : Inputs or ndarray
         Complementing the best observed value in `x`, this is the
@@ -414,7 +414,7 @@ class BayesianOptimisationResult(OptimisationResult):
         message: str | None = None,
         lower_bounds: np.ndarray | None = None,
         upper_bounds: np.ndarray | None = None,
-        posterior: MultivariateParameters | None = None,
+        posterior: Parameters | None = None,
         maximum_a_posteriori: np.ndarray | None = None,
         log_evidence_mean: float | None = None,
         log_evidence_variance: float | None = None,

@@ -238,6 +238,7 @@ class Parameter:
     def transformation(self) -> Transformation:
         return self._transformation
 
+
 class MultivariateParameter(Parameter):
     def __init__(
         self,
@@ -248,11 +249,21 @@ class MultivariateParameter(Parameter):
         transformation: Transformation | None = None,
     ):
         if isinstance(distribution, BaseMultivariateDistribution):
-            super().__init__(bounds=bounds, initial_value=initial_value, transformation=transformation)
-            self._distribution=distribution
+            super().__init__(
+                bounds=bounds,
+                initial_value=initial_value,
+                transformation=transformation,
+            )
+            self._distribution = distribution
         else:
-            super().__init__(distribution=distribution, bounds=bounds, initial_value=initial_value, transformation=transformation)
-        self._distribution_param = distribution_param
+            super().__init__(
+                distribution=distribution,
+                bounds=bounds,
+                initial_value=initial_value,
+                transformation=transformation,
+            )
+        self.distribution_param = distribution_param
+
 
 class Parameters:
     """
@@ -300,18 +311,25 @@ class Parameters:
         """Add a parameter to the collection."""
         self._add(name, parameter, check_multivariate=check_multivariate)
 
-
     def check_multivariate(self):
-        self._multivariate = any(isinstance(param, MultivariateParameter) for param in self)
+        self._multivariate = any(
+            isinstance(param, MultivariateParameter) for param in self
+        )
         if self._multivariate:
             if not all(isinstance(param, MultivariateParameter) for param in self):
-                raise TypeError('A MultivariateParameter cannot be combined with other types of parameters')
-            self.distribution = self._parameters[next(iter(self._parameters.values()))._distribution_param].distribution
-                
-
+                raise TypeError(
+                    "A MultivariateParameter cannot be combined with other types of parameters"
+                )
+            self.distribution = self._parameters[
+                next(iter(self._parameters.values())).distribution_param
+            ].distribution
 
     def _add(
-        self, name: str, parameter: Parameter, update_transform: bool = True, check_multivariate=True
+        self,
+        name: str,
+        parameter: Parameter,
+        update_transform: bool = True,
+        check_multivariate=True,
     ) -> None:
         """
         Internal method to add a parameter to the collection.
@@ -334,7 +352,7 @@ class Parameters:
         if update_transform:
             self._transform = self.construct_transformation()
         if check_multivariate:
-                self.check_multivariate()
+            self.check_multivariate()
 
     def remove(self, name: str) -> Parameter:
         """Remove parameter and return it."""

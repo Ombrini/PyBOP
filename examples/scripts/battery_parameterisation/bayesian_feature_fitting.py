@@ -62,7 +62,7 @@ dataset = pybop.Dataset(
 simulator.parameters = pybop.Parameters(
     {
         "Negative particle diffusivity [m2.s-1]": pybop.MultivariateParameter(
-            distribution_param = "Negative particle diffusivity [m2.s-1]",
+            distribution_param="Negative particle diffusivity [m2.s-1]",
             initial_value=0.9 * original_D_n,
             bounds=[original_D_n / 2, original_D_n * 2],
             transformation=pybop.LogTransformation(),
@@ -72,7 +72,7 @@ simulator.parameters = pybop.Parameters(
             ),
         ),
         "Positive particle diffusivity [m2.s-1]": pybop.MultivariateParameter(
-            distribution_param = "Negative particle diffusivity [m2.s-1]",
+            distribution_param="Negative particle diffusivity [m2.s-1]",
             initial_value=1.1 * original_D_p,
             bounds=[original_D_p / 2, original_D_p * 2],
             transformation=pybop.LogTransformation(),
