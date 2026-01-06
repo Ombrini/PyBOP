@@ -59,23 +59,25 @@ dataset = pybop.Dataset(
 )
 
 # Override the forced univariate Parameters
-simulator.parameters = pybop.MultivariateParameters(
+simulator.parameters = pybop.Parameters(
     {
-        "Negative particle diffusivity [m2.s-1]": pybop.Parameter(
+        "Negative particle diffusivity [m2.s-1]": pybop.MultivariateParameter(
+            distribution_param = "Negative particle diffusivity [m2.s-1]",
             initial_value=0.9 * original_D_n,
             bounds=[original_D_n / 2, original_D_n * 2],
             transformation=pybop.LogTransformation(),
+            distribution=pybop.MultivariateGaussian(
+                [np.log(original_D_n), np.log(original_D_p)],
+                [[np.log(2), 0.0], [0.0, np.log(2)]],
+            ),
         ),
-        "Positive particle diffusivity [m2.s-1]": pybop.Parameter(
+        "Positive particle diffusivity [m2.s-1]": pybop.MultivariateParameter(
+            distribution_param = "Negative particle diffusivity [m2.s-1]",
             initial_value=1.1 * original_D_p,
             bounds=[original_D_p / 2, original_D_p * 2],
             transformation=pybop.LogTransformation(),
         ),
     },
-    distribution=pybop.MultivariateGaussian(
-        [np.log(original_D_n), np.log(original_D_p)],
-        [[np.log(2), 0.0], [0.0, np.log(2)]],
-    ),
 )
 
 ICI_cost = pybop.SquareRootFeatureDistance(
@@ -97,9 +99,6 @@ if __name__ == "__main__":
     ICI_problem = pybop.Problem(simulator, ICI_cost)
     GITT_problem = pybop.Problem(simulator, GITT_cost)
     problem = pybop.MetaProblem(ICI_problem, GITT_problem)
-
-    # Copy the MultivariateParameters to the meta-problem
-    problem.parameters = simulator.parameters
 
     # Set up and run the optimiser, increase the number of iterations
     # and samples to improve accuracy

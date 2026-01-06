@@ -11,6 +11,7 @@ import scipy.stats as stats
 from numpy.typing import NDArray
 
 from pybop.parameters.distributions import Distribution
+from pybop.parameters.multivariate_distributions import BaseMultivariateDistribution
 from pybop.transformation.base_transformation import Transformation
 from pybop.transformation.transformations import (
     ComposedTransformation,
@@ -237,6 +238,21 @@ class Parameter:
     def transformation(self) -> Transformation:
         return self._transformation
 
+class MultivariateParameter(Parameter):
+    def __init__(
+        self,
+        distribution_param,
+        distribution: stats.distributions.rv_frozen | Distribution | None = None,
+        bounds: BoundsPair | None = None,
+        initial_value: float = None,
+        transformation: Transformation | None = None,
+    ):
+        if isinstance(distribution, BaseMultivariateDistribution):
+            super().__init__(bounds=bounds, initial_value=initial_value, transformation=transformation)
+            self._distribution=distribution
+        else:
+            super().__init__(distribution=distribution, bounds=bounds, initial_value=initial_value, transformation=transformation)
+        self._distribution_param = distribution_param
 
 class Parameters:
     """
@@ -253,12 +269,12 @@ class Parameters:
             raise TypeError(
                 "parameters must be either a dictionary or a pybop.Parameters instance"
             )
-
         self._parameters = OrderedDict()
         for name, param in parameters.items():
-            self._add(name, param, update_transform=False)
+            self._add(name, param, update_transform=False, check_multivariate=False)
 
         self._transform = self.construct_transformation()
+        self.check_multivariate()
 
     def __getitem__(self, name: str) -> Parameter:
         return self.get(name)
@@ -280,12 +296,22 @@ class Parameters:
     def __iter__(self) -> Iterator[Parameter]:
         return iter(self._parameters.values())
 
-    def add(self, name: str, parameter: Parameter) -> None:
+    def add(self, name: str, parameter: Parameter, check_multivariate=True) -> None:
         """Add a parameter to the collection."""
-        self._add(name, parameter)
+        self._add(name, parameter, check_multivariate=check_multivariate)
+
+
+    def check_multivariate(self):
+        self._multivariate = any(isinstance(param, MultivariateParameter) for param in self)
+        if self._multivariate:
+            if not all(isinstance(param, MultivariateParameter) for param in self):
+                raise TypeError('A MultivariateParameter cannot be combined with other types of parameters')
+            self.distribution = self._parameters[next(iter(self._parameters.values()))._distribution_param].distribution
+                
+
 
     def _add(
-        self, name: str, parameter: Parameter, update_transform: bool = True
+        self, name: str, parameter: Parameter, update_transform: bool = True, check_multivariate=True
     ) -> None:
         """
         Internal method to add a parameter to the collection.
@@ -307,6 +333,8 @@ class Parameters:
 
         if update_transform:
             self._transform = self.construct_transformation()
+        if check_multivariate:
+                self.check_multivariate()
 
     def remove(self, name: str) -> Parameter:
         """Remove parameter and return it."""
@@ -326,9 +354,11 @@ class Parameters:
         """
         for name, param in parameters.items():
             if name not in self._parameters.keys():
-                self.add(name, param)
+                self.add(name, param, check_multivariate=False)
             else:
                 print(f"Discarding duplicate {name}.")
+
+        self.check_multivariate()
 
     def get(self, name: str) -> Parameter:
         """Get a parameter by name."""
@@ -336,13 +366,15 @@ class Parameters:
             raise ParameterNotFoundError(f"Parameter for '{name}' not found")
         return self._parameters[name]
 
-    def set(self, name: str, param: Parameter) -> None:
+    def set(self, name: str, param: Parameter, check_multivariate=True) -> None:
         """Get a parameter by name."""
         if name not in self._parameters:
             raise ParameterNotFoundError(f"Parameter for '{name}' not found")
         if not isinstance(param, Parameter):
-            raise TypeError({"Paremeter must be of type pybop.ParemterInfo"})
+            raise TypeError({"Paremeter must be of type pybop.Paremter"})
         self._parameters[name] = param
+        if check_multivariate:
+            self.check_multivariate()
 
     def get_bounds(self, transformed: bool = False) -> dict:
         """
@@ -449,22 +481,47 @@ class Parameters:
         """
         Sample from each parameter distribution.
 
+        or
+
+        Draw random samples from the joint parameters distribution for multivariate parameters.
+
+        Parameters
+        ----------
+        n_samples : int
+            The number of samples to draw (default: 1).
+        random_state : int, optional
+            The random state seed for reproducibility (default: None).
+        transformed: bool
+            If True, the transformation is applied to the output
+            (default: False).
+
         Returns
         -------
         NDArray[np.floating] or None
             Array of shape (n_samples, n_parameters) or None if any distribution is missing
         """
-        all_samples = []
 
-        for param in self._parameters.values():
-            samples = param.sample_from_distribution(
-                n_samples, random_state=random_state, transformed=transformed
-            )
-            if samples is None:
-                return None
-            all_samples.append(samples)
+        if self._multivariate:
+            samples = self.distribution.rvs(n_samples, random_state=random_state)
+            if samples.ndim < 2:
+                samples = np.atleast_2d(samples)
 
-        return np.column_stack(all_samples)
+            if transformed:
+                samples = np.asarray([self.transformation.to_model(s) for s in samples])
+
+            return samples
+        else:
+            all_samples = []
+
+            for param in self._parameters.values():
+                samples = param.sample_from_distribution(
+                    n_samples, random_state=random_state, transformed=transformed
+                )
+                if samples is None:
+                    return None
+                all_samples.append(samples)
+
+            return np.column_stack(all_samples)
 
     def get_sigma0(self, transformed: bool = False) -> list:
         """
