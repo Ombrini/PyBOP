@@ -311,3 +311,106 @@ class TestMultivariateParameter:
         assert samples.T[1].max() <= 1e-14
         # assert multivariate_parameters.pdf(np.asarray([3.9e-14, 1e-15])) > 0
         assert multivariate_parameters.distribution is not None
+
+    def test_input_checks_multivariate_parameters(self):
+        with pytest.raises(
+            TypeError,
+            match="A MultivariateParameter cannot be combined with other types of parameters",
+        ):
+            pybop.Parameters(
+                {
+                    "Negative particle diffusivity [m2.s-1]": pybop.MultivariateParameter(
+                        distribution_param="Negative particle diffusivity [m2.s-1]",
+                        distribution=pybop.MultivariateGaussian(
+                            [np.log(3.9e-14), np.log(1e-15)],
+                            [[np.log(10), 0.0], [0.0, np.log(10)]],
+                        ),
+                        initial_value=3.9e-14,
+                        bounds=[3.9e-15, 3.9e-13],
+                        transformation=pybop.LogTransformation(),
+                    ),
+                    "Positive particle diffusivity [m2.s-1]": pybop.Parameter(
+                        initial_value=1e-15,
+                        bounds=[1e-16, 1e-14],
+                        transformation=pybop.LogTransformation(),
+                    ),
+                },
+            )
+
+        params = pybop.Parameters(
+            {
+                "Negative particle diffusivity [m2.s-1]": pybop.Parameter(
+                    initial_value=3.9e-14,
+                    bounds=[3.9e-15, 3.9e-13],
+                    transformation=pybop.LogTransformation(),
+                ),
+                "Positive particle diffusivity [m2.s-1]": pybop.Parameter(
+                    initial_value=1e-15,
+                    bounds=[1e-16, 1e-14],
+                    transformation=pybop.LogTransformation(),
+                ),
+            },
+        )
+
+        with pytest.raises(
+            TypeError,
+            match="A MultivariateParameter cannot be combined with other types of parameters",
+        ):
+            params["Negative particle diffusivity [m2.s-1]"] = (
+                pybop.MultivariateParameter(
+                    distribution_param="Negative particle diffusivity [m2.s-1]",
+                    distribution=pybop.MultivariateGaussian(
+                        [np.log(3.9e-14), np.log(1e-15)],
+                        [[np.log(10), 0.0], [0.0, np.log(10)]],
+                    ),
+                    initial_value=3.9e-14,
+                    bounds=[3.9e-15, 3.9e-13],
+                    transformation=pybop.LogTransformation(),
+                )
+            )
+
+        with pytest.raises(
+            ValueError,
+            match="All MultivariateParameters must share the same distribution.",
+        ):
+            pybop.Parameters(
+                {
+                    "Negative particle diffusivity [m2.s-1]": pybop.MultivariateParameter(
+                        distribution_param="Negative particle diffusivity [m2.s-1]",
+                        distribution=pybop.MultivariateGaussian(
+                            [np.log(3.9e-14), np.log(1e-15)],
+                            [[np.log(10), 0.0], [0.0, np.log(10)]],
+                        ),
+                        initial_value=3.9e-14,
+                        bounds=[3.9e-15, 3.9e-13],
+                        transformation=pybop.LogTransformation(),
+                    ),
+                    "Positive particle diffusivity [m2.s-1]": pybop.MultivariateParameter(
+                        distribution_param="Positive particle diffusivity [m2.s-1]",
+                        initial_value=1e-15,
+                        bounds=[1e-16, 1e-14],
+                        transformation=pybop.LogTransformation(),
+                    ),
+                },
+            )
+
+        with pytest.raises(
+            TypeError,
+            match="The distribution provided for MultivariateParameters must be a BaseMultivariateDistribution.",
+        ):
+            pybop.Parameters(
+                {
+                    "Negative particle diffusivity [m2.s-1]": pybop.MultivariateParameter(
+                        distribution_param="Negative particle diffusivity [m2.s-1]",
+                        distribution=pybop.Gaussian(0.0, 1.0),
+                        initial_value=3.9e-14,
+                        transformation=pybop.LogTransformation(),
+                    ),
+                    "Positive particle diffusivity [m2.s-1]": pybop.MultivariateParameter(
+                        distribution_param="Negative particle diffusivity [m2.s-1]",
+                        initial_value=1e-15,
+                        bounds=[1e-16, 1e-14],
+                        transformation=pybop.LogTransformation(),
+                    ),
+                },
+            )

@@ -320,9 +320,17 @@ class Parameters:
                 raise TypeError(
                     "A MultivariateParameter cannot be combined with other types of parameters"
                 )
-            self.distribution = self._parameters[
-                next(iter(self._parameters.values())).distribution_param
-            ].distribution
+            dist_param = next(iter(self._parameters.values())).distribution_param
+            if not all(param.distribution_param == dist_param for param in self):
+                raise ValueError(
+                    "All MultivariateParameters must share the same distribution."
+                )
+            self.distribution = self._parameters[dist_param].distribution
+
+            if not isinstance(self.distribution, BaseMultivariateDistribution):
+                raise TypeError(
+                    "The distribution provided for MultivariateParameters must be a BaseMultivariateDistribution."
+                )
 
     def _add(
         self,
