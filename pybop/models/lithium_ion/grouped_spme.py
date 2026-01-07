@@ -56,7 +56,7 @@ class GroupedSPMe(pybamm_lithium_ion.BaseModel):
             doi       = {10.1149/1945-7111/add41b}
             }
         """
-        )
+        )  # Note that the electrode electrolyte timescales have been replaced by relative transport efficiencies
 
         ######################
         # Variables
@@ -155,9 +155,9 @@ class GroupedSPMe(pybamm_lithium_ion.BaseModel):
         zeta_n = Parameter("Negative electrode relative porosity")
         zeta_p = Parameter("Positive electrode relative porosity")
 
-        tau_e_n = Parameter("Negative electrode electrolyte diffusion time scale [s]")
-        tau_e_sep = Parameter("Separator electrolyte diffusion time scale [s]")
-        tau_e_p = Parameter("Positive electrode electrolyte diffusion time scale [s]")
+        tau_e = Parameter("Electrolyte diffusion time scale [s]")
+        beta_n = Parameter("Negative electrode relative transport efficiency")
+        beta_p = Parameter("Positive electrode relative transport efficiency")
 
         ######################
         # Input current (positive on discharge)
@@ -273,35 +273,32 @@ class GroupedSPMe(pybamm_lithium_ion.BaseModel):
         # Electrolyte
         ######################
         self.rhs[sto_e_n] = (
-            pybamm.div(pybamm.grad(sto_e_n) / tau_e_n - (t_plus * I / Q_e) * x_n / l_n)
+            pybamm.div(
+                pybamm.grad(sto_e_n) * beta_n / tau_e - (t_plus * I / Q_e) * x_n / l_n
+            )
             + (3 / Q_e) * Q_th_n * j_n / l_n
         ) / zeta_n
         self.rhs[sto_e_sep] = pybamm.div(
-            pybamm.grad(sto_e_sep) / tau_e_sep - t_plus * I / Q_e
+            pybamm.grad(sto_e_sep) / tau_e - t_plus * I / Q_e
         )
         self.rhs[sto_e_p] = (
             pybamm.div(
-                pybamm.grad(sto_e_p) / tau_e_p - (t_plus * I / Q_e) * (1 - x_p) / l_p
+                pybamm.grad(sto_e_p) * beta_p / tau_e
+                - (t_plus * I / Q_e) * (1 - x_p) / l_p
             )
             + (3 / Q_e) * Q_th_p * j_p / l_p
         ) / zeta_p
 
         self.boundary_conditions[sto_e_n] = {
             "left": (Scalar(0), "Neumann"),
-            "right": (
-                tau_e_n * pybamm.boundary_gradient(sto_e_sep, "left") / tau_e_sep,
-                "Neumann",
-            ),
+            "right": (pybamm.boundary_gradient(sto_e_sep, "left") / beta_n, "Neumann"),
         }
         self.boundary_conditions[sto_e_sep] = {
             "left": (pybamm.boundary_value(sto_e_n, "right"), "Dirichlet"),
             "right": (pybamm.boundary_value(sto_e_p, "left"), "Dirichlet"),
         }
         self.boundary_conditions[sto_e_p] = {
-            "left": (
-                tau_e_p * pybamm.boundary_gradient(sto_e_sep, "right") / tau_e_sep,
-                "Neumann",
-            ),
+            "left": (pybamm.boundary_gradient(sto_e_sep, "right") / beta_p, "Neumann"),
             "right": (Scalar(0), "Neumann"),
         }
 
@@ -610,7 +607,7 @@ class GroupedSPMe(pybamm_lithium_ion.BaseModel):
         epsilon_sep = param["Separator porosity"]
         b_sep = param["Separator Bruggeman coefficient (electrolyte)"]
         t_plus = param["Cation transference number"]
-        sigma_e = param["Electrolyte conductivity [S.m-1]"]  # (ce0, T)
+        kappa_e = param["Electrolyte conductivity [S.m-1]"]  # (ce0, T)
 
         # Compute the cell area and thickness
         A = param["Electrode height [m]"] * param["Electrode width [m]"]
@@ -621,7 +618,7 @@ class GroupedSPMe(pybamm_lithium_ion.BaseModel):
             L_p / (3 * epsilon_p**b_p)
             + L_s / (epsilon_sep**b_sep)
             + L_n / (3 * epsilon_n**b_n)
-        ) / (sigma_e * A)
+        ) / (kappa_e * A)
         Rs = (L_p / sigma_p + L_n / sigma_n) / (3 * A)
         R0 = Re + Rs + param["Contact resistance [Ohm]"]
 
@@ -652,9 +649,9 @@ class GroupedSPMe(pybamm_lithium_ion.BaseModel):
         tau_d_p = R_p**2 / D_p
         tau_d_n = R_n**2 / D_n
 
-        tau_e_p = epsilon_sep * L**2 / (epsilon_p**b_p * De)
-        tau_e_n = epsilon_sep * L**2 / (epsilon_n**b_n * De)
-        tau_e_sep = epsilon_sep * L**2 / (epsilon_sep**b_sep * De)
+        tau_e = epsilon_sep * L**2 / (epsilon_sep**b_sep * De)
+        beta_p = epsilon_p**b_p / epsilon_sep**b_sep
+        beta_n = epsilon_n**b_n / epsilon_sep**b_sep
 
         tau_ct_p = F * R_p / (m_p * np.sqrt(ce0))
         tau_ct_n = F * R_n / (m_n * np.sqrt(ce0))
@@ -684,9 +681,9 @@ class GroupedSPMe(pybamm_lithium_ion.BaseModel):
             "Negative electrode relative porosity": zeta_n,
             "Positive particle diffusion time scale [s]": tau_d_p,
             "Negative particle diffusion time scale [s]": tau_d_n,
-            "Positive electrode electrolyte diffusion time scale [s]": tau_e_p,
-            "Negative electrode electrolyte diffusion time scale [s]": tau_e_n,
-            "Separator electrolyte diffusion time scale [s]": tau_e_sep,
+            "Electrolyte diffusion time scale [s]": tau_e,
+            "Positive electrode relative transport efficiency": beta_p,
+            "Negative electrode relative transport efficiency": beta_n,
             "Positive electrode charge transfer time scale [s]": tau_ct_p,
             "Negative electrode charge transfer time scale [s]": tau_ct_n,
             "Positive electrode capacitance [F]": C_p,
