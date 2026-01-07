@@ -49,7 +49,9 @@ class TestModels:
         fig = solution.plot()
         assert isinstance(fig, pybamm.QuickPlot)
 
-        if isinstance(model, pybop.lithium_ion.GroupedSPMe):
+        if isinstance(
+            model, pybop.lithium_ion.GroupedSPMe | pybop.lithium_ion.GroupedDFN
+        ):
             for split in [False, True]:
                 fig, ax = solution.plot_voltage_components(split_by_electrode=split)
                 assert isinstance(fig, Figure)

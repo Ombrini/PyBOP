@@ -49,7 +49,8 @@ class GroupedDFN(pybamm_lithium_ion.BaseModel):
             doi       = {10.1149/1945-7111/add41b}
             }
         """
-        )
+        )  # Note that the electrode electrolyte timescales have been replaced by relative transport efficiencies
+        # and there is an additional variable (i_e) and associated grouped parameter (gamma_e) compared to the SPMe
 
         ######################
         # Variables
@@ -146,13 +147,11 @@ class GroupedDFN(pybamm_lithium_ion.BaseModel):
         zeta_n = Parameter("Negative electrode relative porosity")
         zeta_p = Parameter("Positive electrode relative porosity")
 
-        tau_e_n = Parameter("Negative electrode electrolyte diffusion time scale [s]")
-        tau_e_sep = Parameter("Separator electrolyte diffusion time scale [s]")
-        tau_e_p = Parameter("Positive electrode electrolyte diffusion time scale [s]")
+        beta_n = Parameter("Negative electrode relative transport efficiency")
+        beta_p = Parameter("Positive electrode relative transport efficiency")
 
-        varsigma_e = Parameter("Reference electrolyte scaled conductivity [V-1.s-1]")
-        varsigma_e_n = varsigma_e * tau_e_sep / tau_e_n
-        varsigma_e_p = varsigma_e * tau_e_sep / tau_e_p
+        tau_e = Parameter("Electrolyte diffusion time scale [s]")
+        gamma_e = Parameter("Reference electrolyte scaled conductivity [V-1.s-1]")
 
         ######################
         # Input current (positive on discharge)
@@ -224,11 +223,11 @@ class GroupedDFN(pybamm_lithium_ion.BaseModel):
         )
 
         # Electrolyte current
-        i_e_n = varsigma_e_n * (
+        i_e_n = (beta_n * gamma_e) * (
             pybamm.grad(v_s_n)
             + (2 * RT_F * (1 - t_plus)) * pybamm.grad(sto_e_n) / sto_e_n
         )
-        i_e_p = varsigma_e_p * (
+        i_e_p = (beta_p * gamma_e) * (
             pybamm.grad(v_s_p)
             + (2 * RT_F * (1 - t_plus)) * pybamm.grad(sto_e_p) / sto_e_p
         )
@@ -243,19 +242,19 @@ class GroupedDFN(pybamm_lithium_ion.BaseModel):
         self.boundary_conditions[v_s_n] = {
             "left": (Scalar(0), "Neumann"),
             "right": (
-                I / (Q_e * varsigma_e_n)
+                I / (beta_n * gamma_e * Q_e)
                 - (2 * RT_F * (1 - t_plus))
-                * pybamm.boundary_gradient(sto_e_n, "right")
-                / pybamm.boundary_value(sto_e_n, "right"),
+                * (pybamm.boundary_gradient(sto_e_sep, "left") / beta_n)
+                / pybamm.boundary_value(sto_e_sep, "left"),
                 "Neumann",
             ),
         }
         self.boundary_conditions[v_s_p] = {
             "left": (
-                I / (Q_e * varsigma_e_p)
+                I / (beta_p * gamma_e * Q_e)
                 - (2 * RT_F * (1 - t_plus))
-                * pybamm.boundary_gradient(sto_e_p, "left")
-                / pybamm.boundary_value(sto_e_p, "left"),
+                * (pybamm.boundary_gradient(sto_e_sep, "right") / beta_p)
+                / pybamm.boundary_value(sto_e_sep, "right"),
                 "Neumann",
             ),
             "right": (Scalar(0), "Neumann"),
@@ -286,31 +285,25 @@ class GroupedDFN(pybamm_lithium_ion.BaseModel):
         # Electrolyte
         ######################
         self.rhs[sto_e_n] = (
-            pybamm.div(pybamm.grad(sto_e_n) / tau_e_n + (1 - t_plus) * i_e_n)
+            pybamm.div(pybamm.grad(sto_e_n) * beta_n / tau_e + (1 - t_plus) * i_e_n)
         ) / zeta_n
         self.rhs[sto_e_sep] = pybamm.div(
-            pybamm.grad(sto_e_sep) / tau_e_sep - t_plus * I / Q_e
+            pybamm.grad(sto_e_sep) / tau_e - t_plus * I / Q_e
         )
         self.rhs[sto_e_p] = (
-            pybamm.div(pybamm.grad(sto_e_p) / tau_e_p + (1 - t_plus) * i_e_p)
+            pybamm.div(pybamm.grad(sto_e_p) * beta_p / tau_e + (1 - t_plus) * i_e_p)
         ) / zeta_p
 
         self.boundary_conditions[sto_e_n] = {
             "left": (Scalar(0), "Neumann"),
-            "right": (
-                tau_e_n * pybamm.boundary_gradient(sto_e_sep, "left") / tau_e_sep,
-                "Neumann",
-            ),
+            "right": (pybamm.boundary_gradient(sto_e_sep, "left") / beta_n, "Neumann"),
         }
         self.boundary_conditions[sto_e_sep] = {
             "left": (pybamm.boundary_value(sto_e_n, "right"), "Dirichlet"),
             "right": (pybamm.boundary_value(sto_e_p, "left"), "Dirichlet"),
         }
         self.boundary_conditions[sto_e_p] = {
-            "left": (
-                tau_e_p * pybamm.boundary_gradient(sto_e_sep, "right") / tau_e_sep,
-                "Neumann",
-            ),
+            "left": (pybamm.boundary_gradient(sto_e_sep, "right") / beta_p, "Neumann"),
             "right": (Scalar(0), "Neumann"),
         }
 
@@ -323,32 +316,32 @@ class GroupedDFN(pybamm_lithium_ion.BaseModel):
         )
 
         # Electrolyte overpotential
-        eta_e = (
+        eta_e = (2 * (1 - t_plus) * RT_F) * (
+            pybamm.x_average(pybamm.log(sto_e_p))
+            - pybamm.x_average(pybamm.log(sto_e_n))
+        )
+
+        # Electrolyte Ohmic losses
+        DPhi_e = (
             (2 * (1 - t_plus) * RT_F)
             * (
-                pybamm.log(pybamm.boundary_value(sto_e_sep, "right"))
-                - pybamm.log(pybamm.boundary_value(sto_e_sep, "left"))
+                pybamm.log(pybamm.boundary_value(sto_e_p, "left"))
+                - pybamm.log(pybamm.boundary_value(sto_e_n, "right"))
             )
-            - (1 - l_p - l_n) * I / (varsigma_e * Q_e)
+            - eta_e
+            - (1 - l_p - l_n) * I / (gamma_e * Q_e)
             - (
-                pybamm.boundary_value(v_s_p, "right")
+                pybamm.x_average(v_s_p)
+                - pybamm.x_average(v_s_n)
                 - pybamm.boundary_value(v_s_p, "left")
-            )
-            - (
-                pybamm.boundary_value(v_s_n, "right")
-                - pybamm.boundary_value(v_s_n, "left")
+                + pybamm.boundary_value(v_s_n, "right")
             )
         )
 
         ######################
         # Cell voltage
         ######################
-        V = (
-            pybamm.boundary_value(v_s_p, "right")
-            - pybamm.boundary_value(v_s_n, "left")
-            + eta_e
-            - R0 * I
-        )
+        V = pybamm.x_average(v_s_p) - pybamm.x_average(v_s_n) + eta_e + DPhi_e - R0 * I
 
         # Save the initial OCV
         self.param.ocv_init = U_p_init - U_n_init
@@ -358,6 +351,49 @@ class GroupedDFN(pybamm_lithium_ion.BaseModel):
             Event("Minimum voltage [V]", V - self.param.voltage_low_cut),
             Event("Maximum voltage [V]", self.param.voltage_high_cut - V),
         ]
+
+        ######################
+        # Voltage components
+        ######################
+        # Include the following variables to enable plotting via PyBaMM's plot_voltage_components
+        ocp_n_bulk = self.U(
+            pybamm.x_average(zeta_n * pybamm.r_average(sto_n))
+            / pybamm.x_average(zeta_n),
+            "negative",
+        )
+        ocp_p_bulk = self.U(
+            pybamm.x_average(zeta_p * pybamm.r_average(sto_p))
+            / pybamm.x_average(zeta_p),
+            "positive",
+        )
+        voltage_components = {
+            "Battery open-circuit voltage [V]": ocp_p_bulk - ocp_n_bulk,
+            "Battery particle concentration overpotential [V]": (
+                (pybamm.x_average(self.U(sto_p_surf, "positive")) - ocp_p_bulk)
+                - (pybamm.x_average(self.U(sto_n_surf, "negative")) - ocp_n_bulk)
+            ),
+            "X-averaged battery reaction overpotential [V]": pybamm.x_average(eta_p)
+            - pybamm.x_average(eta_n),
+            "X-averaged battery concentration overpotential [V]": eta_e,
+            "X-averaged battery electrolyte ohmic losses [V]": DPhi_e,
+            "X-averaged battery solid phase ohmic losses [V]": Scalar(0),
+            "Contact overpotential [V]": R0 * I,  #  includes solid phase Ohmic losses
+            # and split by electrode
+            "Negative electrode bulk open-circuit potential [V]": ocp_n_bulk,
+            "Positive electrode bulk open-circuit potential [V]": ocp_p_bulk,
+            "Negative particle concentration overpotential [V]": (
+                pybamm.x_average(self.U(sto_n_surf, "negative")) - ocp_n_bulk
+            ),
+            "Positive particle concentration overpotential [V]": (
+                pybamm.x_average(self.U(sto_p_surf, "positive")) - ocp_p_bulk
+            ),
+            "X-averaged negative electrode reaction overpotential [V]"
+            "": pybamm.x_average(eta_n),
+            "X-averaged positive electrode reaction overpotential [V]"
+            "": pybamm.x_average(eta_p),
+            "X-averaged battery negative solid phase ohmic losses [V]": Scalar(0),
+            "X-averaged battery positive solid phase ohmic losses [V]": Scalar(0),
+        }
 
         ######################
         # (Some) variables
@@ -386,6 +422,7 @@ class GroupedDFN(pybamm_lithium_ion.BaseModel):
                 i_e_n, PrimaryBroadcast(I / Q_e, "separator"), i_e_p
             ),
             "Time [s]": pybamm_t,
+            "Time [h]": pybamm_t / 3600,
             "Current [A]": I,
             "Current variable [A]": I,  # for compatibility with pybamm.Experiment
             "Discharge capacity [A.h]": Q,
@@ -394,6 +431,7 @@ class GroupedDFN(pybamm_lithium_ion.BaseModel):
             "Battery voltage [V]": V,
             "Open-circuit voltage [V]": pybamm.boundary_value(U_p, "right")
             - pybamm.boundary_value(U_n, "left"),
+            **voltage_components,
         }
 
     def U(self, sto, domain):
@@ -616,7 +654,7 @@ class GroupedDFN(pybamm_lithium_ion.BaseModel):
         # Grouped parameters
         Q_meas = (Q_meas_n + Q_meas_p) / 2
         Q_e = F * epsilon_sep * ce0 * L * A
-        varsigma_e = sigma_e / (F * epsilon_sep * ce0 * L**2)
+        gamma_e = sigma_e / (F * epsilon_sep * ce0 * L**2)
 
         zeta_p = epsilon_p / epsilon_sep
         zeta_n = epsilon_n / epsilon_sep
@@ -624,9 +662,9 @@ class GroupedDFN(pybamm_lithium_ion.BaseModel):
         tau_d_p = R_p**2 / D_p
         tau_d_n = R_n**2 / D_n
 
-        tau_e_p = epsilon_sep * L**2 / (epsilon_p**b_p * De)
-        tau_e_n = epsilon_sep * L**2 / (epsilon_n**b_n * De)
-        tau_e_sep = epsilon_sep * L**2 / (epsilon_sep**b_sep * De)
+        tau_e = epsilon_sep * L**2 / (epsilon_sep**b_sep * De)
+        beta_p = epsilon_p**b_p / epsilon_sep**b_sep
+        beta_n = epsilon_n**b_n / epsilon_sep**b_sep
 
         tau_ct_p = F * R_p / (m_p * np.sqrt(ce0))
         tau_ct_n = F * R_n / (m_n * np.sqrt(ce0))
@@ -652,14 +690,14 @@ class GroupedDFN(pybamm_lithium_ion.BaseModel):
             "Negative electrode OCP [V]": param["Negative electrode OCP [V]"],
             "Measured cell capacity [A.s]": Q_meas,
             "Reference electrolyte capacity [A.s]": Q_e,
-            "Reference electrolyte scaled conductivity [V-1.s-1]": varsigma_e,
+            "Reference electrolyte scaled conductivity [V-1.s-1]": gamma_e,
+            "Positive electrode relative transport efficiency": beta_p,
+            "Negative electrode relative transport efficiency": beta_n,
             "Positive electrode relative porosity": zeta_p,
             "Negative electrode relative porosity": zeta_n,
             "Positive particle diffusion time scale [s]": tau_d_p,
             "Negative particle diffusion time scale [s]": tau_d_n,
-            "Positive electrode electrolyte diffusion time scale [s]": tau_e_p,
-            "Negative electrode electrolyte diffusion time scale [s]": tau_e_n,
-            "Separator electrolyte diffusion time scale [s]": tau_e_sep,
+            "Electrolyte diffusion time scale [s]": tau_e,
             "Positive electrode charge transfer time scale [s]": tau_ct_p,
             "Negative electrode charge transfer time scale [s]": tau_ct_n,
             "Positive electrode capacitance [F]": C_p,
