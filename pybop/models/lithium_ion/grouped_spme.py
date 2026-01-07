@@ -115,6 +115,19 @@ class GroupedSPMe(pybamm_lithium_ion.BaseModel):
                 "Maximum positive particle surface stoichiometry",
                 (1 - 0.01) - pybamm.max(sto_p_surf),
             ),
+            # model does not capture electrolyte depletion, use the DFN instead
+            Event(
+                "Minimum negative electrode electrolyte stoichiometry",
+                pybamm.min(sto_e_n) - 0,
+            ),
+            Event(
+                "Minimum separator electrolyte stoichiometry",
+                pybamm.min(sto_e_sep) - 0,
+            ),
+            Event(
+                "Minimum positive electrode electrolyte stoichiometry",
+                pybamm.min(sto_e_p) - 0,
+            ),
         ]
 
         ######################
