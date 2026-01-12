@@ -281,7 +281,7 @@ class EISSimulator(BaseSimulator):
             for t in self.time_data[1:]:
                 # Step forwards in time
                 dt = (t - state.t).item()
-                new_sol = self._simulation.solver.step(
+                new_sol = self.simulation.solver.step(
                     state.sol, built_model, dt, inputs=state.inputs, save=False
                 )
                 state = TimeSeriesState(sol=new_sol, inputs=state.inputs, t=t)
@@ -458,7 +458,7 @@ class EISSimulator(BaseSimulator):
 
     @property
     def time_data(self):
-        return self._simulation.time_data
+        return self._simulator.time_data
 
     @property
     def has_sensitivities(self):
