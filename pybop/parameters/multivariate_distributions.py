@@ -77,6 +77,9 @@ class BaseMultivariateDistribution(Distribution):
     def sigma(self):
         raise NotImplementedError
 
+    def marginal(self, position):
+        raise NotImplementedError
+
 
 class MultivariateNonparametric(BaseMultivariateDistribution):
     """
@@ -108,6 +111,9 @@ class MultivariateNonparametric(BaseMultivariateDistribution):
     def rvs(self, size=1, random_state=None):
         return self.distribution.resample(size, random_state)
 
+    def marginal(self, position):
+        return self.distribution.marginal(position)
+
 
 class MultivariateUniform(BaseMultivariateDistribution):
     """
@@ -128,6 +134,12 @@ class MultivariateUniform(BaseMultivariateDistribution):
         self.name = "MultivariateUniform"
         self.properties = {"bounds": bounds}
         self._n_parameters = bounds.shape[1]
+
+    def marginal(self, position):
+        return stats.uniform(
+            self.properties["bounds"][0, position],
+            self.properties["bounds"][1, position],
+        )
 
 
 class MultivariateGaussian(BaseMultivariateDistribution):
@@ -154,7 +166,7 @@ class MultivariateGaussian(BaseMultivariateDistribution):
     def __init__(self, mean=None, covariance=None, bounds=None, random_state=None):
         super().__init__(distribution=stats.multivariate_normal)
         self.name = "MultivariateGaussian"
-        self.properties = {"mean": mean, "cov": covariance}
+        self.properties = {"mean": np.asarray(mean), "cov": np.asarray(covariance)}
         self.sigma2 = covariance
         self._n_parameters = len(mean)
 
@@ -165,3 +177,31 @@ class MultivariateGaussian(BaseMultivariateDistribution):
     @property
     def sigma(self):
         return sqrtm(self.properties["cov"])
+
+    def marginal(self, position):
+        return stats.norm(
+            loc=self.properties["mean"][position],
+            scale=self.properties["cov"][position, position],
+        )
+
+
+class MarginalDistribution(Distribution):
+    def __init__(
+        self, parent_distribution: BaseMultivariateDistribution, position: int
+    ):
+        distribution = parent_distribution.marginal(position)
+        super().__init__(distribution)
+        self._position = position
+        self.parent_distribution = parent_distribution
+
+    def mean(self):
+        if isinstance(self.parent_distribution, MultivariateNonparametric):
+            return np.mean(self.distribution.dataset)
+        else:
+            return self.distribution.mean()
+
+    def std(self):
+        if isinstance(self.parent_distribution, MultivariateNonparametric):
+            return np.std(self.distribution.dataset, ddof=1)
+        else:
+            return self.distribution.std()

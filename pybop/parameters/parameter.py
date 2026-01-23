@@ -11,7 +11,9 @@ import scipy.stats as stats
 from numpy.typing import NDArray
 
 from pybop.parameters.distributions import Distribution
-from pybop.parameters.multivariate_distributions import BaseMultivariateDistribution
+from pybop.parameters.multivariate_distributions import (
+    MarginalDistribution,
+)
 from pybop.transformation.base_transformation import Transformation
 from pybop.transformation.transformations import (
     ComposedTransformation,
@@ -239,32 +241,6 @@ class Parameter:
         return self._transformation
 
 
-class MultivariateParameter(Parameter):
-    def __init__(
-        self,
-        distribution_param,
-        distribution: stats.distributions.rv_frozen | Distribution | None = None,
-        bounds: BoundsPair | None = None,
-        initial_value: float = None,
-        transformation: Transformation | None = None,
-    ):
-        if isinstance(distribution, BaseMultivariateDistribution):
-            super().__init__(
-                bounds=bounds,
-                initial_value=initial_value,
-                transformation=transformation,
-            )
-            self._distribution = distribution
-        else:
-            super().__init__(
-                distribution=distribution,
-                bounds=bounds,
-                initial_value=initial_value,
-                transformation=transformation,
-            )
-        self.distribution_param = distribution_param
-
-
 class Parameters:
     """
     Container for managing multiple Parameter objects with additional functionality.
@@ -313,24 +289,25 @@ class Parameters:
 
     def check_multivariate(self):
         self._multivariate = any(
-            isinstance(param, MultivariateParameter) for param in self
+            isinstance(param.distribution, MarginalDistribution) for param in self
         )
         if self._multivariate:
-            if not all(isinstance(param, MultivariateParameter) for param in self):
+            if not all(
+                isinstance(param.distribution, MarginalDistribution) for param in self
+            ):
                 raise TypeError(
-                    "A MultivariateParameter cannot be combined with other types of parameters"
+                    "A Parameters with a MarginalDistribution cannot be combined with other with parameters with other types of distributions"
                 )
-            dist_param = next(iter(self._parameters.values())).distribution_param
-            if not all(param.distribution_param == dist_param for param in self):
+            dist = next(
+                iter(self._parameters.values())
+            ).distribution.parent_distribution
+            if not all(
+                param.distribution.parent_distribution == dist for param in self
+            ):
                 raise ValueError(
-                    "All MultivariateParameters must share the same distribution."
+                    "All MarginalDistributions must share the same parent MultivariateDistribution."
                 )
-            self.distribution = self._parameters[dist_param].distribution
-
-            if not isinstance(self.distribution, BaseMultivariateDistribution):
-                raise TypeError(
-                    "The distribution provided for MultivariateParameters must be a BaseMultivariateDistribution."
-                )
+            self.distribution = dist
 
     def _add(
         self,

@@ -12,25 +12,19 @@ original_D_n = parameter_values["Negative particle diffusivity [m2.s-1]"]
 original_D_p = parameter_values["Positive particle diffusivity [m2.s-1]"]
 
 # Set multivariate parameters
-parameter_values["Negative particle diffusivity [m2.s-1]"] = (
-    pybop.MultivariateParameter(
-        distribution_param="Negative particle diffusivity [m2.s-1]",
-        initial_value=0.9 * original_D_n,
-        bounds=[original_D_n / 2, original_D_n * 2],
-        transformation=pybop.LogTransformation(),
-        distribution=pybop.MultivariateGaussian(
-            [np.log(original_D_n), np.log(original_D_p)],
-            [[np.log(2), 0.0], [0.0, np.log(2)]],
-        ),
-    )
+distribution = pybop.MultivariateGaussian(
+    [np.log(original_D_n), np.log(original_D_p)],
+    [[np.log(2), 0.0], [0.0, np.log(2)]],
 )
-parameter_values["Positive particle diffusivity [m2.s-1]"] = (
-    pybop.MultivariateParameter(
-        distribution_param="Negative particle diffusivity [m2.s-1]",
-        initial_value=1.1 * original_D_p,
-        bounds=[original_D_p / 2, original_D_p * 2],
-        transformation=pybop.LogTransformation(),
-    )
+parameter_values["Negative particle diffusivity [m2.s-1]"] = pybop.Parameter(
+    initial_value=0.9 * original_D_n,
+    transformation=pybop.LogTransformation(),
+    distribution=pybop.MarginalDistribution(distribution, 0),
+)
+parameter_values["Positive particle diffusivity [m2.s-1]"] = pybop.Parameter(
+    initial_value=1.1 * original_D_p,
+    transformation=pybop.LogTransformation(),
+    distribution=pybop.MarginalDistribution(distribution, 1),
 )
 
 # Set up simulator with custom settings

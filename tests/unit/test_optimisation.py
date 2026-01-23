@@ -118,44 +118,25 @@ class TestOptimisation:
     @pytest.fixture
     def multivariate_simulator(self, model, dataset):
         parameter_values = model.default_parameter_values
-        # Put empty Parameter slots as placeholders
-        parameter_values["Negative electrode active material volume fraction"] = (
-            pybop.Parameter()
-        )
-        parameter_values["Positive electrode active material volume fraction"] = (
-            pybop.Parameter()
+        distribution = pybop.MultivariateGaussian(
+            [0.6, 0.5], [[0.02, 0.0], [0.0, 0.05]]
         )
         parameter_values.update(
             {
                 "Negative electrode active material volume fraction": pybop.Parameter(
-                    distribution=pybop.Gaussian(0.6, 0.02)
+                    distribution=pybop.MarginalDistribution(distribution, 0),
+                    initial_value=0.6,
                 ),
                 "Positive electrode active material volume fraction": pybop.Parameter(
-                    distribution=pybop.Gaussian(0.5, 0.05)
+                    distribution=pybop.MarginalDistribution(distribution, 1),
+                    initial_value=0.5,
                 ),
             }
         )
         simulator = pybop.pybamm.Simulator(
             model, parameter_values=parameter_values, protocol=dataset
         )
-        # Override the forced univariate Parameters
-        simulator.parameters = pybop.Parameters(
-            {
-                "Negative electrode active material volume fraction": pybop.MultivariateParameter(
-                    distribution_param="Negative electrode active material volume fraction",
-                    distribution=pybop.MultivariateGaussian(
-                        [0.6, 0.5], [[0.02, 0.0], [0.0, 0.05]]
-                    ),
-                    initial_value=0.6,
-                    bounds=[0.001, 0.999],
-                ),
-                "Positive electrode active material volume fraction": pybop.MultivariateParameter(
-                    distribution_param="Negative electrode active material volume fraction",
-                    initial_value=0.5,
-                    bounds=[0.001, 0.999],
-                ),
-            },
-        )
+
         return simulator
 
     @pytest.fixture
