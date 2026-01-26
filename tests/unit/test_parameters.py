@@ -224,6 +224,12 @@ class TestParameters:
         assert (samples >= -0.125).all() and (samples <= -0.06).all()
         parameter._transformation = None
 
+        param = pybop.Parameter(initial_value=0.5)
+        params = pybop.Parameters({name: param})
+
+        samples = params.sample_from_distribution(n_samples=500, transformed=True)
+        assert samples is None
+
     def test_get_sigma(self, name):
         parameter = pybop.Parameter(stats.norm(loc=0.6, scale=0.02))
         params = pybop.Parameters({name: parameter})

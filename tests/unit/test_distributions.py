@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from scipy import stats
 from scipy.linalg import sqrtm
 
 import pybop
@@ -43,8 +44,12 @@ class TestDistributions:
         return pybop.MultivariateUniform(np.asarray([[0, 0], [1, 2]]))
 
     @pytest.fixture
-    def MultivariateNonparametric(self, MultivariateGaussian):
-        return pybop.MultivariateNonparametric(MultivariateGaussian.rvs(100).T)
+    def random_dataset(self, MultivariateGaussian):
+        return MultivariateGaussian.rvs(100).T
+
+    @pytest.fixture
+    def MultivariateNonparametric(self, random_dataset):
+        return pybop.MultivariateNonparametric(random_dataset)
 
     def test_distribution_class(self):
         base = pybop.Distribution()
@@ -192,7 +197,11 @@ class TestDistributions:
             pybop.JointDistribution(Gaussian, Uniform, 0.5)
 
     def test_multivariate_distributions(
-        self, MultivariateGaussian, MultivariateUniform, MultivariateNonparametric
+        self,
+        MultivariateGaussian,
+        MultivariateUniform,
+        MultivariateNonparametric,
+        random_dataset,
     ):
         assert (
             MultivariateNonparametric.pdf(np.asarray([0, 1]))
@@ -216,3 +225,13 @@ class TestDistributions:
         np.testing.assert_allclose(
             MultivariateGaussian.sigma, sqrtm(np.asarray([[0.2, 0.0], [0.0, 2.0]]))
         )
+
+        # Test marginal distributions of multivariate distributions
+        assert isinstance(MultivariateNonparametric.marginal(0), stats.gaussian_kde)
+        marginal = pybop.MarginalDistribution(MultivariateNonparametric, 1)
+        assert pytest.approx(marginal.mean()) == np.mean(random_dataset[1, :])
+        assert pytest.approx(marginal.std()) == np.std(random_dataset[1, :], ddof=1)
+
+        marginal = pybop.MarginalDistribution(MultivariateGaussian, 0)
+        assert pytest.approx(marginal.mean()) == 0
+        assert pytest.approx(marginal.std()) == 0.2
