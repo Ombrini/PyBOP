@@ -14,7 +14,7 @@ from torch import tensor
 import pybop
 from pybop import BaseOptimiser
 from pybop._logging import Logger
-from pybop._result import BayesianOptimisationResult
+from pybop.optimisers.ep_bolfi_optimiser import BayesianOptimisationResult
 
 
 @dataclass
