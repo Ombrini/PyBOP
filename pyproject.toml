@@ -25,15 +25,15 @@ classifiers = [
 ]
 requires-python = ">=3.10, <3.13"
 dependencies = [
-    "pybamm>=25.10.1",
-    "numpy",
-    "scipy>=1.3",
+    "pybamm>=25.12.0",
+    "numpy>=1.26",
+    "scipy>=1.12",
     "pints>=0.5.1",
     "SALib>=1.5",
 ]
 
 [project.optional-dependencies]
-plot = ["plotly>=5.0"]
+plot = ["plotly>=6"]
 docs = [
     "pydata-sphinx-theme",
     "sphinx>=6",
@@ -54,7 +54,7 @@ dev = [
     "pytest-mock",
     "pytest-xdist",
     "ruff",
-    ]
+]
 scifem = [
   "scikit-fem>=8.1.0" # scikit-fem is a dependency for the multi-dimensional pybamm models
 ]
@@ -63,7 +63,7 @@ bpx = [
 ]
 examples = [  # *** temporarily include all of these dependencies to test the examples ***
     "GPy>=1.13.2",  # for ep-bolfi
-    "ep-bolfi",
+    "ep-bolfi>=3.0.2",
     "sober-bo@git+https://github.com/ma921/SOBER.git@3cd4449a249294e0a8b9261bb32afde23ed8341c",  # 10/12/25
     "pybammeis",
     "seaborn",
