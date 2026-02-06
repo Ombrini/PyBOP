@@ -11,9 +11,7 @@ import scipy.stats as stats
 from numpy.typing import NDArray
 
 from pybop.parameters.distributions import Distribution
-from pybop.parameters.multivariate_distributions import (
-    MarginalDistribution,
-)
+from pybop.parameters.multivariate_distributions import MarginalDistribution
 from pybop.transformation.base_transformation import Transformation
 from pybop.transformation.transformations import (
     ComposedTransformation,
@@ -296,7 +294,7 @@ class Parameters:
                 isinstance(param.distribution, MarginalDistribution) for param in self
             ):
                 raise TypeError(
-                    "A Parameters with a MarginalDistribution cannot be combined with other with parameters with other types of distributions"
+                    "A Parameters object with a MarginalDistribution cannot be combined with parameters with other types of distributions"
                 )
             dist = next(
                 iter(self._parameters.values())

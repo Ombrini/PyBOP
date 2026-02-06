@@ -290,8 +290,8 @@ class TestMultivariateParameter:
     @pytest.fixture
     def distribution(self):
         return pybop.MultivariateGaussian(
-            [np.log(3.9e-14), np.log(1e-15)],
-            [[np.log(10), 0.0], [0.0, np.log(10)]],
+            mean=[np.log(3.9e-14), np.log(1e-15)],
+            covariance=[[np.log(10), 0.0], [0.0, np.log(10)]],
         )
 
     @pytest.fixture
@@ -322,7 +322,7 @@ class TestMultivariateParameter:
     def test_input_checks_multivariate_parameters(self, distribution):
         with pytest.raises(
             TypeError,
-            match="A Parameters with a MarginalDistribution cannot be combined with other with parameters with other types of distributions",
+            match="A Parameters object with a MarginalDistribution cannot be combined with parameters with other types of distributions",
         ):
             pybop.Parameters(
                 {
@@ -356,7 +356,7 @@ class TestMultivariateParameter:
 
         with pytest.raises(
             TypeError,
-            match="A Parameters with a MarginalDistribution cannot be combined with other with parameters with other types of distributions",
+            match="A Parameters object with a MarginalDistribution cannot be combined with parameters with other types of distributions",
         ):
             params["Negative particle diffusivity [m2.s-1]"] = pybop.Parameter(
                 distribution=pybop.MarginalDistribution(distribution, 0),

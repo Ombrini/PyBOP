@@ -36,7 +36,7 @@ class TestDistributions:
     @pytest.fixture
     def MultivariateGaussian(self):
         return pybop.MultivariateGaussian(
-            np.asarray([0, 1]), np.asarray([[0.2, 0.0], [0.0, 2.0]])
+            mean=np.asarray([0, 1]), covariance=np.asarray([[0.2, 0.0], [0.0, 2.0]])
         )
 
     @pytest.fixture

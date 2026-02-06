@@ -119,7 +119,7 @@ class TestOptimisation:
     def multivariate_simulator(self, model, dataset):
         parameter_values = model.default_parameter_values
         distribution = pybop.MultivariateGaussian(
-            [0.6, 0.5], [[0.02, 0.0], [0.0, 0.05]]
+            mean=[0.6, 0.5], covariance=[[0.02, 0.0], [0.0, 0.05]]
         )
         parameter_values.update(
             {
