@@ -24,6 +24,7 @@ class TestDataset:
         data_dictionary = {
             "Time [s]": solution["Time [s]"].data,
             "Current [A]": solution["Current [A]"].data,
+            "Discharge capacity [A.h]": solution["Discharge capacity [A.h]"].data,
             "Voltage [V]": solution["Voltage [V]"].data,
         }
         dataset = pybop.Dataset(data_dictionary)
@@ -46,7 +47,7 @@ class TestDataset:
             pybop.Dataset(solution["Time [s]"].data)
 
         # Test conversion of pybamm solution into dictionary
-        assert dataset.data == pybop.Dataset(solution).data
+        assert dataset.data == pybop.import_pybamm_solution(solution).data
 
         # Test set and get item
         test_current = solution["Current [A]"].data + np.ones_like(
@@ -80,7 +81,7 @@ class TestDataset:
         solution = pybamm.Simulation(model=model).solve(t_eval=np.linspace(0, 10, 100))
 
         # Dataset constructed from pybamm solution
-        dataset_pybamm = pybop.Dataset(
+        dataset_pybamm = pybop.import_pybamm_solution(
             solution, variables=["Time [s]", "Current [A]", "Voltage [V]"]
         )
 
@@ -176,7 +177,7 @@ class TestDataset:
         # Import data from PyProBE into pybop.dataset
         dataset_pyprobe = pybop.import_pyprobe_result(
             cell.procedure["US06 DFN"],
-            [
+            variables=[
                 "Time [s]",
                 "Current [A]",
                 "Voltage [V]",
@@ -184,7 +185,7 @@ class TestDataset:
                 "Cycle",
                 "Discharge capacity [A.h]",
             ],
-            pyprobe_columns=[
+            column_names=[
                 "Time [s]",
                 "Current [A]",
                 "Voltage [V]",
@@ -204,8 +205,8 @@ class TestDataset:
             ],
         )
 
-        # For comparison, import pybamm solution directly into pybop.dataset
-        dataset_pybamm = pybop.Dataset(
+        # For comparison, import a pybamm.Solution directly into pybop.Dataset
+        dataset_pybamm = pybop.import_pybamm_solution(
             solution,
             variables=[
                 "Time [s]",
