@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import casadi
 import numpy as np
 import pybamm
+from pybamm import SolverError
 from scipy.sparse import csc_matrix
 from scipy.sparse.linalg import spsolve
 
@@ -362,7 +363,7 @@ class EISSimulator(BaseSimulator):
             for x in inputs:
                 try:
                     simulations.append(self._solve(x))
-                except (ZeroDivisionError, RuntimeError, ValueError):
+                except (SolverError, ZeroDivisionError, RuntimeError, ValueError):
                     simulations.append(
                         FailedSolution(["Impedance"], [k for k in x.keys()])
                     )
