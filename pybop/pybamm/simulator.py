@@ -7,10 +7,11 @@ from pybamm import SolverError
 
 if TYPE_CHECKING:
     from pybop.parameters.parameter import Inputs
-from pybop._dataset import Dataset
-from pybop._utils import FailedSolution, RecommendedSolver
 from pybop.parameters.parameter import Parameter, Parameters
+from pybop.processing.dataset import Dataset
+from pybop.pybamm.utils import RecommendedSolver
 from pybop.simulators.base_simulator import BaseSimulator
+from pybop.simulators.failed_solution import FailedSolution
 
 
 class Simulator(BaseSimulator):
@@ -38,7 +39,7 @@ class Simulator(BaseSimulator):
     protocol : pybamm.Experiment | Dataset | np.ndarray | None
         The protocol as an experiment, a 1D array of values or dataset containing (time) domain data.
     solver : pybamm.BaseSolver, optional
-        The solver to use to solve the model. If None, uses `pybop.RecommendedSolver`.
+        The solver to use to solve the model. If None, uses `pybop.pybamm.RecommendedSolver`.
     output_variables : list, optional
         A list of output variables to return.
     geometry : pybamm.Geometry, optional
@@ -162,13 +163,9 @@ class Simulator(BaseSimulator):
             time_data = protocol[protocol.domain]
             self._t_eval = [time_data[0], time_data[-1]]
             self._t_interp = time_data
-            control = "Current function [A]"
-            if control in protocol.data.keys():
-                self._parameter_values[control] = pybamm.Interpolant(
-                    protocol["Time [s]"],
-                    protocol[control],
-                    pybamm.t,
-                )
+            for key in protocol.control_functions:
+                control = key.replace(" function", "")
+                self._parameter_values[key] = protocol.get_interpolant(control)
         else:
             self._experiment = None
             time_data = protocol

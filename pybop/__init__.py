@@ -25,12 +25,13 @@ script_path = path.dirname(__file__)
 #
 # Utilities
 #
-from ._utils import add_spaces, is_numeric, FailedVariable, FailedSolution, SymbolReplacer, RecommendedSolver
+from ._utils import add_spaces, is_numeric
 
 #
 # Dataset class
 #
-from ._dataset import Dataset, import_pyprobe_result
+from .processing.dataset import Dataset, import_pybamm_solution, import_pyprobe_result
+from .processing.interpolate_current import generate_consistent_current, downsample_constant_current
 
 #
 # Transformation classes
@@ -74,6 +75,7 @@ from .problems.meta_problem import MetaProblem
 #
 from .simulators.base_simulator import BaseSimulator
 from .simulators.solution import Solution
+from .simulators.failed_solution import FailedVariable, FailedSolution
 
 #
 # Cost classes
@@ -106,7 +108,7 @@ from ._evaluation import PopulationEvaluator, ScalarEvaluator, SequentialEvaluat
 # Optimisation logging and result
 #
 from ._logging import Logger
-from ._result import OptimisationResult
+from ._result import Result
 
 #
 # Optimiser classes
@@ -149,7 +151,6 @@ from .samplers.base_pints_sampler import BasePintsSampler, PintsSamplerOptions
 from .samplers.pints_samplers import (
     NUTS,
     DREAM,
-    AdaptiveCovarianceMCMC,
     DifferentialEvolutionMCMC,
     DramACMC,
     EmceeHammerMCMC,
@@ -183,7 +184,6 @@ from .applications.gitt_methods import GITTPulseFit, GITTFit
 # Plotting classes
 #
 from . import plot as plot
-from .samplers.mcmc_summary import PosteriorSummary
 
 #
 # Remove any imported modules, so we don't expose them as part of pybop

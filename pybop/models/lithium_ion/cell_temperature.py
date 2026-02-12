@@ -1,22 +1,21 @@
 import pybamm
 from pybamm import (
-    Event,
     FunctionParameter,
     Parameter,
     ParameterValues,
-    PrimaryBroadcast,
     Scalar,
-    SpatialVariable,
     Variable,
 )
+from pybamm import lithium_ion as pybamm_lithium_ion
 from pybamm import t as pybamm_t
+from pybamm.models.full_battery_models.lithium_ion.electrode_soh import (
+    get_min_max_stoichiometries,
+)
 
 
-class SPDiffusion(pybamm.lithium_ion.BaseModel):
+class CellTemperature(pybamm_lithium_ion.BaseModel):
     """
-    Diffusion model for a single, spherical particle representing a half-cell for GITT.
-
-    Note: the working electrode is the positive electrode.
+    A lumped thermal model for a battery cell.
 
     Parameters
     ----------
@@ -30,7 +29,7 @@ class SPDiffusion(pybamm.lithium_ion.BaseModel):
             If True, the model is built upon creation (default: False).
     """
 
-    def __init__(self, name="Single Particle Diffusion Model", **model_kwargs):
+    def __init__(self, name="Cell Temperature Model", **model_kwargs):
         super().__init__(name=name, **model_kwargs)
 
         ######################
@@ -40,21 +39,7 @@ class SPDiffusion(pybamm.lithium_ion.BaseModel):
         Q = Variable("Discharge capacity [A.h]")
         Qt = Variable("Throughput capacity [A.h]")
 
-        # Variables that vary spatially are created with a domain
-        sto = Variable("Particle stoichiometry", domain="particle")
-        sto_surf = pybamm.surf(sto)
-
-        # Events specify points at which a solution should terminate
-        self.events += [
-            Event(
-                "Minimum particle surface stoichiometry",
-                pybamm.min(sto_surf) - 0.01,
-            ),
-            Event(
-                "Maximum particle surface stoichiometry",
-                (1 - 0.01) - pybamm.max(sto_surf),
-            ),
-        ]
+        T_cell = Variable("Cell temperature [K]")
 
         ######################
         # Parameters
@@ -62,9 +47,22 @@ class SPDiffusion(pybamm.lithium_ion.BaseModel):
         # Parameters are purely symbolic at this stage, and will be set by the
         # `ParameterValues` class when the model is processed.
 
-        Q_th = Parameter("Theoretical electrode capacity [A.s]")
+        Q_meas = Parameter("Measured cell capacity [A.s]")
 
-        sto_init = Parameter("Initial stoichiometry")
+        soc_init = Parameter("Initial SoC")
+        x_0 = Parameter("Minimum negative stoichiometry")
+        x_100 = Parameter("Maximum negative stoichiometry")
+        y_100 = Parameter("Minimum positive stoichiometry")
+        y_0 = Parameter("Maximum positive stoichiometry")
+
+        T_init = Parameter("Initial temperature [K]")
+        T_ref = Parameter("Reference temperature [K]")
+
+        S_n = Parameter("Negative electrode OCP entropic change [V.K-1]")
+        S_p = Parameter("Positive electrode OCP entropic change [V.K-1]")
+
+        c_th = Parameter("Cell thermal mass [J/K]")
+        h = Parameter("Heat transfer coefficient [W/K]")
 
         ######################
         # Input current (positive on discharge)
@@ -83,36 +81,47 @@ class SPDiffusion(pybamm.lithium_ion.BaseModel):
         self.initial_conditions[Qt] = Scalar(0)
 
         ######################
-        # Diffusion within the particle
+        # Output voltage (as an input to the model)
         ######################
-        # The div and grad operators will be converted to the appropriate matrix
-        # multiplication at the discretisation stage
-        self.rhs[sto] = pybamm.div(pybamm.grad(sto) / self.tau_d(sto))
-
-        # Boundary conditions must be provided for equations with spatial derivatives
-        j = -I / (3 * Q_th)
-        self.boundary_conditions[sto] = {
-            "left": (Scalar(0), "Neumann"),
-            "right": (-self.tau_d(sto_surf) * j, "Neumann"),
-        }
-
-        self.initial_conditions[sto] = sto_init
+        V = pybamm.FunctionParameter("Voltage function [V]", {"Time [s]": pybamm.t})
 
         ######################
-        # Cell voltage
+        # Thermal model
         ######################
-        U = self.U(sto_surf)
-        V = U - self.R0(sto_surf) * I
+        # Open-circuit voltage
+        soc = soc_init - Q * 3600 / Q_meas
+        sto_n = x_0 + (x_100 - x_0) * soc
+        sto_p = y_0 + (y_100 - y_0) * soc
+        U = (
+            self.U(sto_p, "positive")
+            + S_p * (T_cell - T_ref)
+            - self.U(sto_n, "negative")
+            - S_n * (T_cell - T_ref)
+        )
 
-        # Save the initial OCV
-        self.param.ocv_init = self.U(sto_init)
+        # Irreversible heating
+        Q_irr = -I * (V - U)
+
+        # Reversible heating
+        dUdT = S_p - S_n
+        Q_rev = -I * T_cell * dUdT
+
+        # Ambient temperature
+        T_amb = pybamm.FunctionParameter(
+            "Ambient temperature [K]", {"Time [s]": pybamm.t}
+        )
+
+        # Cell temperature
+        self.rhs[T_cell] = (Q_irr + Q_rev - h * (T_cell - T_amb)) / c_th
+        self.initial_conditions[T_cell] = T_init
 
         ######################
         # (Some) variables
         ######################
         self.variables = {
-            "Particle stoichiometry": sto,
-            "Particle surface stoichiometry": PrimaryBroadcast(sto_surf, "particle"),
+            "Negative particle stoichiometry": sto_n,
+            "Positive particle stoichiometry": sto_p,
+            "SoC": soc,
             "Time [s]": pybamm_t,
             "Current [A]": I,
             "Current variable [A]": I,  # for compatibility with pybamm.Experiment
@@ -120,9 +129,11 @@ class SPDiffusion(pybamm.lithium_ion.BaseModel):
             "Throughput capacity [A.h]": Qt,
             "Voltage [V]": V,
             "Open-circuit voltage [V]": U,
+            "Ambient temperature [K]": T_amb,
+            "Cell temperature [K]": T_cell,
         }
 
-    def U(self, sto):
+    def U(self, sto, domain):
         """
         Dimensional open-circuit potential [V], calculated as U(x) = U_ref(x).
         Credit: PyBaMM
@@ -130,31 +141,21 @@ class SPDiffusion(pybamm.lithium_ion.BaseModel):
         # bound stoichiometry between tol and 1-tol. Adding 1/sto + 1/(sto-1) later
         # will ensure that ocp goes to +- infinity if sto goes into that region
         # anyway
+        Domain = domain.capitalize()
         tol = pybamm.settings.tolerances["U__c_s"]
         sto = pybamm.maximum(pybamm.minimum(sto, 1 - tol), tol)
-        inputs = {"Particle surface stoichiometry": sto}
-        u_ref = FunctionParameter("Electrode OCP [V]", inputs)
+        inputs = {f"{Domain} particle surface stoichiometry": sto}
+        u_ref = FunctionParameter(f"{Domain} electrode OCP [V]", inputs)
 
         # add a term to ensure that the OCP goes to infinity at 0 and -infinity at 1
         # this will not affect the OCP for most values of sto
         out = u_ref + 1e-6 * (1 / sto + 1 / (sto - 1))
 
-        out.print_name = r"U(c^\mathrm{surf}_\mathrm{s})"
+        if domain == "negative":
+            out.print_name = r"U_\mathrm{n}(c^\mathrm{surf}_\mathrm{s,n})"
+        elif domain == "positive":
+            out.print_name = r"U_\mathrm{p}(c^\mathrm{surf}_\mathrm{s,p})"
         return out
-
-    def tau_d(self, sto):
-        """
-        Diffusion time scale [s] for lithium in the particles.
-        """
-        inputs = {"Particle surface stoichiometry": sto}
-        return FunctionParameter("Particle diffusion time scale [s]", inputs)
-
-    def R0(self, sto):
-        """
-        Series resistance [Ohm].
-        """
-        inputs = {"Particle surface stoichiometry": sto}
-        return FunctionParameter("Series resistance [Ohm]", inputs)
 
     def build_model(self):
         """
@@ -168,43 +169,49 @@ class SPDiffusion(pybamm.lithium_ion.BaseModel):
 
     @property
     def default_parameter_values(self) -> ParameterValues:
-        param = ParameterValues("Xu2019")
+        param = ParameterValues("Chen2020")
+        param.update(
+            {
+                "Voltage function [V]": param.evaluate(self.param.ocv_init),
+                "Cell thermal mass [J/K]": 20,
+                "Heat transfer coefficient [W/K]": 0.05,
+            },
+            check_already_exists=False,
+        )
         return self.create_grouped_parameters(param)
 
     @property
     def default_quick_plot_variables(self):
         return [
-            "Particle stoichiometry",
-            "Particle surface stoichiometry",
+            "Negative particle stoichiometry",
+            "Positive particle stoichiometry",
             "Current [A]",
+            "SoC",
             {"Open-circuit voltage [V]", "Voltage [V]"},
+            {"Ambient temperature [K]", "Cell temperature [K]"},
         ]
 
     @property
     def default_var_pts(self):
-        r = SpatialVariable("r", domain=["particle"], coord_sys="spherical polar")
-        return {r: 20}
+        return {}
 
     @property
     def default_geometry(self):
-        r = SpatialVariable("r", domain=["particle"], coord_sys="spherical polar")
-        return {"particle": {r: {"min": 0, "max": 1}}}
+        return {}
 
     @property
     def default_submesh_types(self):
-        return {"particle": pybamm.Uniform1DSubMesh}
+        return {}
 
     @property
     def default_spatial_methods(self):
-        return {"particle": pybamm.FiniteVolume()}
+        return {}
 
     @staticmethod
     def create_grouped_parameters(parameter_values: ParameterValues) -> ParameterValues:
         """
-        Create a parameter set for the Single Particle Diffusion Model from a
+        Create a parameter set for the Cell Temperature Model from a
         PyBaMM lithium-ion ParameterValues object.
-
-        Note: the working electrode is the positive electrode.
 
         Parameters
         ----------
@@ -220,31 +227,61 @@ class SPDiffusion(pybamm.lithium_ion.BaseModel):
 
         # Unpack physical parameters
         F = pybamm.constants.F.value
-        alpha = param["Positive electrode active material volume fraction"]
-        c_max = param["Maximum concentration in positive electrode [mol.m-3]"]
-        L = param["Positive electrode thickness [m]"]
-        R = param["Positive particle radius [m]"]
-        D = param["Positive particle diffusivity [m2.s-1]"]
-        sto_init = (
-            param["Initial concentration in positive electrode [mol.m-3]"] / c_max
-        )
-        ocp = param["Positive electrode OCP [V]"]
+        alpha_p = param["Positive electrode active material volume fraction"]
+        alpha_n = param["Negative electrode active material volume fraction"]
+        c_max_p = param["Maximum concentration in positive electrode [mol.m-3]"]
+        c_max_n = param["Maximum concentration in negative electrode [mol.m-3]"]
+        L_p = param["Positive electrode thickness [m]"]
+        L_n = param["Negative electrode thickness [m]"]
 
         # Compute the cell area
         A = param["Electrode height [m]"] * param["Electrode width [m]"]
 
+        # Compute the stoichiometry limits and initial SOC
+        x_0, x_100, y_100, y_0 = get_min_max_stoichiometries(param)
+        sto_p_init = (
+            param["Initial concentration in positive electrode [mol.m-3]"] / c_max_p
+        )
+        soc_init = (sto_p_init - y_0) / (y_100 - y_0)
+
+        # Compute the capacity within the stoichiometry limits
+        Q_th_p = F * alpha_p * c_max_p * L_p * A
+        Q_th_n = F * alpha_n * c_max_n * L_n * A
+        Q_meas_p = (y_0 - y_100) * Q_th_p
+        Q_meas_n = (x_100 - x_0) * Q_th_n
+        if abs(Q_meas_n / Q_meas_p - 1) > 1e-6:
+            raise ValueError(
+                "The measured capacity should be the same for both electrodes."
+            )
+
         # Grouped parameters
-        Q_th = F * alpha * c_max * L * A
-        tau_d = R**2 / D
+        Q_meas = (Q_meas_n + Q_meas_p) / 2
 
         parameter_dictionary = {
             "Nominal cell capacity [A.h]": param["Nominal cell capacity [A.h]"],
             "Current function [A]": param["Current function [A]"],
-            "Initial stoichiometry": sto_init,
-            "Electrode OCP [V]": ocp,
-            "Theoretical electrode capacity [A.s]": Q_th,
-            "Particle diffusion time scale [s]": tau_d,
-            "Series resistance [Ohm]": 1,
+            "Voltage function [V]": param["Voltage function [V]"],
+            "Reference temperature [K]": param["Reference temperature [K]"],
+            "Ambient temperature [K]": param["Ambient temperature [K]"],
+            "Initial temperature [K]": param["Ambient temperature [K]"],
+            "Initial SoC": soc_init,
+            "Minimum negative stoichiometry": x_0,
+            "Maximum negative stoichiometry": x_100,
+            "Minimum positive stoichiometry": y_100,
+            "Maximum positive stoichiometry": y_0,
+            "Lower voltage cut-off [V]": param["Lower voltage cut-off [V]"],
+            "Upper voltage cut-off [V]": param["Upper voltage cut-off [V]"],
+            "Positive electrode OCP [V]": param["Positive electrode OCP [V]"],
+            "Negative electrode OCP [V]": param["Negative electrode OCP [V]"],
+            "Measured cell capacity [A.s]": Q_meas,
+            "Negative electrode OCP entropic change [V.K-1]": param[
+                "Negative electrode OCP entropic change [V.K-1]"
+            ],
+            "Positive electrode OCP entropic change [V.K-1]": param[
+                "Positive electrode OCP entropic change [V.K-1]"
+            ],
+            "Cell thermal mass [J/K]": param["Cell thermal mass [J/K]"],
+            "Heat transfer coefficient [W/K]": param["Heat transfer coefficient [W/K]"],
         }
         parameter_values = ParameterValues(values=parameter_dictionary)
         parameter_values._set_initial_state = set_initial_state  # noqa: SLF001

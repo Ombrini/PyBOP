@@ -11,11 +11,37 @@ from scipy.sparse.linalg import spsolve
 
 if TYPE_CHECKING:
     from pybop.parameters.parameter import Inputs
-from pybop._dataset import Dataset
-from pybop._utils import FailedSolution, SymbolReplacer
 from pybop.parameters.parameter import Parameter, Parameters
 from pybop.pybamm.simulator import Simulator
+from pybop.pybamm.utils import SymbolReplacer
 from pybop.simulators.base_simulator import BaseSimulator, Solution
+from pybop.processing.dataset import Dataset
+from pybop.pybamm.utils import SymbolReplacer
+from pybop.simulators.failed_solution import FailedSolution
+
+
+@dataclass
+class TimeSeriesState:
+    """
+    The current state of a time series model that is a PyBaMM model.
+    """
+
+    sol: pybamm.Solution
+    inputs: "Inputs"
+    t: float = 0.0
+
+    def as_ndarray(self) -> np.ndarray:
+        ncol = self.sol.y.shape[1]
+        if ncol > 1:
+            y = self.sol.y[:, -1]
+        else:
+            y = self.sol.y
+        if isinstance(y, casadi.DM):
+            y = y.full()
+        return y
+
+    def __len__(self):
+        return self.sol.y.shape[0]
 
 
 @dataclass
@@ -72,7 +98,7 @@ class EISSimulator(BaseSimulator):
         A 1D array of values or dataset containing the time points at which to simulate
         operando EIS. Defaults to None, corresponding to stationary EIS at time t=0, with I=0.
     solver : pybamm.BaseSolver, optional
-        The solver to simulate the composed Simulator. If None, uses `pybop.RecommendedSolver`.
+        The solver to simulate the composed Simulator. If None, uses `pybop.pybamm.RecommendedSolver`.
     geometry : pybamm.Geometry, optional
         The geometry upon which to solve the model.
     submesh_types : dict, optional

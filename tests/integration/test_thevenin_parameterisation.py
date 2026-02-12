@@ -35,8 +35,7 @@ class TestTheveninParameterisation:
                 "Open-circuit voltage [V]": model.default_parameter_values[
                     "Open-circuit voltage [V]"
                 ]
-            },
-            check_already_exists=False,
+            }
         )
         parameter_values.update(
             {
@@ -145,10 +144,6 @@ class TestTheveninParameterisation:
         solution = pybamm.Simulation(
             model, parameter_values=parameter_values, experiment=experiment
         ).solve()
-        return pybop.Dataset(
-            {
-                "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
-                "Voltage [V]": solution["Voltage [V]"].data,
-            }
+        return pybop.import_pybamm_solution(
+            solution, variables=["Time [s]", "Current [A]", "Voltage [V]"]
         )

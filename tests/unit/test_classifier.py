@@ -23,12 +23,8 @@ class TestClassifier:
             ]
         )
         solution = pybamm.Simulation(model, experiment=experiment).solve()
-        dataset = pybop.Dataset(
-            {
-                "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
-                "Voltage [V]": solution["Voltage [V]"].data,
-            }
+        dataset = pybop.import_pybamm_solution(
+            solution, variables=["Time [s]", "Current [A]", "Voltage [V]"]
         )
 
         parameter_values = model.default_parameter_values
@@ -46,7 +42,6 @@ class TestClassifier:
         return pybop.Problem(simulator, cost)
 
     def test_classify_using_hessian_invalid(self, problem):
-        optim = pybop.XNES(problem)
         logger = pybop.Logger(minimising=True)
         logger.iteration = 1
         logger.extend_log(
@@ -54,7 +49,7 @@ class TestClassifier:
             x_model=[np.asarray([1e-3])],
             cost=[problem(np.asarray([1e-3]))],
         )
-        result = pybop.OptimisationResult(optim=optim, logger=logger, time=1.0)
+        result = pybop.Result(problem=problem, logger=logger, time=1.0)
 
         with pytest.raises(
             ValueError,

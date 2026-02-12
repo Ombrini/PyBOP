@@ -30,7 +30,7 @@ def noisy(data, sigma):
 dataset = pybop.Dataset(
     {
         "Time [s]": solution.t,
-        "Current function [A]": solution["Current [A]"].data,
+        "Current [A]": solution["Current [A]"].data,
         "Voltage [V]": noisy(solution["Voltage [V]"].data, sigma),
     }
 )
@@ -71,11 +71,11 @@ sampler = pybop.DifferentialEvolutionMCMC(problem, options=options)
 result = sampler.run()
 
 # Summary statistics
-posterior_summary = pybop.PosteriorSummary(result.chains)
-print(posterior_summary.get_summary_statistics())
-posterior_summary.plot_trace()
-posterior_summary.summary_table()
-posterior_summary.plot_posterior()
-posterior_summary.plot_chains()
-posterior_summary.effective_sample_size()
-print(f"rhat: {posterior_summary.rhat()}")
+summary = result.get_summary_statistics()
+print(summary)
+result.plot_trace()
+result.summary_table()
+result.plot_posterior()
+result.plot_chains()
+result.effective_sample_size()
+print(f"rhat: {result.rhat()}")
