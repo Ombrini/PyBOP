@@ -23,15 +23,13 @@ dataset = pybop.Dataset(
         "Time [s]": np.asarray(
             [0, 1, 1001, 2001, 3001, 3002, 3003, 4003, 5003, 6003, 6004]
         ),
-        "Current function [A]": np.asarray([0, -1, -1, -1, -1, 0, 1, 1, 1, 1, 0])
+        "Current [A]": np.asarray([0, -1, -1, -1, -1, 0, 1, 1, 1, 1, 0])
         * C_rate
         / 3,
     }
 )
 
-sim = pybop.pybamm.Simulator(
-    model, parameter_values=parameter_values, protocol=dataset
-)
+sim = pybop.pybamm.Simulator(model, parameter_values=parameter_values, protocol=dataset)
 solution = sim.solve()
 solution.plot()
 
@@ -47,7 +45,7 @@ solution = pybop.pybamm.EISSimulator(
 fig, ax = plt.subplots()
 n_time_steps = len(solution["Time [s]"].data)
 for i in range(n_time_steps):
-    impedance = solution["Impedance"].data[i, :]
+    impedance = solution["Impedance"].data[:, i]
     ax.plot(
         np.real(impedance),
         -np.imag(impedance),

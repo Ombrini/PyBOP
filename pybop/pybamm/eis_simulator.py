@@ -12,36 +12,11 @@ from scipy.sparse.linalg import spsolve
 if TYPE_CHECKING:
     from pybop.parameters.parameter import Inputs
 from pybop.parameters.parameter import Parameter, Parameters
+from pybop.processing.dataset import Dataset
 from pybop.pybamm.simulator import Simulator
 from pybop.pybamm.utils import SymbolReplacer
 from pybop.simulators.base_simulator import BaseSimulator, Solution
-from pybop.processing.dataset import Dataset
-from pybop.pybamm.utils import SymbolReplacer
 from pybop.simulators.failed_solution import FailedSolution
-
-
-@dataclass
-class TimeSeriesState:
-    """
-    The current state of a time series model that is a PyBaMM model.
-    """
-
-    sol: pybamm.Solution
-    inputs: "Inputs"
-    t: float = 0.0
-
-    def as_ndarray(self) -> np.ndarray:
-        ncol = self.sol.y.shape[1]
-        if ncol > 1:
-            y = self.sol.y[:, -1]
-        else:
-            y = self.sol.y
-        if isinstance(y, casadi.DM):
-            y = y.full()
-        return y
-
-    def __len__(self):
-        return self.sol.y.shape[0]
 
 
 @dataclass
@@ -134,18 +109,15 @@ class EISSimulator(BaseSimulator):
         self._f_eval = f_eval
         parameter_values = parameter_values or model.default_parameter_values
         if protocol is None:  # perform stationary EIS by default
-            parameter_values["Current function [A]"] = 0
+            parameter_values["Current [A]"] = 0
             initial_current = 0
         elif isinstance(protocol, pybamm.Experiment):
             raise ValueError("EISSimulator cannot simulate a pybamm.Experiment.")
-        elif (
-            isinstance(protocol, Dataset)
-            and "Current function [A]" in protocol.data.keys()
-        ):
+        elif isinstance(protocol, Dataset) and "Current [A]" in protocol.data.keys():
             parameter_values["Current function [A]"] = pybamm.Interpolant(
-                protocol["Time [s]"], protocol["Current function [A]"], pybamm.t
+                protocol["Time [s]"], protocol["Current [A]"], pybamm.t
             )
-            initial_current = protocol["Current function [A]"][0]
+            initial_current = protocol["Current [A]"][0]
         model = self.set_up_for_eis(model, initial_current=float(initial_current))
 
         # Unpack the uncertain parameters from the parameter values
