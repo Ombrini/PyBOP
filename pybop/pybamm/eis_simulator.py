@@ -155,6 +155,10 @@ class EISSimulator(BaseSimulator):
         i_scale = getattr(model.variables["Current [A]"], "scale", 1)
         self.z_scale = self.parameter_values.evaluate(v_scale / i_scale)
 
+        self._initialise_eis_matrices(
+            inputs=self.parameters.to_dict(self.parameters.get_initial_values())
+        )  # not sure why this extra initialise is required before the first solve...
+
     def set_up_for_eis(
         self, model: pybamm.BaseModel, initial_current: float
     ) -> pybamm.BaseModel:
