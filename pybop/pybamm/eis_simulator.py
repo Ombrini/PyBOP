@@ -119,7 +119,9 @@ class EISSimulator(BaseSimulator):
                 protocol["Time [s]"], protocol["Current [A]"], pybamm.t
             )
             initial_current = protocol["Current [A]"][0]
-        model = self.set_up_for_eis(model, initial_current=float(initial_current))
+        elif isinstance(protocol, np.ndarray):
+            initial_current = 0  # assumption
+        model = self.set_up_for_eis(model.new_copy(), initial_current=float(initial_current))
 
         # Unpack the uncertain parameters from the parameter values
         parameters = Parameters()
@@ -276,7 +278,7 @@ class EISSimulator(BaseSimulator):
             sol = pybamm.Solution([t], [y], built_model, inputs)
             state = TimeSeriesState(sol=sol, inputs=inputs, t=t)
 
-            self._jac_at_time_t = [self._jac]
+            self._jac_at_time_t = []
             for t in self.time_data:
                 # Step forwards in time
                 dt = (t - state.t).item()
