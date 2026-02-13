@@ -45,7 +45,7 @@ solution = pybop.pybamm.EISSimulator(
 fig, ax = plt.subplots()
 n_time_steps = len(solution["Time [s]"].data)
 for i in range(n_time_steps):
-    impedance = solution["Impedance"].data[:, i]
+    impedance = solution["Impedance"].data[i, :]
     ax.plot(
         np.real(impedance),
         -np.imag(impedance),

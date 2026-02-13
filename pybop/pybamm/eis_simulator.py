@@ -407,7 +407,7 @@ class EISSimulator(BaseSimulator):
                 zs_at_time_t.append(zs)
             solution.set_solution_variable("Time [s]", data=np.asarray(self.time_data))
             solution.set_solution_variable(
-                "Impedance", data=np.asarray(zs_at_time_t).T * self.z_scale
+                "Impedance", data=np.asarray(zs_at_time_t) * self.z_scale
             )
 
         return solution

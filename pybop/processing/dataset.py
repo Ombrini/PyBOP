@@ -137,7 +137,7 @@ class Dataset:
     ) -> None:
         n_domain_data = len(domain_data)
         for s in signals:
-            if len(self.data[s]) != n_domain_data:
+            if np.shape(self.data[s])[-1] != n_domain_data:
                 raise ValueError(
                     f"{self.domain} data and {s} data must be the same length."
                 )
