@@ -277,13 +277,14 @@ class EISSimulator(BaseSimulator):
             state = TimeSeriesState(sol=sol, inputs=inputs, t=t)
 
             self._jac_at_time_t = [self._jac]
-            for t in self.time_data[1:]:
+            for t in self.time_data:
                 # Step forwards in time
                 dt = (t - state.t).item()
-                new_sol = self.simulation.solver.step(
-                    state.sol, built_model, dt, inputs=state.inputs, save=False
-                )
-                state = TimeSeriesState(sol=new_sol, inputs=state.inputs, t=t)
+                if dt > 0:
+                    new_sol = self.simulation.solver.step(
+                        state.sol, built_model, dt, inputs=state.inputs, save=False
+                    )
+                    state = TimeSeriesState(sol=new_sol, inputs=state.inputs, t=t)
 
                 # Extract necessary attributes from the model
                 y = state.as_ndarray()
@@ -319,16 +320,11 @@ class EISSimulator(BaseSimulator):
         Solution | list[Solution]
             Complex impedance results.
         """
-        if calculate_sensitivities:
-            warnings.warn(
-                "Sensitivity calculation not implemented for EIS simulations",
-                stacklevel=2,
-            )
-
+        inputs = inputs or {}
         if not isinstance(inputs, list):
-            return self._catch_errors([inputs])[0]
+            return self.solve_batch([inputs], calculate_sensitivities)[0]
 
-        return self._catch_errors(inputs)
+        return self.solve_batch(inputs, calculate_sensitivities)
 
     def solve_batch(
         self, inputs: "list[Inputs]" = None, calculate_sensitivities: bool = False
@@ -355,24 +351,22 @@ class EISSimulator(BaseSimulator):
                 stacklevel=2,
             )
 
-        return self._catch_errors(inputs)
-
-    def _catch_errors(self, inputs: "list[Inputs]") -> list[Solution | FailedSolution]:
-        if not self.debug_mode:
-            simulations = []
-            for x in inputs:
-                try:
-                    simulations.append(self._solve(x))
-                except (SolverError, ZeroDivisionError, RuntimeError, ValueError):
-                    simulations.append(
-                        FailedSolution(["Impedance"], [k for k in x.keys()])
-                    )
-            return simulations
+        if len(inputs) == 1:
+            return [self._catch_errors(inputs[0])]
 
         simulations = []
         for x in inputs:
-            simulations.append(self._solve(x))
+            simulations.append(self._catch_errors(x))
         return simulations
+
+    def _catch_errors(self, inputs: "Inputs") -> Solution | FailedSolution:
+        if not self.debug_mode:
+            try:
+                return self._solve(inputs)
+            except (SolverError, ZeroDivisionError, RuntimeError, ValueError):
+                return FailedSolution(["Impedance"], [k for k in inputs.keys()])
+
+        return self._solve(inputs)
 
     def _solve(self, inputs: "Inputs") -> Solution:
         """
@@ -411,7 +405,7 @@ class EISSimulator(BaseSimulator):
                 zs_at_time_t.append(zs)
             solution.set_solution_variable("Time [s]", data=np.asarray(self.time_data))
             solution.set_solution_variable(
-                "Impedance", data=np.asarray(zs_at_time_t) * self.z_scale
+                "Impedance", data=np.asarray(zs_at_time_t).T * self.z_scale
             )
 
         return solution
