@@ -4,6 +4,13 @@ import scipy.stats as stats
 from scipy.linalg import sqrtm
 
 from pybop.parameters.distributions import Distribution
+from pybop.transformation.transformations import (
+    ComposedTransformation,
+    IdentityTransformation,
+    LogTransformation,
+    ScaledTransformation,
+    UnitHyperCube,
+)
 
 
 class BaseMultivariateDistribution(Distribution):
@@ -80,6 +87,9 @@ class BaseMultivariateDistribution(Distribution):
     def marginal(self, position):
         raise NotImplementedError
 
+    def transformed_properties(self, transformation):
+        raise NotImplementedError
+
 
 class MultivariateNonparametric(BaseMultivariateDistribution):
     """
@@ -113,6 +123,9 @@ class MultivariateNonparametric(BaseMultivariateDistribution):
 
     def marginal(self, position):
         return self.distribution.marginal(position)
+
+    def transformed_properties(self, transformation):
+        return self.properties
 
 
 class MultivariateUniform(BaseMultivariateDistribution):
@@ -183,6 +196,132 @@ class MultivariateGaussian(BaseMultivariateDistribution):
             loc=self.properties["mean"][position],
             scale=self.properties["cov"][position, position],
         )
+
+    def transformed_properties(self, transformation):
+        allowed_transformations = (
+            IdentityTransformation,
+            ScaledTransformation,
+            UnitHyperCube,
+        )
+        if isinstance(transformation, allowed_transformations) or (
+            isinstance(transformation, ComposedTransformation)
+            and all(
+                isinstance(trans, allowed_transformations)
+                for trans in transformation.transformations
+            )
+        ):
+            mean = transformation.to_search(self.properties["mean"])
+            covariance = transformation.convert_covariance_matrix(
+                self.properties["cov"], np.zeros(self._n_parameters)
+            )
+
+            return {"mean": mean, "cov": covariance}
+
+        else:
+            raise TypeError(
+                "The transformation provided is not compatible with pybop.MultivariateGaussian. "
+                "Only pybop.IdentityTransformation, pybop.ScaledTransformation and pybop.UnitHypercube are allowed."
+            )
+
+
+class MultivariateLogNormal(BaseMultivariateDistribution):
+    def __init__(self, mean_log_x=None, covariance_log_x=None):
+        self.name = "MultivariateLogNormal"
+        self.distribution_log_x = stats.multivariate_normal
+        self.properties_log_x = {
+            "mean": np.asarray(mean_log_x),
+            "cov": np.asarray(covariance_log_x),
+        }
+        self._n_parameters = len(mean_log_x)
+        mean, covariance = self._get_covariance_and_mean()
+        self.sigma2 = covariance
+        self.properties = {"mean": mean, "cov": covariance}
+
+    def _get_covariance_and_mean(self):
+        covariance = np.zeros((self._n_parameters, self._n_parameters))
+        mean = np.zeros(self._n_parameters)
+        for i in range(self._n_parameters):
+            mean[i] = np.exp(
+                self.properties_log_x["mean"][i]
+                + 0.5 * self.properties_log_x["cov"][i, i]
+            )
+
+        for i in range(self._n_parameters):
+            for j in range(self._n_parameters):
+                covariance[i, j] = (
+                    (np.exp(self.properties_log_x["cov"][i, j]) - 1) * mean[i] * mean[j]
+                )
+        return mean, covariance
+
+    def pdf(self, x):
+        if np.any(x <= 0):
+            return 0.0
+
+        # change of variable
+        log_x = np.log(x)
+
+        # get pdf of normal distribution for transformed variable
+        mvn_pdf = self.distribution_log_x.pdf(log_x, **self.properties_log_x)
+
+        # determinant of the jacobion of the transformation
+        jacobian = np.prod(x)
+
+        return mvn_pdf / jacobian
+
+    def logpdf(self, x):
+        if np.any(x <= 0):
+            return -np.inf
+
+        log_x = np.log(x)
+
+        mvn_logpdf = self.distribution_log_x.logpdf(log_x, **self.properties_log_x)
+
+        return mvn_logpdf - np.sum(log_x)
+
+    def cdf(self, x):
+        if np.any(x <= 0):
+            return 0.0
+
+        log_x = np.log(x)
+
+        return self.distribution_log_x.cdf(log_x, **self.properties_log_x)
+
+    def rvs(self, size=1, random_state=None):
+        return np.exp(
+            self.distribution_log_x.rvs(
+                **self.properties_log_x, size=size, random_state=random_state
+            )
+        )
+
+    def marginal(self, position):
+        return stats.lognorm(
+            s=self.properties["mean"][position],
+            scale=self.properties["cov"][position, position],
+        )
+
+    def transformed_properties(self, transformation):
+        if isinstance(transformation, LogTransformation) or (
+            isinstance(transformation, ComposedTransformation)
+            and all(
+                isinstance(trans, LogTransformation)
+                for trans in transformation.transformations
+            )
+        ):
+            return self.properties_log_x
+        elif isinstance(transformation, IdentityTransformation) or (
+            isinstance(transformation, ComposedTransformation)
+            and all(
+                isinstance(trans, IdentityTransformation)
+                for trans in transformation.transformations
+            )
+        ):
+            return self.properties
+
+        else:
+            raise TypeError(
+                "The transformation provided is not compatible with pybop.MultivariateLogNormal. "
+                "Only pybop.LogTransformation and pybop.IdentityTransformation are allowed."
+            )
 
 
 class MarginalDistribution(Distribution):

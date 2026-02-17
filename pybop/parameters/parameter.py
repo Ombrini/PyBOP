@@ -11,12 +11,18 @@ import scipy.stats as stats
 from numpy.typing import NDArray
 
 from pybop.parameters.distributions import Distribution
-from pybop.parameters.multivariate_distributions import MarginalDistribution
+from pybop.parameters.multivariate_distributions import (
+    MarginalDistribution,
+    MultivariateGaussian,
+    MultivariateLogNormal,
+)
 from pybop.transformation.base_transformation import Transformation
 from pybop.transformation.transformations import (
     ComposedTransformation,
     IdentityTransformation,
     LogTransformation,
+    ScaledTransformation,
+    UnitHyperCube,
 )
 
 # Type aliases
@@ -118,6 +124,8 @@ class Parameter:
         self._bounds = None
         self._transformation = transformation or IdentityTransformation()
 
+        self._check_compatible_transformation()
+
         if self._distribution is not None:
             lower, upper = self._distribution.support()
             if np.isinf(lower) and np.isinf(upper):
@@ -148,6 +156,28 @@ class Parameter:
 
         # Validate initial values are within bounds
         self._validate_values_within_bounds()
+
+    def _check_compatible_transformation(self):
+        if isinstance(self._distribution, MarginalDistribution):
+            allowed_transformations = IdentityTransformation
+            if isinstance(
+                self._distribution.parent_distribution, MultivariateLogNormal
+            ):
+                allowed_transformations = (LogTransformation, IdentityTransformation)
+            elif isinstance(
+                self._distribution.parent_distribution, MultivariateGaussian
+            ):
+                allowed_transformations = (
+                    IdentityTransformation,
+                    ScaledTransformation,
+                    UnitHyperCube,
+                )
+
+            if not isinstance(self._transformation, allowed_transformations):
+                raise TypeError(
+                    f"The transformation provided is not compatible with pybop.{self._distribution.parent_distribution.name}. "
+                    f"Only {allowed_transformations} are allowed."
+                )
 
     def sample_from_distribution(
         self,
@@ -508,7 +538,9 @@ class Parameters:
                 samples = np.atleast_2d(samples)
 
             if transformed:
-                samples = np.asarray([self.transformation.to_model(s) for s in samples])
+                samples = np.asarray(
+                    [self.transformation.to_search(s) for s in samples]
+                )
 
             return samples
         else:
@@ -615,6 +647,13 @@ class Parameters:
             return None
 
         return ComposedTransformation(transformations)
+
+    @property
+    def transformed_distribution_properties(self):
+        if self._multivariate:
+            return self.distribution.transformed_properties(self._transform)
+        else:
+            raise NotImplementedError
 
     def get_bounds_for_plotly(self, transformed: bool = False) -> np.ndarray:
         """

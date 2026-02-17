@@ -12,9 +12,9 @@ original_D_n = parameter_values["Negative particle diffusivity [m2.s-1]"]
 original_D_p = parameter_values["Positive particle diffusivity [m2.s-1]"]
 
 # Set multivariate parameters
-distribution = pybop.MultivariateGaussian(
-    mean=[original_D_n, original_D_p],
-    covariance=[[np.log(2), 0.0], [0.0, np.log(2)]],
+distribution = pybop.MultivariateLogNormal(
+    mean_log_x=[np.log(original_D_n), np.log(original_D_p)],
+    covariance_log_x=[[np.log(2), 0.0], [0.0, np.log(2)]],
 )
 parameter_values["Negative particle diffusivity [m2.s-1]"] = pybop.Parameter(
     initial_value=0.9 * original_D_n,

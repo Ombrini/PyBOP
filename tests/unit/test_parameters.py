@@ -289,9 +289,9 @@ class TestMultivariateParameter:
 
     @pytest.fixture
     def distribution(self):
-        return pybop.MultivariateGaussian(
-            mean=[np.log(3.9e-14), np.log(1e-15)],
-            covariance=[[np.log(10), 0.0], [0.0, np.log(10)]],
+        return pybop.MultivariateLogNormal(
+            mean_log_x=[np.log(3.9e-14), np.log(1e-15)],
+            covariance_log_x=[[np.log(10), 0.0], [0.0, np.log(10)]],
         )
 
     @pytest.fixture
@@ -311,12 +311,16 @@ class TestMultivariateParameter:
             },
         )
 
+    # def test_compatible_transformation(self, distribution):
+
     def test_rvs(self, multivariate_parameters):
-        samples = multivariate_parameters.sample_from_distribution(1, transformed=True)
+        samples = multivariate_parameters.sample_from_distribution(1, transformed=False)
         assert samples.shape == (1, 2)
         assert samples.T[1].min() >= 1e-16
         assert samples.T[1].max() <= 1e-14
-        # assert multivariate_parameters.pdf(np.asarray([3.9e-14, 1e-15])) > 0
+        assert (
+            multivariate_parameters.distribution.pdf(np.asarray([3.9e-14, 1e-15])) > 0
+        )
         assert multivariate_parameters.distribution is not None
 
     def test_input_checks_multivariate_parameters(self, distribution):
@@ -379,7 +383,7 @@ class TestMultivariateParameter:
                     "Positive particle diffusivity [m2.s-1]": pybop.Parameter(
                         distribution=pybop.MarginalDistribution(distribution2, 1),
                         initial_value=1e-15,
-                        transformation=pybop.LogTransformation(),
+                        transformation=pybop.IdentityTransformation(),
                     ),
                 },
             )

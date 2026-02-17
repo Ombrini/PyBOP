@@ -268,7 +268,9 @@ class EP_BOLFI(BaseOptimiser):
                 name: par.get_initial_value_transformed()
                 for name, par in self.problem.parameters.items()  # noqa: SLF001
             },
-            initial_covariance=self.problem.parameters.distribution.properties["cov"],  # noqa: SLF001
+            initial_covariance=self.problem.parameters.transformed_distribution_properties[
+                "cov"
+            ],
             free_parameters_boundaries=transposed_boundaries,
             boundaries_in_deviations=self._options.boundaries_in_standard_deviations,
             Q=self._options.precision_matrix,

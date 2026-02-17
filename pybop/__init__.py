@@ -50,7 +50,7 @@ from .transformation.transformations import (
 #
 from .parameters.parameter import Parameter, Parameters
 from .parameters.distributions import Distribution, Gaussian, Uniform, Exponential, JointDistribution
-from .parameters.multivariate_distributions import MultivariateNonparametric, MultivariateUniform, MultivariateGaussian, MarginalDistribution
+from .parameters.multivariate_distributions import MultivariateNonparametric, MultivariateUniform, MultivariateGaussian, MultivariateLogNormal, MarginalDistribution
 
 #
 # Model classes
