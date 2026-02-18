@@ -1,7 +1,7 @@
 from copy import copy
 
-from pybop._utils import FailedSolution
 from pybop.parameters.parameter import Inputs, Parameter, Parameters
+from pybop.simulators.failed_solution import FailedSolution
 from pybop.simulators.solution import Solution
 
 
@@ -43,15 +43,15 @@ class BaseSimulator:
         calculate_sensitivities=True.
         """
         if not isinstance(inputs, list):
-            return self.batch_solve(
+            return self.solve_batch(
                 inputs=[inputs], calculate_sensitivities=calculate_sensitivities
             )[0]
 
-        return self.batch_solve(
+        return self.solve_batch(
             inputs=inputs, calculate_sensitivities=calculate_sensitivities
         )
 
-    def batch_solve(
+    def solve_batch(
         self,
         inputs: "list[Inputs]",
         calculate_sensitivities: bool = False,

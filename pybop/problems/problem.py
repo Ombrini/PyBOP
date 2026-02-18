@@ -1,12 +1,12 @@
 import numpy as np
 
-from pybop._utils import FailedSolution
 from pybop.analysis.sensitivity_analysis import sensitivity_analysis
 from pybop.costs.base_cost import BaseCost
 from pybop.costs.evaluation import Evaluation
 from pybop.costs.likelihoods import LogPosterior
 from pybop.parameters.parameter import Inputs, Parameters
 from pybop.simulators.base_simulator import BaseSimulator, Solution
+from pybop.simulators.failed_solution import FailedSolution
 
 
 class Problem:
@@ -258,7 +258,7 @@ class Problem:
             the sensitivities dy/dx(t) for output variable(s) y, domain t and parameter(s) x.
         """
         model_inputs = [self.get_model_inputs(x) for x in inputs]
-        return self._simulator.batch_solve(
+        return self._simulator.solve_batch(
             inputs=model_inputs, calculate_sensitivities=calculate_sensitivities
         )
 

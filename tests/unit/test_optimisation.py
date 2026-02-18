@@ -8,6 +8,7 @@ import pytest
 from pints import PopulationBasedOptimiser
 
 import pybop
+from pybop.optimisers.base_optimiser import OptimisationResult
 from pybop.optimisers.pints_optimisers import AdamWImpl, IRPropPlusImpl
 
 
@@ -23,7 +24,7 @@ class TestOptimisation:
         return pybop.Dataset(
             {
                 "Time [s]": np.linspace(0, 360, 10),
-                "Current function [A]": 1e-2 * np.ones(10),
+                "Current [A]": 1e-2 * np.ones(10),
                 "Voltage [V]": np.ones(10),
             }
         )
@@ -513,6 +514,9 @@ class TestOptimisation:
         result = optim.run()
         assert result.scipy_result is not None
 
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 13), reason="requires python3.13 or lower"
+    )
     def test_ep_bolfi(self, multivariate_problem, gitt_like_problem):
         options = pybop.EPBOLFIOptions()
         optim = pybop.EP_BOLFI(multivariate_problem, options=options)
@@ -642,7 +646,7 @@ class TestOptimisation:
         assert result.n_iterations == 2
 
         assert (
-            str(result) == f"OptimisationResult:\n"
+            str(result) == f"Result:\n"
             f"  Best result from {result.n_runs} run(s).\n"
             f"  Initial parameters: {result.x0}\n"
             f"  Optimised parameters: {result.x}\n"
@@ -724,18 +728,19 @@ class TestOptimisation:
         logger.extend_log(
             x_search=[np.asarray([1e-3])], x_model=[np.asarray([1e-3])], cost=[0.1]
         )
+        optim = pybop.XNES(problem)
+        optim._logger = logger
 
         # Construct OptimisationResult
-        result = pybop.OptimisationResult(
-            optim=pybop.XNES(problem),
-            optim_name="Test name",
-            logger=logger,
+        result = OptimisationResult(
+            optim=optim,
+            method_name="Test name",
             time=0.1,
             message="Test message",
         )
 
         # Asserts
-        assert result.optim_name == "Test name"
+        assert result.method_name == "Test name"
         assert result.x[0] == 1e-3
         assert result.n_iterations == 1
         assert result.message == "Test message"

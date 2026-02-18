@@ -49,8 +49,7 @@ class TestTransformation:
                 "Open-circuit voltage [V]": model.default_parameter_values[
                     "Open-circuit voltage [V]"
                 ]
-            },
-            check_already_exists=False,
+            }
         )
         parameter_values.update(
             {
@@ -182,7 +181,7 @@ class TestTransformation:
         return pybop.Dataset(
             {
                 "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
+                "Current [A]": solution["Current [A]"].data,
                 "Voltage [V]": self.noisy(solution["Voltage [V]"].data, self.sigma0),
             }
         )

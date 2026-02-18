@@ -56,8 +56,7 @@ class TestHalfCellModel:
                 "Positive electrode density [kg.m-3]": 3262.0,
                 "Separator density [kg.m-3]": 0.0,
                 "Cell mass [kg]": pybop.pybamm.cell_mass(),
-            },
-            check_already_exists=False,
+            }
         )
         x = self.ground_truth
         parameter_values.update(
@@ -158,7 +157,7 @@ class TestHalfCellModel:
         return pybop.Dataset(
             {
                 "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
+                "Current [A]": solution["Current [A]"].data,
                 "Voltage [V]": self.noisy(solution["Voltage [V]"].data, self.sigma0),
             }
         )

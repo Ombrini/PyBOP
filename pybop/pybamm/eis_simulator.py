@@ -10,10 +10,11 @@ from scipy.sparse.linalg import spsolve
 
 if TYPE_CHECKING:
     from pybop.parameters.parameter import Inputs
-from pybop._utils import FailedSolution, SymbolReplacer
 from pybop.parameters.parameter import Parameter, Parameters
 from pybop.pybamm.simulator import Simulator
+from pybop.pybamm.utils import SymbolReplacer
 from pybop.simulators.base_simulator import BaseSimulator, Solution
+from pybop.simulators.failed_solution import FailedSolution
 
 
 class EISSimulator(BaseSimulator):
@@ -43,7 +44,7 @@ class EISSimulator(BaseSimulator):
         Defaults to None, indicating that the existing initial state of charge (for an ECM)
         or initial concentrations (for an EChem model) will be used.
     solver : pybamm.BaseSolver, optional
-        The solver to simulate the composed Simulator. If None, uses `pybop.RecommendedSolver`.
+        The solver to simulate the composed Simulator. If None, uses `pybop.pybamm.RecommendedSolver`.
     geometry : pybamm.Geometry, optional
         The geometry upon which to solve the model.
     submesh_types : dict, optional
@@ -88,7 +89,7 @@ class EISSimulator(BaseSimulator):
         super().__init__(parameters=parameters)
 
         # Set up a simulation
-        self._simulation = Simulator(
+        self._simulator = Simulator(
             model,
             parameter_values=parameter_values,
             initial_state=initial_state,
@@ -100,7 +101,6 @@ class EISSimulator(BaseSimulator):
             discretisation_kwargs=discretisation_kwargs,
             build_every_time=build_every_time,
         )
-
         self.debug_mode = False
 
         # Initialise
@@ -110,7 +110,7 @@ class EISSimulator(BaseSimulator):
 
         v_scale = getattr(model.variables["Voltage [V]"], "scale", 1)
         i_scale = getattr(model.variables["Current [A]"], "scale", 1)
-        self.z_scale = self._simulation.parameter_values.evaluate(v_scale / i_scale)
+        self.z_scale = self.parameter_values.evaluate(v_scale / i_scale)
 
     def set_up_for_eis(self, model: pybamm.BaseModel) -> pybamm.BaseModel:
         """
@@ -184,8 +184,10 @@ class EISSimulator(BaseSimulator):
 
     def _model_rebuild(self, inputs: "Inputs") -> None:
         """Update the parameter values and rebuild the EIS model."""
-        if self._simulation.requires_model_rebuild:
-            self._simulation.rebuild_model(inputs=inputs)
+        if self._simulator.requires_model_rebuild:
+            self.parameter_values.update(inputs)
+            self._simulator.create_simulation()
+            self.simulation.build(initial_soc=self._simulator.initial_state)
         self._initialise_eis_matrices(inputs=inputs)
 
     def _initialise_eis_matrices(self, inputs: "Inputs") -> None:
@@ -199,9 +201,9 @@ class EISSimulator(BaseSimulator):
         RuntimeError
             If the model hasn't been built yet.
         """
-        built_model = self._simulation.built_model
-        M = self._simulation.built_model.mass_matrix.entries
-        self._simulation.solver.set_up(built_model, inputs=inputs)
+        built_model = self.simulation.built_model
+        M = built_model.mass_matrix.entries
+        self.simulation.solver.set_up(built_model, inputs=inputs)
 
         # Convert inputs to casadi format if needed
         casadi_inputs = (
@@ -254,7 +256,7 @@ class EISSimulator(BaseSimulator):
 
         return self._catch_errors(inputs)
 
-    def batch_solve(
+    def solve_batch(
         self, inputs: "list[Inputs]" = None, calculate_sensitivities: bool = False
     ) -> list[Solution | FailedSolution]:
         """
@@ -287,9 +289,7 @@ class EISSimulator(BaseSimulator):
             for x in inputs:
                 try:
                     simulations.append(self._solve(x))
-                except (ZeroDivisionError, RuntimeError, ValueError) as e:
-                    if isinstance(e, ValueError) and str(e) not in self.exception:
-                        raise  # Raise the error if it doesn't match the expected list
+                except (ZeroDivisionError, RuntimeError, ValueError):
                     simulations.append(
                         FailedSolution(["Impedance"], [k for k in x.keys()])
                     )
@@ -355,19 +355,28 @@ class EISSimulator(BaseSimulator):
 
     @property
     def simulation(self):
-        return self._simulation
+        return self._simulator._simulation  # noqa: SLF001
 
     @property
     def parameter_values(self):
-        return self._simulation.parameter_values
+        return self._simulator.parameter_values
 
     @property
     def input_parameter_names(self):
-        return self._simulation.input_parameter_names
+        return self._simulator.input_parameter_names
 
     @property
     def has_sensitivities(self):
         return False
+
+    @property
+    def debug_mode(self):
+        return self._debug_mode
+
+    @debug_mode.setter
+    def debug_mode(self, value: bool):
+        self._debug_mode = value
+        self._simulator.debug_mode = value
 
     def copy(self):
         """Return a copy of the simulation."""

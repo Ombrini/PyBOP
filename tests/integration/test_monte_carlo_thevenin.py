@@ -54,8 +54,7 @@ class TestSamplingThevenin:
                 "Open-circuit voltage [V]": model.default_parameter_values[
                     "Open-circuit voltage [V]"
                 ]
-            },
-            check_already_exists=False,
+            }
         )
         parameter_values.update(
             {
@@ -150,11 +149,10 @@ class TestSamplingThevenin:
         sampler = sampler(log_pdf=posterior, options=options)
         result = sampler.run()
 
-        # Test PosteriorSummary
-        summary = pybop.PosteriorSummary(result.chains)
-        ess = summary.effective_sample_size()
+        # Test posterior summary
+        ess = result.effective_sample_size()
         np.testing.assert_array_less(0, ess)
-        np.testing.assert_array_less(0, summary.rhat())
+        np.testing.assert_array_less(0, result.rhat())
 
         # Assert both final sample and posterior mean
         x = np.mean(result.chains, axis=1)
@@ -174,7 +172,7 @@ class TestSamplingThevenin:
         return pybop.Dataset(
             {
                 "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
+                "Current [A]": solution["Current [A]"].data,
                 "Voltage [V]": self.noisy(solution["Voltage [V]"].data, self.sigma0),
             }
         )

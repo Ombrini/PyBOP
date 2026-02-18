@@ -54,8 +54,7 @@ class TestClassification:
                 "Open-circuit voltage [V]": model.default_parameter_values[
                     "Open-circuit voltage [V]"
                 ]
-            },
-            check_already_exists=False,
+            }
         )
         parameter_values.update({"C1 [F]": 1000})
         parameter_values.update(
@@ -74,12 +73,8 @@ class TestClassification:
         solution = pybamm.Simulation(
             model, parameter_values=parameter_values, experiment=experiment
         ).solve()
-        return pybop.Dataset(
-            {
-                "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
-                "Voltage [V]": solution["Voltage [V]"].data,
-            }
+        return pybop.import_pybamm_solution(
+            solution, variables=["Time [s]", "Current [A]", "Voltage [V]"]
         )
 
     @pytest.fixture
@@ -95,11 +90,10 @@ class TestClassification:
         x = self.ground_truth
         bounds = problem.parameters.get_bounds()
         x0 = np.clip(x, bounds["lower"], bounds["upper"])
-        optim = pybop.XNES(problem)
         logger = pybop.Logger(minimising=problem.minimising)
         logger.iteration = 1
         logger.extend_log(x_search=[x0], x_model=[x0], cost=[problem(x0)])
-        result = pybop.OptimisationResult(optim=optim, logger=logger, time=1.0)
+        result = pybop.Result(problem=problem, logger=logger, time=1.0)
 
         info = pybop.classify_using_hessian(result)
         pybop.plot_hessian_eigenvectors(info, steps=3)
@@ -201,11 +195,10 @@ class TestClassification:
         if np.all(x == np.asarray([0.05, 0.05])):
             cost = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma0=0.002)
             problem = pybop.Problem(simulator, cost)
-            optim = pybop.XNES(problem)
             logger = pybop.Logger(minimising=problem.minimising)
             logger.iteration = 1
             logger.extend_log(x_search=[x], x_model=[x], cost=[problem(x)])
-            result = pybop.OptimisationResult(optim=optim, logger=logger, time=1.0)
+            result = pybop.Result(problem=problem, logger=logger, time=1.0)
 
             info = pybop.classify_using_hessian(result)
             assert info["message"] == "The optimiser has located a maximum."
@@ -213,10 +206,7 @@ class TestClassification:
     def test_insensitive_classify_using_hessian(self, model, parameter_values):
         param_R0_a = pybop.Parameter(bounds=[0, 0.002])
         param_R0_b = pybop.Parameter(bounds=[-0.001, 0.001])
-        parameter_values.update(
-            {"R0_a [Ohm]": 0.001, "R0_b [Ohm]": 0},
-            check_already_exists=False,
-        )
+        parameter_values.update({"R0_a [Ohm]": 0.001, "R0_b [Ohm]": 0})
         parameter_values.update(
             {"R0 [Ohm]": Parameter("R0_a [Ohm]") + Parameter("R0_b [Ohm]")},
         )
@@ -227,12 +217,8 @@ class TestClassification:
         solution = pybamm.Simulation(
             model, parameter_values=parameter_values, experiment=experiment
         ).solve()
-        dataset = pybop.Dataset(
-            {
-                "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
-                "Voltage [V]": solution["Voltage [V]"].data,
-            }
+        dataset = pybop.import_pybamm_solution(
+            solution, variables=["Time [s]", "Current [A]", "Voltage [V]"]
         )
 
         parameter_values.update({"R0_a [Ohm]": param_R0_a, "R0_b [Ohm]": param_R0_b})
@@ -242,11 +228,10 @@ class TestClassification:
         cost = pybop.SumOfPower(dataset, p=1)
         problem = pybop.Problem(simulator, cost)
         x = [0.001, 0]
-        optim = pybop.XNES(problem)
         logger = pybop.Logger(minimising=problem.minimising)
         logger.iteration = 1
         logger.extend_log(x_search=[x], x_model=[x], cost=[problem(x)])
-        result = pybop.OptimisationResult(optim=optim, logger=logger, time=1.0)
+        result = pybop.Result(problem=problem, logger=logger, time=1.0)
 
         info = pybop.classify_using_hessian(result)
         expected1 = (

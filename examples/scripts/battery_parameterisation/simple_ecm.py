@@ -20,8 +20,7 @@ parameter_values.update(
         "Open-circuit voltage [V]": model.default_parameter_values[
             "Open-circuit voltage [V]"
         ]
-    },
-    check_already_exists=False,
+    }
 )
 
 # Alternatively, define the initial parameter set with a dictionary
@@ -67,7 +66,7 @@ corrupt_values = solution["Voltage [V]"](t_eval) + np.random.normal(
 dataset = pybop.Dataset(
     {
         "Time [s]": t_eval,
-        "Current function [A]": solution["Current [A]"](t_eval),
+        "Current [A]": solution["Current [A]"](t_eval),
         "Voltage [V]": corrupt_values,
     }
 )
