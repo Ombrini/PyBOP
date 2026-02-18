@@ -13,16 +13,12 @@ from numpy.typing import NDArray
 from pybop.parameters.distributions import Distribution
 from pybop.parameters.multivariate_distributions import (
     MarginalDistribution,
-    MultivariateGaussian,
-    MultivariateLogNormal,
 )
 from pybop.transformation.base_transformation import Transformation
 from pybop.transformation.transformations import (
     ComposedTransformation,
     IdentityTransformation,
     LogTransformation,
-    ScaledTransformation,
-    UnitHyperCube,
 )
 
 # Type aliases
@@ -124,6 +120,8 @@ class Parameter:
         self._bounds = None
         self._transformation = transformation or IdentityTransformation()
 
+        # The ep-bolfi optimiser requires some distribution properties in the search space rather than the model space
+        # Some transformations are not suitable for some multivariate distributions as they are currently implemented in this context
         self._check_compatible_transformation()
 
         if self._distribution is not None:
@@ -159,24 +157,16 @@ class Parameter:
 
     def _check_compatible_transformation(self):
         if isinstance(self._distribution, MarginalDistribution):
-            allowed_transformations = IdentityTransformation
-            if isinstance(
-                self._distribution.parent_distribution, MultivariateLogNormal
-            ):
-                allowed_transformations = (LogTransformation, IdentityTransformation)
-            elif isinstance(
-                self._distribution.parent_distribution, MultivariateGaussian
-            ):
-                allowed_transformations = (
-                    IdentityTransformation,
-                    ScaledTransformation,
-                    UnitHyperCube,
-                )
+            allowed_transformations = (
+                self._distribution.parent_distribution.compatible_transformations
+            )
 
             if not isinstance(self._transformation, allowed_transformations):
                 raise TypeError(
                     f"The transformation provided is not compatible with pybop.{self._distribution.parent_distribution.name}. "
-                    f"Only {allowed_transformations} are allowed."
+                    "Only "
+                    + ", ".join([trans.__name__ for trans in allowed_transformations])
+                    + " are allowed."
                 )
 
     def sample_from_distribution(
@@ -316,9 +306,17 @@ class Parameters:
         self._add(name, parameter, check_multivariate=check_multivariate)
 
     def check_multivariate(self):
+        """Method to determin whether parameters have a MultivariateDistribution
+        Multivariate distributions are passed to individual parameters via the corresponding marginal distribution.
+        The pybop.MarginalDistribution class retains the underlying pybop.MultivariateDistribution in the parent_distribution property
+        """
+
+        # check if any distribution is a pybop.MarginalDistribution
         self._multivariate = any(
             isinstance(param.distribution, MarginalDistribution) for param in self
         )
+
+        # if there is a pybop.MarginalDistribution ensure all distributions are marginal distributions of the same parent_distribution
         if self._multivariate:
             if not all(
                 isinstance(param.distribution, MarginalDistribution) for param in self
@@ -385,11 +383,13 @@ class Parameters:
         """
         for name, param in parameters.items():
             if name not in self._parameters.keys():
-                self.add(name, param, check_multivariate=False)
+                self.add(
+                    name, param, check_multivariate=False
+                )  # don't check every each param individually
             else:
                 print(f"Discarding duplicate {name}.")
 
-        self.check_multivariate()
+        self.check_multivariate()  # check once when all parameters are added
 
     def get(self, name: str) -> Parameter:
         """Get a parameter by name."""
@@ -533,6 +533,7 @@ class Parameters:
         """
 
         if self._multivariate:
+            # use multivariate distribution for to sample all parameters
             samples = self.distribution.rvs(n_samples, random_state=random_state)
             if samples.ndim < 2:
                 samples = np.atleast_2d(samples)
@@ -544,6 +545,7 @@ class Parameters:
 
             return samples
         else:
+            # sample each parameter individually
             all_samples = []
 
             for param in self._parameters.values():
@@ -650,6 +652,8 @@ class Parameters:
 
     @property
     def transformed_distribution_properties(self):
+        # retrieve properties of the distribution in the search space
+        # needed for ep-bolfi optimiser
         if self._multivariate:
             return self.distribution.transformed_properties(self._transform)
         else:

@@ -270,7 +270,7 @@ class EP_BOLFI(BaseOptimiser):
             },
             initial_covariance=self.problem.parameters.transformed_distribution_properties[
                 "cov"
-            ],
+            ],  # the optimiser requires the covariance in the search space
             free_parameters_boundaries=transposed_boundaries,
             boundaries_in_deviations=self._options.boundaries_in_standard_deviations,
             Q=self._options.precision_matrix,

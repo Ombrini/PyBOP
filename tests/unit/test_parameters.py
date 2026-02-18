@@ -311,7 +311,16 @@ class TestMultivariateParameter:
             },
         )
 
-    # def test_compatible_transformation(self, distribution):
+    def test_compatible_transformation(self, distribution):
+        with pytest.raises(
+            TypeError,
+            match="The transformation provided is not compatible with pybop.MultivariateLogNormal. Only LogTransformation, IdentityTransformation are allowed.",
+        ):
+            pybop.Parameter(
+                distribution=pybop.MarginalDistribution(distribution, 1),
+                initial_value=1e-15,
+                transformation=pybop.ScaledTransformation(0.5, 1.0),
+            )
 
     def test_rvs(self, multivariate_parameters):
         samples = multivariate_parameters.sample_from_distribution(1, transformed=False)
