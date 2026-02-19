@@ -2,6 +2,8 @@
 
 ## Features
 
+- [#868](https://github.com/pybop-team/PyBOP/pull/868) - Adds support for Python3.13 (NumPy restricted to <2.4, EP-BOLFI optimiser and PyProBE do not support Python 3.13).
+- [#871](https://github.com/pybop-team/PyBOP/pull/871) - Adds a lumped thermal model called `CellTemperature`.
 - [#846](https://github.com/pybop-team/PyBOP/pull/846) - Adds Bayesian optimisation framework and, as an example, the EP-BOLFI optimiser
 
 ## Optimisations
@@ -12,6 +14,7 @@
 
 ## Breaking Changes
 
+- [#864](https://github.com/pybop-team/PyBOP/pull/864) - Remove `check_already_exists` from `ParameterValues` following PyBaMM PR 5339.
 - [#860](https://github.com/pybop-team/PyBOP/pull/860) - Create a parent class for optimisation and sampling results, move `PosteriorSummary` attributes to the `SamplingResult` and deprecate the `pints.AdaptiveCovarianceMCMC` sampler.
 - [#857](https://github.com/pybop-team/PyBOP/pull/857) - Deprecate the custom PyBaMM model build process for a simulation without an experiment and rename `batch_solve` as `solve_batch` to align with other functions.
 - [#839](https://github.com/pybop-team/PyBOP/pull/839) - Renames 'prior' as 'distribution' ``for pybop.Parameter``. Allows construction of a ``pybop.Parameter`` with a distribution of type ``scipy.stats.distributions.rv_frozen``. Removes ``margins``,  ``set_bounds``, ``remove_bounds`` from ``pybop.Parameter``.

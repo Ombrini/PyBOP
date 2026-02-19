@@ -1,22 +1,18 @@
 # Miscellaneous imports for plotting, arithmetic, and statistics.
-from copy import deepcopy
 
 # In this example, we use parallel processing.
-from multiprocessing import Pool
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pybamm
 from matplotlib.ticker import PercentFormatter
-from pybamm import citations, print_citations
+from pybamm import print_citations
 from sober import setting_parameters
 
 # Imports the SOBER interface and ensures that calculations are on CPU.
 from torch import device, float64, set_default_dtype
 
 import pybop
-from pybop import BaseSimulator, Parameters, Solution
-from pybop.costs.feature_distances import indices_of
 from pybop.optimisers.sober_basq_optimiser import SOBER_BASQ, SOBER_BASQ_Options
 
 # Sets the precision from 32-bit to 64-bit and forces CPU over GPU calculations.
@@ -100,7 +96,8 @@ if __name__ == "__main__":
             # "SEI Bruggeman coefficient": 4.54,  # not required for growth
             "Relative capacity cut-off for End-Of-Life": 0.4,
             # Change cell capacity by adjusting cross-section area.
-            "Electrode height [m]": battery_parameters["Electrode height [m]"] * pybamm.Parameter("Adjustment factor"),
+            "Electrode height [m]": battery_parameters["Electrode height [m]"]
+            * pybamm.Parameter("Adjustment factor"),
             "Adjustment factor": "[input]",
         },
         check_already_exists=False,
@@ -119,22 +116,39 @@ if __name__ == "__main__":
     # landscape of the target function becomes much more complex,
     # such a plot can not be reasonably produced, but the optimiser
     # still works just as well.
-    sei_model = pybamm.lithium_ion.SPM(options={"SEI": "VonKolzenberg2020", "surface form": "algebraic"})
-    protocol = pybamm.Experiment([
-        "Charge at 0.28 C for 6 hours",
-        "Rest for 2 hours",
-        "Discharge at 0.12 C for 14 hours",
-        "Rest for 2 hours",
-    ] * 3650, period="1 hour")
-    solar_battery_model = pybop.pybamm.Simulator(sei_model, battery_parameters, output_variables=["Voltage [V]"])
+    sei_model = pybamm.lithium_ion.SPM(
+        options={"SEI": "VonKolzenberg2020", "surface form": "algebraic"}
+    )
+    protocol = pybamm.Experiment(
+        [
+            "Charge at 0.28 C for 6 hours",
+            "Rest for 2 hours",
+            "Discharge at 0.12 C for 14 hours",
+            "Rest for 2 hours",
+        ]
+        * 3650,
+        period="1 hour",
+    )
+    solar_battery_model = pybop.pybamm.Simulator(
+        sei_model, battery_parameters, output_variables=["Voltage [V]"]
+    )
     from pybop.costs.endoflife_cost import EndOfLifeCost, RelativeEndOfLifeCost
+
     eol_cost = EndOfLifeCost(relative_capacity_cutoff=0.6)
-    eol_reference = eol_cost.evaluate(solar_battery_model.solve(inputs={"Adjustment factor": 1.0}))
-    relative_eol_cost = RelativeEndOfLifeCost(relative_capacity_cutoff=0.6, eol_reference=eol_reference)
+    eol_reference = eol_cost.evaluate(
+        solar_battery_model.solve(inputs={"Adjustment factor": 1.0})
+    )
+    relative_eol_cost = RelativeEndOfLifeCost(
+        relative_capacity_cutoff=0.6, eol_reference=eol_reference
+    )
     oversize_factors = np.asarray([1 + 0.002 * i for i in range(1, 101)])
     eol_days = [eol_reference]
     for oversize_factor in oversize_factors:
-        eol_days.append(relative_eol_cost.evaluate(solar_battery_model.solve(inputs={"Adjustment factor": oversize_factor})))
+        eol_days.append(
+            relative_eol_cost.evaluate(
+                solar_battery_model.solve(inputs={"Adjustment factor": oversize_factor})
+            )
+        )
     oversize_factors = np.append([1.0], oversize_factors)
     eol_days = np.asarray(eol_days)
 
