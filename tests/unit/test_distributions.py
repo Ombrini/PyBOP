@@ -243,6 +243,27 @@ class TestDistributions:
         assert pytest.approx(marginal.mean()) == 0
         assert pytest.approx(marginal.std()) == np.sqrt(0.2)
 
+    @pytest.mark.parametrize(
+        "bounds", [np.array([[1, 2], [4, 5]]), np.array([[0, -1], [2, 3]])]
+    )
+    def test_multivariate_uniform(self, bounds):
+        # Multivariate uniform distribution
+        dist = pybop.MultivariateUniform(bounds=bounds)
+
+        # check bounds set correctly
+        support = dist.distribution.support()
+        np.testing.assert_array_equal(support[0], bounds[0, :])
+        np.testing.assert_array_equal(support[1], bounds[1, :])
+
+        # Marginal distributions
+        bounds0 = dist.marginal(0).support()
+        bounds1 = dist.marginal(1).support()
+
+        assert pytest.approx(bounds0[0]) == bounds[0, 0]
+        assert pytest.approx(bounds0[1]) == bounds[1, 0]
+        assert pytest.approx(bounds1[0]) == bounds[0, 1]
+        assert pytest.approx(bounds1[1]) == bounds[1, 1]
+
     @pytest.mark.parametrize("X", [np.array([1.5, 0.9]), np.array([1.5, -0.9])])
     def test_multivariate_log_normal(self, X):
         # Check independent case matches univariate (using scipy.stats.lognorm)

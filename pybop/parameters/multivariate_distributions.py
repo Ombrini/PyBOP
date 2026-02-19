@@ -157,7 +157,11 @@ class MultivariateUniform(BaseMultivariateDistribution):
     """
 
     def __init__(self, bounds, random_state=None):
-        super().__init__(distribution=stats.uniform(bounds))
+        super().__init__(
+            distribution=stats.uniform(
+                loc=bounds[0, :], scale=bounds[1, :] - bounds[0, :]
+            )
+        )
         self.name = "MultivariateUniform"
         self.properties = {"bounds": bounds}
         self._n_parameters = bounds.shape[1]
@@ -173,8 +177,9 @@ class MultivariateUniform(BaseMultivariateDistribution):
     def marginal(self, position):
         # return univariate unfiform distribution
         return stats.uniform(
-            self.properties["bounds"][0, position],
-            self.properties["bounds"][1, position],
+            loc=self.properties["bounds"][0, position],
+            scale=self.properties["bounds"][1, position]
+            - self.properties["bounds"][0, position],
         )
 
 
