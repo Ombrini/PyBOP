@@ -4,7 +4,7 @@ import sys
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from pybamm import citations, print_citations
+from pybamm import citations, print_citations, DummySolver
 from scipy.integrate import quad
 from sober import setting_parameters
 from torch import device, float64, set_default_dtype, tensor, zeros_like
@@ -16,158 +16,12 @@ from pybop.optimisers.sober_basq_optimiser import (
     SOBER_BASQ_EPLFI_Options,
 )
 
+from pybop.models.lithium_ion.silicon_relaxation import SiliconRelaxation
+
 set_default_dtype(float64)
 setting_parameters(device=device("cpu"), dtype=float64)
 
 seed = 0
-
-
-class Diffusive_Relaxation:
-    """Solution to ∂ₜ u = D ∂ₓ² u with u(x, t=0) = f(x)."""
-
-    def __init__(self, f, L, summands=10, radial=False):
-        self.f = f
-        self.L = L
-        self.summands = summands
-        self.radial = radial
-        if radial:
-            pass
-        else:
-            self.series = np.cos
-            self.coefficients = self.compute_zero_flow_coefficients()
-
-    def compute_zero_flow_coefficients(self):
-        coefficients = tensor(
-            [
-                2.0
-                / self.L
-                * quad(lambda x: self.f(x) * np.cos(n * np.pi * x / self.L), 0, self.L)[
-                    0
-                ]
-                for n in range(0, self.summands)
-            ]
-        )
-        # In order to use a simple summation expression suitable for
-        # automatic differentiation, half the "zeroth" coefficient.
-        coefficients[0] = coefficients[0] / 2.0
-        return coefficients
-
-    def concentration(self, x, t, D=1.0):
-        value = zeros_like(D * t)
-        for n in range(self.summands):
-            value += (
-                self.coefficients[n]
-                * self.series(n * np.pi * x / self.L)
-                * np.exp(-(n**2) * np.pi**2 * D * t / self.L**2)
-            )
-        return value
-
-    def __call__(self, t, offset=0.0, timescale=1.0, magnitude=1.0):
-        D = self.L**2 / timescale
-        return offset + magnitude * (
-            self.concentration(self.L, t, D)
-            - self.concentration(self.L, t, D)
-            - self.concentration(1.0, 0.0, D)
-            + self.concentration(0.0, 0.0, D)
-        )
-
-
-class SiliconVoltageRelaxation(pybop.BaseSimulator):
-    def __init__(self, parameters, timepoints: np.ndarray | None = None):
-        citations.register("""@article{
-            Köbbing2024,
-            title={{Slow Voltage Relaxation of Silicon Nanoparticles with a Chemo-Mechanical Core-Shell Model}},
-            author={Köbbing, L and Kuhn, Y and Horstmann, B},
-            journal={ACS Applied Materials & Interfaces},
-            volume={16},
-            pages={67609-67619},
-            year={2024}
-        }""")
-        super().__init__(parameters)
-        self.timepoints = np.asarray(timepoints)
-        self.output_variables = ["Voltage change [V]"]
-
-    def voltage_relaxation(self, inputs_array):
-        # Parameters from Köbbing2024; notation is taken from there.
-        R = 50e-9
-        D = 1e-17
-        E_core = 200e9
-        nu_core = 0.22
-        lambda_core = 64e9
-        G_core = 82e9
-        sigma_Y_core = 3e9
-        c_max = 311e3
-        SOC_0 = 0.1 * c_max
-        SOC_100 = 0.9 * c_max
-        v_Li = 9e-6
-        L_shell = 20e-9
-        E_shell = 100e9
-        nu_shell = 0.3
-        sigma_Y_shell = 2e9
-        eta_shell = 135e12
-        # sigma_ref = 133e6
-        # tau = 3e8
-        T = 298
-        F = 96485
-        R_gas = 8.314
-
-        diffusion_model = Diffusive_Relaxation(lambda x: x, L=1)
-        diffusion = False
-
-        R_core = R - L_shell
-        alpha = 0.5 * (R_core / L_shell - 1)
-
-        U_infty = inputs_array[0].reshape(-1, 1)  # torch: unsqueeze(1)
-        slope = inputs_array[1].reshape(-1, 1)
-        timescale_exp = inputs_array[2].reshape(-1, 1)
-        if diffusion:
-            diff_portion = inputs_array[3].reshape(-1, 1)
-            diff_timescale = inputs_array[4].reshape(-1, 1)
-        else:
-            diff_portion = 0
-        rel_magnitude = (1 - diff_portion) * U_infty
-        diff_magnitude = diff_portion * U_infty
-        # Express effective parameters by adjusting model parameters.
-        lambda_ch = 1  # does not appear independently
-        sigma_ref = slope * alpha * F * lambda_ch**3 / (2 * v_Li)
-        tau = lambda_ch * E_core * alpha * timescale_exp / sigma_ref
-        # Determine integration constant from t=0 with
-        # sigma_ev(t=0) = sigma_0 from sigma_ev = delta_U * F / v_Li.
-        integration_constant = np.tanh(
-            rel_magnitude * alpha * F * lambda_ch**3 / (2 * v_Li * sigma_ref)
-        )
-        # sigma_0 = np.arctanh(integration_constant) * (
-        #     2 * sigma_ref / (alpha * lambda_ch**3)
-        # )
-        delta_U = (
-            2
-            * v_Li
-            * sigma_ref
-            / (alpha * F * lambda_ch**3)
-            * np.arctanh(
-                integration_constant
-                * np.exp(
-                    -E_core * alpha * lambda_ch / (tau * sigma_ref) * self.timepoints
-                )
-            )
-        )
-        if diffusion:
-            delta_U += diffusion_model(
-                self.timepoints, -diff_magnitude, diff_timescale, diff_magnitude
-            )
-
-        return (U_infty - delta_U).T
-
-    def batch_solve(self, inputs, calculate_sensitivities=False):
-        inputs_array = tensor([entry for entry in inputs[0].values()])
-        relaxations = self.voltage_relaxation(inputs_array)
-        solutions = []
-        for entry, rel in zip(inputs, relaxations, strict=False):
-            sol = pybop.Solution(entry)
-            sol.set_solution_variable("Voltage change [V]", rel)
-            solutions.append(sol)
-        return solutions
-
 
 if __name__ == "__main__":
     data_index = 16
@@ -210,7 +64,7 @@ if __name__ == "__main__":
             "Current function [A]": np.asarray(
                 relaxations[data_index]["Current function [A]"]
             ),
-            "Voltage change [V]": np.asarray(
+            "Voltage [V]": np.asarray(
                 relaxations[data_index]["Voltage change [V]"]
             ),
         }
@@ -219,35 +73,35 @@ if __name__ == "__main__":
 
     short_term = pybop.MeanSquaredError(
         dataset,
-        "Voltage change [V]",
+        "Voltage [V]",
         [1] * short_term_end + [0] * (len_data - short_term_end),
     )
     mid_term = pybop.MeanSquaredError(
         dataset,
-        "Voltage change [V]",
+        "Voltage [V]",
         [0] * short_term_end
         + [1] * (long_term_start - short_term_end)
         + [0] * (len_data - long_term_start),
     )
     long_term = pybop.MeanSquaredError(
         dataset,
-        "Voltage change [V]",
+        "Voltage [V]",
         [0] * long_term_start + [1] * (len_data - long_term_start),
     )
 
     unknowns = pybop.MultivariateParameters(
         {
-            "U(t=∞) [V]": pybop.Parameter(
+            "Terminal voltage of observed relaxation [V]": pybop.Parameter(
                 initial_value=0.1,
                 bounds=[0.01, 0.2],
                 transformation=pybop.LogTransformation(),
             ),
-            "log-slope [V]": pybop.Parameter(
+            "Logarithmic slope of observed mechanical relaxation [V]": pybop.Parameter(
                 initial_value=0.01,
                 bounds=[0.001, 0.2],
                 transformation=pybop.LogTransformation(),
             ),
-            "relaxation timescale [s]": pybop.Parameter(
+            "Exponential timescale for decay of observed mechanical relaxation [s]": pybop.Parameter(
                 initial_value=1e5,
                 bounds=[1e3, 1e7],
                 transformation=pybop.LogTransformation(),
@@ -257,7 +111,9 @@ if __name__ == "__main__":
             np.asarray([[0.01, 0.2], [0.001, 0.2], [1e3, 1e7]])
         ),
     )
-    simulator = SiliconVoltageRelaxation(unknowns, timepoints=t)
+    model = SiliconRelaxation()
+    simulator = pybop.pybamm.simulator.Simulator(model, model.default_parameter_values)
+
 
     # Override the forced univariate Parameters
     simulator.parameters = unknowns
@@ -337,3 +193,4 @@ if __name__ == "__main__":
     print_citations()
 
     plt.show()
+
