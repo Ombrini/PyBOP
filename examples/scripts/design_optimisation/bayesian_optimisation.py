@@ -59,6 +59,41 @@ def day_night_cycle(oversize_factor):
     return timepoints, currents
 
 
+def capacity_loss_cutoff(variables):
+    return 0.6 - variables["Capacity lost to SEI [C]"] / (3600 * variables["Nominal cell capacity [A.h]"])
+
+
+def set_up_simulator(reference_lifetime=-1):
+    """
+    We need to set up the model twice. First we get the reference lifetime,
+    then we use it to set up the target relative to that reference.
+    """
+    sei_model = pybamm.lithium_ion.SPM(options={"SEI": "VonKolzenberg2020", "surface form": "algebraic"})
+    # Add two variables to the model: one for cutting off at the EOL,
+    # and one for describing the gain function to optimise.
+    sei_model.variables["Capacity lost to SEI [C]"] = (
+        (sei_model.variables["Negative SEI thickness [m]"] - battery_parameters["Initial SEI thickness [m]"])
+        * battery_parameters["Negative electrode surface area to volume ratio [m-1]"]
+        * battery_parameters["Electrode width [m]"] * battery_parameters["Electrode height [m]"] * battery_parameters["Negative electrode thickness [m]"]
+        / battery_parameters["SEI partial molar volume [m3.mol-1]"]
+        * F
+    )
+    capacity_loss_termination = pybamm.step.CustomTermination(name="Capacity loss cut-off", event_function=capacity_loss_cutoff)
+    if reference_lifetime > 0:
+        sei_model.variables["Lifetime gained per oversize factor [d]"] = (
+            sei_model.variables["Time [d]"] - reference_lifetime
+        ) / (sei_model.parameters["Oversize factor"] - 1)
+    protocol = pybamm.Experiment([
+        "Charge at 0.28 C for 6 hours",
+        "Rest for 2 hours",
+        "Discharge at 0.12 C for 14 hours",
+        "Rest for 2 hours",
+    ] * 3650, period="1 hour", termination=[capacity_loss_termination])
+    solar_battery_model = pybop.pybamm.Simulator(sei_model, battery_parameters, output_variables=["Voltage [V]"])
+    return solar_battery_model
+ 
+
+
 if __name__ == "__main__":
     battery_parameters = pybamm.ParameterValues("Marquis2019")
 
@@ -66,6 +101,7 @@ if __name__ == "__main__":
     # We append parameters from a cell we know the SEI parameters for.
     battery_parameters.update(
         {
+            "Negative electrode surface area to volume ratio [m-1]": 3 * (1 - battery_parameters["Negative electrode porosity"]) / battery_parameters["Negative particle radius [m]"],
             "Electrolyte diffusivity [m2.s-1]": 2.8e-10,
             "Electrode width [m]": (1 / 24) ** 0.5,
             "Electrode height [m]": (1 / 24) ** 0.5,
@@ -96,16 +132,15 @@ if __name__ == "__main__":
             # "SEI Bruggeman coefficient": 4.54,  # not required for growth
             "Relative capacity cut-off for End-Of-Life": 0.4,
             # Change cell capacity by adjusting cross-section area.
-            "Electrode height [m]": battery_parameters["Electrode height [m]"]
-            * pybamm.Parameter("Adjustment factor"),
-            "Adjustment factor": "[input]",
+            "Electrode height [m]": battery_parameters["Electrode height [m]"] * pybamm.Parameter("Oversize factor"),
+            "Oversize factor": "[input]",
         },
         check_already_exists=False,
     )
 
     pybop_prior = pybop.MultivariateParameters(
         {"Adjustment factor": pybop.Parameter(initial_value=1.1, bounds=[1.0, 1.2])},
-        distribution=pybop.MultivariateUniform(np.asarray([[1.0, 1.2]])),
+        distribution=pybop.MultivariateUniform(np.asarray([[1.0, 1.2 - 1.0]])),  # bug work-around; change to actual [1.0, 1.2] bounds when PR862 is merged
     )
     # In this simple example, we first plot the whole target function.
     # A note, as this is a common point of confusion: this plot solves
@@ -114,41 +149,14 @@ if __name__ == "__main__":
     # optimiser in an easily verifiable example. As soon as many
     # variables are to be optimised at once, say 5 or more, or the
     # landscape of the target function becomes much more complex,
-    # such a plot can not be reasonably produced, but the optimiser
-    # still works just as well.
-    sei_model = pybamm.lithium_ion.SPM(
-        options={"SEI": "VonKolzenberg2020", "surface form": "algebraic"}
-    )
-    protocol = pybamm.Experiment(
-        [
-            "Charge at 0.28 C for 6 hours",
-            "Rest for 2 hours",
-            "Discharge at 0.12 C for 14 hours",
-            "Rest for 2 hours",
-        ]
-        * 3650,
-        period="1 hour",
-    )
-    solar_battery_model = pybop.pybamm.Simulator(
-        sei_model, battery_parameters, output_variables=["Voltage [V]"]
-    )
-    from pybop.costs.endoflife_cost import EndOfLifeCost, RelativeEndOfLifeCost
-
-    eol_cost = EndOfLifeCost(relative_capacity_cutoff=0.6)
-    eol_reference = eol_cost.evaluate(
-        solar_battery_model.solve(inputs={"Adjustment factor": 1.0})
-    )
-    relative_eol_cost = RelativeEndOfLifeCost(
-        relative_capacity_cutoff=0.6, eol_reference=eol_reference
-    )
+    # we use to optimiser to get away with much sparser evaluations.
+    reference_lifetime = set_up_simulator().solve()["Time [d]"].entries[-1]
+    simulator = set_up_simulator(reference_lifetime)
+    cost = DesignCost(target="Time [d]")
     oversize_factors = np.asarray([1 + 0.002 * i for i in range(1, 101)])
-    eol_days = [eol_reference]
+    eol_days = [reference_lifetime]
     for oversize_factor in oversize_factors:
-        eol_days.append(
-            relative_eol_cost.evaluate(
-                solar_battery_model.solve(inputs={"Adjustment factor": oversize_factor})
-            )
-        )
+        eol_days.append(cost.evaluate(solar_battery_model.solve(inputs={"Oversize factor": oversize_factor})))
     oversize_factors = np.append([1.0], oversize_factors)
     eol_days = np.asarray(eol_days)
 
