@@ -770,7 +770,7 @@ class Parameters:
         )
         return f"Parameters({len(self)}):\n{param_summary}"
 
-    def to_inputs(self, values: np.ndarray | list[np.ndarray]) -> list[Inputs]:
+    def to_inputs_list(self, values: np.ndarray | list[np.ndarray]) -> list[Inputs]:
         """
         Return parameter values as a list of dictionaries, as required for multiprocessing.
         """
@@ -782,6 +782,10 @@ class Parameters:
         for val in values:
             inputs_list.append(self.to_dict(values=val))
         return inputs_list
+
+    def convert_grad_to_array(self, grad: dict[str, np.ndarray]) -> np.ndarray:
+        """Get an array of sensitivities with the parameters in the expected order."""
+        return np.vstack([grad[key] for key in self.names]).T
 
     def copy(self) -> Parameters:
         """Create a deep copy of the Parameters object."""
