@@ -1,19 +1,15 @@
-"""
-Please use the `develop` branch of PyBOP to run this script
-pip install git+https://github.com/pybop-team/PyBOP@develop
+import numpy as np
+import pybamm
 
-This script can be used to refine estimates for MSMR parameters
+import pybop
+
+"""
+This script shows how to refine estimates for MSMR parameters
 from OCV data, provided the initial estimates are fairly accurate.
 
 As well as changing the initial guesses, it can help to vary the
 "weighting" between SoC and dSoC/dV in the cost function.
 """
-
-import numpy as np
-import pybamm
-from scipy import constants
-
-import pybop
 
 parameter_values = pybamm.ParameterValues("Chen2020")
 
@@ -43,7 +39,7 @@ for cell_type in ["negative electrode", "positive electrode"]:
     msmr_params = {
         "n_reactions": 4,
         "T": T,
-        "F_RT": constants.physical_constants["Faraday constant"][0] / (constants.R * T),
+        "F_RT": pybamm.constants.F.value / (pybamm.constants.R.value * T),
     }
     if cell_type == "positive electrode":
         msmr_params.update(
@@ -89,16 +85,11 @@ for cell_type in ["negative electrode", "positive electrode"]:
     class OCVCurve(pybop.BaseSimulator):
         def __init__(self, msmr_params, dataset, weighting):
             self.msmr_params = msmr_params.copy()
-            # Unpack the uncertain parameters from the parameter values
-            parameters = pybop.Parameters()
-            for name, param in msmr_params.items():
-                if isinstance(param, pybop.Parameter):
-                    parameters.add(name, param)
-            super().__init__(parameters=parameters)
+            super().__init__(parameters=self.msmr_params)
             self.domain_data = dataset["Voltage [V]"]
             self.weighting = weighting
 
-        def batch_solve(self, inputs, calculate_sensitivities: bool = False):
+        def solve_batch(self, inputs, calculate_sensitivities: bool = False):
             solutions = []
             for x in inputs:
                 sol = self.solve(x)
@@ -182,19 +173,18 @@ for cell_type in ["negative electrode", "positive electrode"]:
         problem = pybop.Problem(simulator, cost)
 
         # Optimise the fit between the model and the dataset
-        x0 = problem.parameters.get_initial_values()
         options = pybop.SciPyMinimizeOptions(tol=1e-8)
         optim = pybop.SciPyMinimize(problem, options=options)
-        results = optim.run()
-        print(results)
-        problem.parameters.update(initial_values=results.x)
+        result = optim.run()
+        print(result)
+        problem.parameters.update(initial_values=result.x)
 
     # Update parameters with identified values
-    msmr_params.update(problem.parameters.to_dict(results.x))
+    msmr_params.update(result.best_inputs)
 
     # Verify the method through plotting
-    initial_solution = simulator.solve(inputs=problem.parameters.to_dict(x0))
-    optimised_solution = simulator.solve(inputs=problem.parameters.to_dict(results.x))
+    initial_solution = simulator.solve(inputs=problem.parameters.to_dict("initial"))
+    optimised_solution = simulator.solve(inputs=result.best_inputs)
     fig = pybop.plot.trajectories(
         x=[
             ocp_dataset["SoC"],
@@ -226,7 +216,7 @@ for cell_type in ["negative electrode", "positive electrode"]:
         yaxis_title="Voltage [V]",
     )
 
-    # Scale the results so that the total occupancy equals one
+    # Scale the result so that the total occupancy equals one
     X_sum = 0
     for X_j in [sub("X", j) for j in range(msmr_params["n_reactions"])]:
         X_sum += msmr_params[X_j]
