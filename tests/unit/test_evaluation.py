@@ -30,11 +30,7 @@ class TestEvaluation:
     def parameters(self):
         return {
             "Negative electrode active material volume fraction": pybop.Parameter(
-                distribution=pybop.Gaussian(
-                    0.5,
-                    0.01,
-                    truncated_at=[0.375, 0.625],
-                ),
+                distribution=pybop.Gaussian(0.5, 0.01, truncated_at=[0.375, 0.625]),
                 transformation=pybop.ScaledTransformation(
                     coefficient=1 / 0.25, intercept=-0.375
                 ),
@@ -81,10 +77,10 @@ class TestEvaluation:
     def problem(self, simulator, dataset, request):
         cost_class = request.param
         if cost_class is pybop.GaussianLogLikelihoodKnownSigma:
-            cost = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma0=0.002)
+            cost = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=0.002)
         elif cost_class is pybop.LogPosterior:
             cost = cost_class(
-                pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma0=0.002)
+                pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=0.002)
             )
         else:
             cost = cost_class(dataset)
@@ -97,9 +93,10 @@ class TestEvaluation:
 
         # First compute the cost and sensitivities in the model space
         cost1 = problem.evaluate(self.x_model).values
-        cost1_ws, grad1_wrt_model_parameters = problem.evaluate(
+        cost1_ws, grad = problem.evaluate(
             self.x_model, calculate_sensitivities=True
         ).get_values()
+        grad1_wrt_model_parameters = problem.parameters.convert_grad_to_array(grad)
 
         numerical_grad1 = []
         for i in range(len(self.x_model)):

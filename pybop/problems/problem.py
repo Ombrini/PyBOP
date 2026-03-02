@@ -57,10 +57,8 @@ class Problem:
             self._cost.log_likelihood.parameters = self.parameters
             self._cost.set_joint_prior()
 
-    def get_model_inputs(self, inputs):
-        all_values = list(inputs.values())
-        n = len(self._simulator.parameters)
-        return self._simulator.parameters.to_dict(all_values[:n])
+    def get_model_inputs(self, inputs: Inputs):
+        return {key: inputs[key] for key in self._simulator.parameters.keys()}
 
     @property
     def target(self):
@@ -117,11 +115,12 @@ class Problem:
             The cost value(s) and (optionally) the gradient of the cost with respect to
             each input parameter.
         """
-        # Convert values to parameter inputs
+        # Accept numeric values, convert to Inputs dictionaries
         if not isinstance(inputs, dict):
             if not isinstance(inputs[0], dict):
                 values = np.atleast_2d(inputs)
                 inputs = [self.parameters.to_dict(v) for v in values]
+
         inputs_list = inputs if isinstance(inputs, list) else [inputs]
 
         return self.evaluate_batch(
@@ -169,18 +168,16 @@ class Problem:
         # Preallocate the evaluation results
         evaluation = Evaluation()
         evaluation.preallocate(
-            n_inputs=len(inputs),
-            n_parameters=len(self.parameters),
-            calculate_sensitivities=calculate_sensitivities,
+            inputs=inputs, calculate_sensitivities=calculate_sensitivities
         )
 
         # Evaluate the cost for the valid parameters
         valid_indices = [i for i, valid in enumerate(validity) if valid]
         # TODO: Parallelise the cost computations
         if calculate_sensitivities:
-            for i, sol in enumerate(solutions):
+            for i, solution in enumerate(solutions):
                 e, de = self._cost.evaluate(
-                    sol,
+                    solution,
                     inputs=valid_inputs[i],
                     calculate_sensitivities=calculate_sensitivities,
                 )
@@ -188,9 +185,9 @@ class Problem:
                     i=valid_indices[i], value=np.asarray(e).item(), sensitivities=de
                 )
         else:
-            for i, sol in enumerate(solutions):
+            for i, solution in enumerate(solutions):
                 e = self._cost.evaluate(
-                    sol,
+                    solution,
                     inputs=valid_inputs[i],
                     calculate_sensitivities=calculate_sensitivities,
                 )
@@ -200,11 +197,13 @@ class Problem:
             # Insert failure outputs for the invalid parameters into the lists of results
             invalid_indices = [i for i, valid in enumerate(validity) if not valid]
             if calculate_sensitivities:
-                y, dy = self._cost.failure(calculate_sensitivities)
+                y, dy = self._cost.failure(
+                    self.parameters.names, calculate_sensitivities
+                )
                 for i in invalid_indices:
                     evaluation.insert_result(i=i, value=y, sensitivities=dy)
             else:
-                y = self._cost.failure(calculate_sensitivities)
+                y = self._cost.failure(self.parameters.names, calculate_sensitivities)
                 for i in invalid_indices:
                     evaluation.insert_result(i=i, value=y)
 

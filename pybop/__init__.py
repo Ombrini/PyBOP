@@ -25,7 +25,7 @@ script_path = path.dirname(__file__)
 #
 # Utilities
 #
-from ._utils import add_spaces, is_numeric
+from ._utils import add_spaces, is_numeric, load_data_dict, save_data_dict
 
 #
 # Dataset class
@@ -49,9 +49,8 @@ from .transformation.transformations import (
 # Parameter classes
 #
 from .parameters.parameter import Parameter, Parameters
-from .parameters.multivariate_parameters import MultivariateParameters
 from .parameters.distributions import Distribution, Gaussian, Uniform, Exponential, JointDistribution
-from .parameters.multivariate_distributions import MultivariateNonparametric, MultivariateUniform, MultivariateGaussian
+from .parameters.multivariate_distributions import MultivariateNonparametric, MultivariateUniform, MultivariateGaussian, MultivariateLogNormal, MarginalDistribution
 
 #
 # Model classes
