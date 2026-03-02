@@ -42,7 +42,7 @@ def noisy(data, sigma):
 dataset = pybop.Dataset(
     {
         "Time [s]": solution.t,
-        "Current function [A]": solution["Current [A]"].data,
+        "Current [A]": solution["Current [A]"].data,
         "Voltage [V]": noisy(solution["Voltage [V]"].data, sigma),
     }
 )
@@ -98,7 +98,7 @@ parameter_values.update(
 
 # Build the problem
 simulator = pybop.pybamm.Simulator(model, parameter_values, protocol=dataset)
-cost = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma0=sigma)
+cost = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=sigma)
 problem = pybop.Problem(simulator, cost)
 
 # Set up the optimiser

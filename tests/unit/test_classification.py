@@ -31,14 +31,13 @@ class SeparableParaboloidProblem(pybop.Problem):
 
 
 @pytest.fixture(params=[np.asarray([0.0, 0.0]), np.asarray([0.05, 0.05])])
-def optimisation_result(request):
+def result(request):
     """
     Build a result where result.x is the true minimiser (the paraboloid centre).
     That ensures classify_using_hessian computes a finite Hessian and eigenvalues.
     """
     centre = np.asarray(request.param, dtype=float)
     problem = SeparableParaboloidProblem(centre=centre, c=1.0)  # small offset c
-    optim = pybop.XNES(problem)
 
     logger = pybop.Logger(minimising=True)
     logger.iteration = 1
@@ -47,13 +46,11 @@ def optimisation_result(request):
         x_model=[centre],
         cost=problem.evaluate(centre).values,
     )
-    return pybop.OptimisationResult(optim=optim, logger=logger, time=1.0)
+    return pybop.Result(problem=problem, logger=logger, time=1.0)
 
 
 @pytest.mark.unit
-def test_classify_paraboloid_minimum_and_grid(optimisation_result):
-    result = optimisation_result
-
+def test_classify_paraboloid_minimum_and_grid(result):
     dx = np.asarray([1e-3, 1e-3])
     steps = 3
 
@@ -88,3 +85,44 @@ def test_classify_paraboloid_minimum_and_grid(optimisation_result):
 
     # Because the paraboloid is convex and result.x is the minimiser, expect a minimum
     assert "minimum" in info["message"].lower()
+
+
+@pytest.mark.unit
+def test_near_bounds():
+    dx = np.asarray([0.2, 0.2])
+
+    # construct result within 'dx' of upper boundary
+    centre = np.asarray([0.0, 0.0], dtype=float)
+    problem = SeparableParaboloidProblem(centre=centre, c=1.0)
+    logger = pybop.Logger(minimising=True)
+    logger.iteration = 1
+    logger.extend_log(
+        x_search=[np.asarray([9.9, 0.0])],
+        x_model=[np.asarray([9.9, 0.0])],
+        cost=problem.evaluate([9.9, 0.0]).values,
+    )
+    result = pybop.Result(problem=problem, logger=logger, time=1.0)
+
+    # check message text
+    info = pybop.classify_using_hessian(result, dx=dx, cost_tolerance=1e-8)
+    assert (
+        info["message"]
+        == "The optimiser has not converged to a stationary point. The result is near the upper bound of x0."
+    )
+
+    # construct result within 'dx' of lower boundary
+    logger = pybop.Logger(minimising=True)
+    logger.iteration = 1
+    logger.extend_log(
+        x_search=[np.asarray([-9.9, 0.0])],
+        x_model=[np.asarray([-9.9, 0.0])],
+        cost=problem.evaluate([-9.9, 0.0]).values,
+    )
+    result = pybop.Result(problem=problem, logger=logger, time=1.0)
+
+    # check message text
+    info = pybop.classify_using_hessian(result, dx=dx, cost_tolerance=1e-8)
+    assert (
+        info["message"]
+        == "The optimiser has not converged to a stationary point. The result is near the lower bound of x0."
+    )

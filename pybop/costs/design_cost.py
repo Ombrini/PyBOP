@@ -1,7 +1,7 @@
-from pybop._utils import FailedSolution
 from pybop.costs.base_cost import BaseCost
 from pybop.parameters.parameter import Inputs
 from pybop.simulators.base_simulator import Solution
+from pybop.simulators.failed_solution import FailedSolution
 
 
 class DesignCost(BaseCost):
@@ -26,7 +26,7 @@ class DesignCost(BaseCost):
 
     def evaluate(
         self,
-        sol: Solution | FailedSolution,
+        solution: Solution | FailedSolution,
         inputs: Inputs | None = None,
         calculate_sensitivities: bool = False,
     ) -> float:
@@ -35,7 +35,7 @@ class DesignCost(BaseCost):
 
         Parameters
         ----------
-        sol : pybop.Solution | pybamm.Solution
+        solution : pybop.Solution | pybamm.Solution
             The simulation result.
         inputs : Inputs, optional
             Input parameters (default: None).
@@ -48,7 +48,7 @@ class DesignCost(BaseCost):
             The value of the output variable.
         """
         # Return failure cost if the solution failed
-        if isinstance(sol, FailedSolution):
-            return self.failure(calculate_sensitivities)
+        if isinstance(solution, FailedSolution):
+            return self.failure(self.parameters.names, calculate_sensitivities)
 
-        return sol[self.target[0]].data[-1]
+        return solution[self.target[0]].data[-1]

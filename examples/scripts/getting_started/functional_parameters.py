@@ -39,8 +39,7 @@ parameter_values.update(
     {
         "Positive electrode reference exchange-current density [A.m-2]": 1,
         "Positive electrode charge transfer coefficient": 0.5,
-    },
-    check_already_exists=False,
+    }
 )
 parameter_values["Positive electrode exchange-current density [A.m-2]"] = (
     positive_electrode_exchange_current_density
@@ -58,7 +57,7 @@ corrupt_values = solution["Voltage [V]"](t_eval) + np.random.normal(
 dataset = pybop.Dataset(
     {
         "Time [s]": t_eval,
-        "Current function [A]": solution["Current [A]"](t_eval),
+        "Current [A]": solution["Current [A]"](t_eval),
         "Voltage [V]": corrupt_values,
     }
 )

@@ -27,7 +27,7 @@ class TestSamplingThevenin:
 
     @pytest.fixture(autouse=True)
     def setup(self):
-        self.sigma0 = 1e-3
+        self.sigma = 1e-3
         self.ground_truth = np.clip(
             np.asarray([0.05, 0.05]) + np.random.normal(loc=0.0, scale=0.01, size=2),
             a_min=1e-4,
@@ -54,8 +54,7 @@ class TestSamplingThevenin:
                 "Open-circuit voltage [V]": model.default_parameter_values[
                     "Open-circuit voltage [V]"
                 ]
-            },
-            check_already_exists=False,
+            }
         )
         parameter_values.update(
             {
@@ -106,7 +105,7 @@ class TestSamplingThevenin:
         simulator = pybop.pybamm.Simulator(
             model, parameter_values=parameter_values, protocol=dataset
         )
-        likelihood = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma0=self.sigma0)
+        likelihood = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=self.sigma)
         posterior = pybop.LogPosterior(likelihood)
         return pybop.Problem(simulator, posterior)
 
@@ -142,7 +141,6 @@ class TestSamplingThevenin:
         options = pybop.PintsSamplerOptions(
             n_chains=2,
             warm_up_iterations=50,
-            cov=[6e-3, 6e-3],
             max_iterations=350,
         )
 
@@ -150,11 +148,10 @@ class TestSamplingThevenin:
         sampler = sampler(log_pdf=posterior, options=options)
         result = sampler.run()
 
-        # Test PosteriorSummary
-        summary = pybop.PosteriorSummary(result.chains)
-        ess = summary.effective_sample_size()
+        # Test posterior summary
+        ess = result.effective_sample_size()
         np.testing.assert_array_less(0, ess)
-        np.testing.assert_array_less(0, summary.rhat())
+        np.testing.assert_array_less(0, result.rhat())
 
         # Assert both final sample and posterior mean
         x = np.mean(result.chains, axis=1)
@@ -174,7 +171,7 @@ class TestSamplingThevenin:
         return pybop.Dataset(
             {
                 "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
-                "Voltage [V]": self.noisy(solution["Voltage [V]"].data, self.sigma0),
+                "Current [A]": solution["Current [A]"].data,
+                "Voltage [V]": self.noisy(solution["Voltage [V]"].data, self.sigma),
             }
         )

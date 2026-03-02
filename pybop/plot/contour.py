@@ -8,11 +8,11 @@ from pybop.plot.plotly_manager import PlotlyManager
 from pybop.problems.problem import Problem
 
 if TYPE_CHECKING:
-    from pybop._result import OptimisationResult
+    from pybop._result import Result
 
 
 def contour(
-    call_object: "Problem | OptimisationResult",
+    call_object: "Problem | Result",
     gradient: bool = False,
     bounds: np.ndarray | None = None,
     transformed: bool = False,
@@ -28,7 +28,7 @@ def contour(
 
     Parameters
     ----------
-    call_object : pybop.Problem | pybop.OptimisationResult
+    call_object : pybop.Problem | pybop.Result
         Either:
         - the cost function to be evaluated. Must accept a list of parameter values and return a cost value.
         - an optimiser result which provides a specific optimisation trace overlaid on the cost landscape.
@@ -65,7 +65,7 @@ def contour(
     if not isinstance(call_object, Callable):
         plot_optim = True
         result = call_object
-        problem = result.optim.problem
+        problem = result.problem
 
     parameters = problem.parameters
     names = parameters.names
@@ -87,8 +87,8 @@ def contour(
         ) in enumerate(parameters.items()):
             if i > 1:
                 # TODO: Update from the initial to the intended value
-                additional_values.append(param.initial_value)
-                print(f"Fixed {name}:", param.initial_value)
+                additional_values.append(param.get_initial_value())
+                print(f"Fixed {name}:", param.get_initial_value())
 
     # Set up parameter bounds
     if bounds is None:
@@ -106,14 +106,8 @@ def contour(
     if gradient:
         grad_parameter_costs = []
 
-        # Determine the number of gradient outputs
-        num_gradients = problem.evaluate(
-            np.asarray([x[0], y[0]] + additional_values),
-            calculate_sensitivities=True,
-        ).sensitivities.shape[1]
-
-        # Create an array to hold each gradient output
-        grads = [np.zeros((len(y), len(x))) for _ in range(num_gradients)]
+        # Create an array to hold the gradient with respect to each parameter
+        grads = [np.zeros((len(y), len(x))) for _ in range(len(parameters))]
 
     # Populate cost matrix
     for i, xi in enumerate(x):
@@ -123,9 +117,9 @@ def contour(
                     np.asarray([xi, yj] + additional_values),
                     calculate_sensitivities=True,
                 ).get_values()
-                costs[j, i], (*current_grads,) = out[0][0], out[1][0]
-                for k, grad_output in enumerate(current_grads):
-                    grads[k][j, i] = grad_output
+                costs[j, i], sensitivities = out[0][0], out[1]
+                for k, key in enumerate(problem.parameters.names):
+                    grads[k][j, i] = sensitivities[key]
             else:
                 costs[j, i] = problem.evaluate(
                     np.asarray([xi, yj] + additional_values),

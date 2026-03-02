@@ -11,7 +11,7 @@ from pybop.costs.feature_distances import (
 
 class TestCosts:
     """
-    Class for tests cost functions
+    Class to test cost functions.
     """
 
     pytestmark = pytest.mark.unit
@@ -49,13 +49,7 @@ class TestCosts:
         solution = pybamm.Simulation(
             model, parameter_values=parameter_values, experiment=experiment
         ).solve()
-        return pybop.Dataset(
-            {
-                "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
-                "Voltage [V]": solution["Terminal voltage [V]"].data,
-            }
-        )
+        return pybop.import_pybamm_solution(solution)
 
     @pytest.fixture
     def gitt_like_dataset(self):
@@ -92,10 +86,10 @@ class TestCosts:
     )
     def test_fitting_costs(self, simulator, dataset, cost_class):
         if cost_class is pybop.LogPosterior:
-            likelihood = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma0=0.002)
+            likelihood = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=0.002)
             cost = cost_class(likelihood)
         elif issubclass(cost_class, pybop.LogLikelihood):
-            cost = cost_class(dataset, sigma0=0.002)
+            cost = cost_class(dataset, sigma=0.002)
         else:
             cost = cost_class(dataset)
         problem = pybop.Problem(simulator, cost)
@@ -149,7 +143,8 @@ class TestCosts:
         e, de = problem.evaluate([0.5], calculate_sensitivities=True).get_values()
 
         assert np.isscalar(e[0])
-        assert isinstance(de[0], np.ndarray)
+        for key in problem.parameters.names:
+            assert isinstance(de[key], np.ndarray)
 
     def test_minkowski(self, dataset):
         # Incorrect order
@@ -178,16 +173,9 @@ class TestCosts:
             ([0], np.random.normal(0, 1, 29), [0])
         )
         solution = pybamm.Simulation(model, parameter_values=parameter_values).solve(
-            t_eval=t_eval,
-            t_interp=t_eval,
+            t_eval=t_eval, t_interp=t_eval
         )
-        return pybop.Dataset(
-            {
-                "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
-                "Voltage [V]": solution["Terminal voltage [V]"].data,
-            }
-        )
+        return pybop.import_pybamm_solution(solution)
 
     @pytest.mark.parametrize(
         "cost_class",
@@ -223,14 +211,16 @@ class TestCosts:
         problemE = pybop.Problem(simulator, costE)
         eE, deE = problemE.evaluate(x, calculate_sensitivities=True).get_values()
         np.testing.assert_allclose(e, eE)
-        np.testing.assert_allclose(de, deE)
+        for key in problem.parameters.names:
+            np.testing.assert_allclose(de[key], deE[key])
 
         # Test that domain-based weighting also matches for evenly spaced data
         costD = cost_class(dataset, weighting="domain")
         problemD = pybop.Problem(simulator, costD)
         eD, deD = problemD.evaluate(x, calculate_sensitivities=True).get_values()
         np.testing.assert_allclose(e, eD)
-        np.testing.assert_allclose(de, deD)
+        for key in problem.parameters.names:
+            np.testing.assert_allclose(de[key], deD[key])
 
         # Test that the domain-based weighting accounts for random spacing in the dataset
         simulator = pybop.pybamm.Simulator(
@@ -240,12 +230,12 @@ class TestCosts:
         problemR = pybop.Problem(simulator, costR)
         eR, deR = problemR.evaluate(x, calculate_sensitivities=True).get_values()
         np.testing.assert_allclose(e, eR, rtol=1e-2, atol=1e-9)
-        np.testing.assert_allclose(de, deR, rtol=1e-2, atol=1e-9)
+        for key in problem.parameters.names:
+            np.testing.assert_allclose(de[key], deR[key], rtol=1e-2, atol=1e-9)
 
         # Check that the sum (and therefore mean) are the same as an even weighting
         np.testing.assert_allclose(
-            np.sum(problemR.cost.weighting),
-            len(problemR.cost.weighting),
+            np.sum(problemR.cost.weighting), len(problemR.cost.weighting)
         )
 
         # Check gradient calculation using finite difference
@@ -253,7 +243,8 @@ class TestCosts:
         cost_right = problemR([x[0] + delta / 2])
         cost_left = problemR([x[0] - delta / 2])
         numerical_grad = (cost_right - cost_left) / delta
-        np.testing.assert_allclose(deR, numerical_grad, rtol=6e-3)
+        key0 = problem.parameters.names[0]
+        np.testing.assert_allclose(deR[key0], numerical_grad, rtol=6e-3)
 
     @pytest.fixture
     def design_simulator(self, parameters, experiment):
@@ -291,8 +282,7 @@ class TestCosts:
                 ),
                 "Cell mass [kg]": pybop.pybamm.cell_mass(),
                 "Cell volume [m3]": pybop.pybamm.cell_volume(),
-            },
-            check_already_exists=False,
+            }
         )
         parameter_values.update(parameters)
         return pybop.pybamm.Simulator(
@@ -337,7 +327,7 @@ class TestCosts:
         noisy_dataset = pybop.Dataset(
             {
                 "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
+                "Current [A]": solution["Current [A]"].data,
                 "Voltage [V]": solution["Voltage [V]"].data
                 + np.random.normal(0, 0.02, len(solution["Time [s]"].data)),
             }
@@ -410,7 +400,10 @@ class TestCosts:
             [0.5], calculate_sensitivities=True
         ).get_values()
         np.testing.assert_allclose(errors_2, errors_3, atol=1e-5)
-        np.testing.assert_allclose(sensitivities_2, sensitivities_3, atol=1e-5)
+        for key in weighted_2.parameters.names:
+            np.testing.assert_allclose(
+                sensitivities_2[key], sensitivities_3[key], atol=1e-5
+            )
 
         # Test LogPosterior explicitly
         cost4 = pybop.LogPosterior(pybop.GaussianLogLikelihood(dataset))

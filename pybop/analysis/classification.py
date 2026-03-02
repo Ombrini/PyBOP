@@ -1,10 +1,10 @@
 import numpy as np
 
-from pybop import OptimisationResult
+from pybop import Result
 
 
 def classify_using_hessian(
-    result: OptimisationResult,
+    result: Result,
     dx=None,
     cost_tolerance: float = 1e-5,
     normalise: bool = True,
@@ -15,7 +15,7 @@ def classify_using_hessian(
 
     Parameters
     ----------
-    result : OptimisationResult
+    result : Result
         The optimisation result.
     dx : array-like, optional
         An array of small positive values used to check proximity to the parameter
@@ -29,7 +29,7 @@ def classify_using_hessian(
     x = result.x
     dx = np.asarray(dx) if dx is not None else np.maximum(x, 1e-40) * 1e-2
     best_cost = result.best_cost
-    problem = result.optim.problem
+    problem = result.problem
     parameters = problem.parameters
     minimising = result.minimising
     cost_tolerance = float(cost_tolerance)
@@ -66,13 +66,12 @@ def classify_using_hessian(
 
     def check_proximity_to_bounds(parameters, x, dx, names) -> str:
         bounds = parameters.get_bounds()
-        if bounds is not None:
-            for i, value in enumerate(x):
-                if value > bounds["upper"][i] - dx[i]:
-                    return f" The result is near the upper bound of {names[i]}."
+        for i, value in enumerate(x):
+            if value > bounds["upper"][i] - dx[i]:
+                return f" The result is near the upper bound of {names[i]}."
 
-                if value < bounds["lower"][i] + dx[i]:
-                    return f" The result is near the lower bound of {names[i]}."
+            if value < bounds["lower"][i] + dx[i]:
+                return f" The result is near the lower bound of {names[i]}."
         return ""
 
     # Classify the result
@@ -223,7 +222,7 @@ def plot_hessian_eigenvectors(info, steps: int = 10):
         for j in range(steps):
             p = np.array([param0[i], param1[j]], dtype=float)
             try:
-                Z[i, j] = float(cost(p))
+                Z[i, j] = float(cost(p)[0])
             except Exception:
                 Z[i, j] = np.nan
 

@@ -54,15 +54,9 @@ class TestGroupedModels:
             model_config["model"],
             parameter_values=model_config["parameter_values"],
             solver=model_config["solver"],
-        ).solve(t_eval=t_eval)
+        ).solve(t_eval=t_eval, t_interp=t_eval)
 
-        return pybop.Dataset(
-            {
-                "Time [s]": t_eval,
-                "Current function [A]": solution["Current [A]"](t_eval),
-                "Voltage [V]": solution["Voltage [V]"](t_eval),
-            }
-        )
+        return pybop.import_pybamm_solution(solution)
 
     @pytest.fixture(scope="module")
     def eis_dataset(self):
@@ -73,7 +67,7 @@ class TestGroupedModels:
         return pybop.Dataset(
             {
                 "Frequency [Hz]": frequencies,
-                "Current function [A]": zeros,
+                "Current [A]": zeros,
                 "Impedance": zeros,
             },
             domain="Frequency [Hz]",
@@ -107,7 +101,9 @@ class TestGroupedModels:
         parameter_values = model_config["parameter_values"]
         parameter_values.update(parameters)
         simulator = pybop.pybamm.Simulator(
-            model_config["model"], parameter_values=parameter_values, protocol=dataset
+            model_config["model"],
+            parameter_values=parameter_values,
+            protocol=dataset["Time [s]"],
         )
         cost_1 = pybop.SumSquaredError(dataset)
         cost_2 = pybop.MeanAbsoluteError(dataset)
@@ -131,12 +127,9 @@ class TestGroupedModels:
         ).get_values()
 
         # Validate gradient shape and value consistency
-        assert grad1.shape == (1, len(problem.parameters)), (
-            f"Gradient shape mismatch: {grad1.shape}"
-        )
-        assert grad2.shape == (1, len(problem.parameters)), (
-            f"Gradient shape mismatch: {grad2.shape}"
-        )
+        for key in problem.parameters.names:
+            assert len(grad1[key]) == len([initial_inputs])
+            assert len(grad2[key]) == len([example_inputs])
 
         np.testing.assert_allclose(
             value1_sens, value1, atol=ABSOLUTE_TOLERANCE, rtol=RELATIVE_TOLERANCE

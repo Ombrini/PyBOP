@@ -2,17 +2,17 @@ import copy
 import json
 import time
 from contextlib import redirect_stderr, redirect_stdout
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from sys import stderr, stdout
 
 import numpy as np
 from pybamm import citations
 
 import pybop
-from pybop import BaseOptimiser
 from pybop._logging import Logger
-from pybop._result import BayesianOptimisationResult
+from pybop.optimisers.base_optimiser import BaseOptimiser, OptimisationResult
 from pybop.parameters.multivariate_distributions import MultivariateGaussian
+from pybop.parameters.parameter import Parameters
 
 
 def ep_bolfi_problem_processing(y, problem):
@@ -59,6 +59,10 @@ class EPBOLFIOptions(pybop.OptimiserOptions):
     # Defaults to calculating a final effective fraction of 0.5.
     ep_stepwise_dampener: float | None = None
     ep_total_dampening: float | None = None
+
+    # Parameter boundaries in the model space. Samples are not taken
+    # from outside these boundaries.
+    model_parameter_boundaries: dict = field(default_factory=dict)
 
     # Adjusts the hard parameter boundaries relative to their
     # standard deviations. Defaults to 95 % confidence regions.
@@ -237,13 +241,6 @@ class EP_BOLFI(BaseOptimiser):
     def _set_up_optimiser(self):
         import ep_bolfi
 
-        transposed_boundaries = {}
-        model_bounds = self.problem.parameters.get_bounds(transformed=False)  # noqa: SLF001
-        for i, name in enumerate(self.problem.parameters.keys()):  # noqa: SLF001
-            transposed_boundaries[name] = [
-                model_bounds["lower"][i],
-                model_bounds["upper"][i],
-            ]
         # Use the first output variable to pass to EP-BOLFI; define separate simulators
         # for multiple output variables.
         simulators = [
@@ -265,11 +262,11 @@ class EP_BOLFI(BaseOptimiser):
             feature_extractors,
             fixed_parameters={},  # probably baked into self.problem.model
             free_parameters={
-                name: par.get_initial_value_transformed()
-                for name, par in self.problem.parameters.items()  # noqa: SLF001
+                name: par.get_mean(transformed=True)
+                for name, par in self.problem.parameters.items()
             },
-            initial_covariance=self.problem.parameters.distribution.properties["cov"],  # noqa: SLF001
-            free_parameters_boundaries=transposed_boundaries,
+            initial_covariance=self.problem.parameters.get_covariance(transformed=True),
+            free_parameters_boundaries=self._options.model_parameter_boundaries,
             boundaries_in_deviations=self._options.boundaries_in_standard_deviations,
             Q=self._options.precision_matrix,
             r=self._options.covariance_scaled_mean,
@@ -277,11 +274,11 @@ class EP_BOLFI(BaseOptimiser):
             r_features=self._options.covariance_scaled_means_per_feature,
             transform_parameters={
                 name: (par.transformation.to_model, par.transformation.to_search)
-                for name, par in self.problem.parameters.items()  # noqa: SLF001
+                for name, par in self.problem.parameters.items()
             },
             weights=None,  # only applicable within vector-valued features and better handled within PyBOP costs
             display_current_feature=None,  # ToDo: costs with names
-            fixed_parameter_order=list(enumerate(self.problem.parameters.keys())),  # noqa: SLF001
+            fixed_parameter_order=list(enumerate(self.problem.parameters.keys())),
         )
         self._logger = Logger(
             minimising=True,
@@ -289,7 +286,7 @@ class EP_BOLFI(BaseOptimiser):
             verbose_print_rate=self.verbose_print_rate,
         )
 
-    def _run(self):
+    def _run(self) -> "BayesianOptimisationResult":
         verbose_log_target = stdout if self._options.verbose else None
         verbose_err_target = stderr if self._options.verbose else None
         with redirect_stdout(verbose_log_target):
@@ -352,7 +349,7 @@ class EP_BOLFI(BaseOptimiser):
         self._logger.x_search = [
             [
                 par.transformation.to_search(e)[0]
-                for e, par in zip(entry, self.problem.parameters.values(), strict=False)  # noqa: SLF001
+                for e, par in zip(entry, self.problem.parameters.values(), strict=False)
             ]
             for entry in x_list
         ]
@@ -366,7 +363,7 @@ class EP_BOLFI(BaseOptimiser):
         x_search_best_over_time = [
             [
                 par.transformation.to_search(e)[0]
-                for e, par in zip(entry, self.problem.parameters.values(), strict=False)  # noqa: SLF001
+                for e, par in zip(entry, self.problem.parameters.values(), strict=False)
             ]
             for entry in x_best_over_time
         ]
@@ -381,7 +378,7 @@ class EP_BOLFI(BaseOptimiser):
             par.transformation.to_search(entry)[0]
             for entry, par in zip(
                 model_mean_array,
-                self.problem.parameters.values(),  # noqa: SLF001
+                self.problem.parameters.values(),
                 strict=False,
             )
         ]
@@ -392,14 +389,14 @@ class EP_BOLFI(BaseOptimiser):
             [bounds[1][0] for bounds in ep_bolfi_result["error bounds"].values()]
         )
         # The re-use of `parameters` makes transformations easily usable.
-        posterior = copy.deepcopy(self.problem.parameters)  # noqa: SLF001
+        posterior = copy.deepcopy(self.problem.parameters)
         posterior.prior = MultivariateGaussian(
             search_mean_array, np.array(ep_bolfi_result["covariance"])
         )
         self._logger.iteration = {
             "EP iterations": self._options.ep_iterations,
             "total feature iterations": self._options.ep_iterations
-            * len(self.problem.problems),  # noqa: SLF001
+            * len(self.problem.problems),
         }
         self._logger.evaluations = {
             "model evaluations": len(
@@ -409,9 +406,8 @@ class EP_BOLFI(BaseOptimiser):
         }
         return BayesianOptimisationResult(
             optim=self,
-            logger=self._logger,
             time=end - start,
-            optim_name="EP-BOLFI",
+            method_name="EP-BOLFI",
             posterior=posterior,
             lower_bounds=lower_bounds,
             upper_bounds=upper_bounds,
@@ -422,3 +418,72 @@ class EP_BOLFI(BaseOptimiser):
             "Expectation Propagation with Bayesian Optimization for "
             "Likelihood-Free Inference"
         )
+
+
+class BayesianOptimisationResult(OptimisationResult):
+    """
+    Stores the result of a Bayesian optimisation or a Bayesian model
+    selection.
+
+    Attributes
+    ----------
+    problem: pybop.Problem
+        The optimisation problem used to generate the results.
+    x : ndarray
+        The solution of the optimisation (in model space).
+    best_cost : float
+        The cost associated with the solution x.
+    n_iterations : int or dict
+        Number of iterations performed by the optimiser. Since Bayesian
+        optimisers tend to have layers of various optimisation
+        algorithms, their iteration counts may be put individually.
+    n_evaluations : int or dict
+        Number of evaluations performed by the optimiser. Since Bayesian
+        optimisers tend to have layers of various optimisation
+        algorithms, their evaluation counts my be put individually.
+    message : str
+        The reason for stopping given by the optimiser.
+    lower_bounds: ndarray
+        The lower confidence parameter boundaries.
+    upper_bounds: ndarray
+        The upper confidence parameter boundaries.
+    posterior : MultivariateParameters
+        The probability distribution of the optimisation.
+    maximum_a_posteriori : Inputs or ndarray
+        Complementing the best observed value in `x`, this is the
+        prediction for the best parameter value.
+    log_evidence_mean : float
+        The logarithm of the evidence of the parameterization. Higher
+        values are better. May only be interpreted relative to a
+        calibration case, e.g., a test-run with synthetic data.
+    log_evidence_variance : float
+        The logarithm of the variance in the calculation of the
+        evidence. For reliable comparisons based on the evidence, should
+        be at or below the scale of the evidence itself.
+    """
+
+    def __init__(
+        self,
+        optim: EP_BOLFI,
+        time: float | dict,
+        method_name: str | None = None,
+        message: str | None = None,
+        lower_bounds: np.ndarray | None = None,
+        upper_bounds: np.ndarray | None = None,
+        posterior: Parameters | None = None,
+        maximum_a_posteriori: np.ndarray | None = None,
+        log_evidence_mean: float | None = None,
+        log_evidence_variance: float | None = None,
+    ):
+        super().__init__(
+            optim=optim,
+            time=time,
+            method_name=method_name,
+            message=message,
+        )
+        self.lower_bounds = lower_bounds
+        self.upper_bounds = upper_bounds
+        self.posterior = posterior
+        self.maximum_a_posteriori = maximum_a_posteriori
+        self.log_evidence_mean = log_evidence_mean
+        self.log_evidence_variance = log_evidence_variance

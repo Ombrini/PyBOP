@@ -8,6 +8,7 @@ import pytest
 from pints import PopulationBasedOptimiser
 
 import pybop
+from pybop.optimisers.base_optimiser import OptimisationResult
 from pybop.optimisers.pints_optimisers import AdamWImpl, IRPropPlusImpl
 
 
@@ -23,7 +24,7 @@ class TestOptimisation:
         return pybop.Dataset(
             {
                 "Time [s]": np.linspace(0, 360, 10),
-                "Current function [A]": 1e-2 * np.ones(10),
+                "Current [A]": 1e-2 * np.ones(10),
                 "Voltage [V]": np.ones(10),
             }
         )
@@ -117,48 +118,31 @@ class TestOptimisation:
     @pytest.fixture
     def multivariate_simulator(self, model, dataset):
         parameter_values = model.default_parameter_values
-        # Put empty Parameter slots as placeholders
-        parameter_values["Negative electrode active material volume fraction"] = (
-            pybop.Parameter()
-        )
-        parameter_values["Positive electrode active material volume fraction"] = (
-            pybop.Parameter()
+        distribution = pybop.MultivariateGaussian(
+            mean=[0.6, 0.5], covariance=[[0.02, 0.0], [0.0, 0.05]]
         )
         parameter_values.update(
             {
                 "Negative electrode active material volume fraction": pybop.Parameter(
-                    distribution=pybop.Gaussian(0.6, 0.02)
+                    distribution=pybop.MarginalDistribution(distribution, 0),
+                    initial_value=0.6,
                 ),
                 "Positive electrode active material volume fraction": pybop.Parameter(
-                    distribution=pybop.Gaussian(0.5, 0.05)
+                    distribution=pybop.MarginalDistribution(distribution, 1),
+                    initial_value=0.5,
                 ),
             }
         )
         simulator = pybop.pybamm.Simulator(
             model, parameter_values=parameter_values, protocol=dataset
         )
-        # Override the forced univariate Parameters
-        simulator.parameters = pybop.MultivariateParameters(
-            {
-                "Negative electrode active material volume fraction": pybop.Parameter(
-                    initial_value=0.6, bounds=[0.001, 0.999]
-                ),
-                "Positive electrode active material volume fraction": pybop.Parameter(
-                    initial_value=0.5, bounds=[0.001, 0.999]
-                ),
-            },
-            distribution=pybop.MultivariateGaussian(
-                [0.6, 0.5], [[0.02, 0.0], [0.0, 0.05]]
-            ),
-        )
+
         return simulator
 
     @pytest.fixture
     def multivariate_problem(self, multivariate_simulator, dataset):
         cost = pybop.SumSquaredError(dataset)
         problem = pybop.Problem(multivariate_simulator, cost)
-        # Copy the MultivariateParameters to the problem
-        problem.parameters = multivariate_simulator.parameters
         return problem
 
     @pytest.fixture
@@ -181,9 +165,26 @@ class TestOptimisation:
             pybop.Problem(multivariate_simulator, sqrt_cost_1),
             pybop.Problem(multivariate_simulator, sqrt_cost_2),
         )
-        # Copy the MultivariateParameters to the problem
-        problem.parameters = multivariate_simulator.parameters
         return problem
+
+    @pytest.fixture
+    def result(self, problem):
+        logger = pybop.Logger(minimising=True)
+        logger.iteration = 1
+        logger.extend_log(
+            x_search=[np.asarray([1e-3])], x_model=[np.asarray([1e-3])], cost=[0.1]
+        )
+        optim = pybop.XNES(problem)
+        optim._logger = logger
+
+        # Construct OptimisationResult
+        result = OptimisationResult(
+            optim=optim,
+            method_name="Test name",
+            time=0.1,
+            message="Test message",
+        )
+        return result
 
     @pytest.mark.parametrize(
         "optimiser, expected_name, sensitivities",
@@ -513,6 +514,9 @@ class TestOptimisation:
         result = optim.run()
         assert result.scipy_result is not None
 
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 13), reason="requires python3.13 or lower"
+    )
     def test_ep_bolfi(self, multivariate_problem, gitt_like_problem):
         options = pybop.EPBOLFIOptions()
         optim = pybop.EP_BOLFI(multivariate_problem, options=options)
@@ -642,7 +646,7 @@ class TestOptimisation:
         assert result.n_iterations == 2
 
         assert (
-            str(result) == f"OptimisationResult:\n"
+            str(result) == f"Result:\n"
             f"  Best result from {result.n_runs} run(s).\n"
             f"  Initial parameters: {result.x0}\n"
             f"  Optimised parameters: {result.x}\n"
@@ -718,24 +722,9 @@ class TestOptimisation:
             optim._threshold = None
             optim.run()
 
-    def test_optimisation_result(self, problem):
-        logger = pybop.Logger(minimising=True)
-        logger.iteration = 1
-        logger.extend_log(
-            x_search=[np.asarray([1e-3])], x_model=[np.asarray([1e-3])], cost=[0.1]
-        )
-
-        # Construct OptimisationResult
-        result = pybop.OptimisationResult(
-            optim=pybop.XNES(problem),
-            optim_name="Test name",
-            logger=logger,
-            time=0.1,
-            message="Test message",
-        )
-
+    def test_optimisation_result(self, result, problem):
         # Asserts
-        assert result.optim_name == "Test name"
+        assert result.method_name == "Test name"
         assert result.x[0] == 1e-3
         assert result.n_iterations == 1
         assert result.message == "Test message"
@@ -772,3 +761,55 @@ class TestOptimisation:
             RuntimeError, match="Distributions must be provided for multi-start"
         ):
             optim.run()
+
+    def compare_result_data(self, result1, result2):
+        assert result1.method_name == result2.method_name
+        assert result1.n_runs == result2.n_runs
+        assert result1._best_run == result2._best_run
+        np.testing.assert_array_equal(result1._x, result2._x)
+        np.testing.assert_array_equal(result1._x_model, result2._x_model)
+        np.testing.assert_array_equal(result1._x0, result2._x0)
+        np.testing.assert_array_equal(result1._best_cost, result2._best_cost)
+        np.testing.assert_array_equal(result1._cost, result2._cost)
+        np.testing.assert_array_equal(result1._initial_cost, result2._initial_cost)
+        np.testing.assert_array_equal(result1._n_iterations, result2._n_iterations)
+        np.testing.assert_array_equal(
+            result1._iteration_number, result2._iteration_number
+        )
+        np.testing.assert_array_equal(result1._n_evaluations, result2._n_evaluations)
+        assert result1._message == result2._message
+        np.testing.assert_array_equal(result1._scipy_result, result2._scipy_result)
+        np.testing.assert_array_equal(result1._time, result2._time)
+
+    @pytest.mark.parametrize("to_format", ["json", "matlab", "pickle"])
+    def test_save_result_data(self, result, problem, to_format, tmp_path):
+        test_stub = tmp_path / "test"
+
+        if to_format == "matlab":
+            filename = f"{test_stub}.mat"
+        elif to_format == "json":
+            filename = f"{test_stub}.json"
+        else:
+            filename = f"{test_stub}.pickle"
+        # Test save result
+        result.save_data(filename, to_format=to_format)
+
+        result_load = OptimisationResult.load_data(filename, file_format=to_format)
+        self.compare_result_data(result, result_load)
+
+        # Test save combined result
+        result_combined = OptimisationResult.combine([result, result])
+        result_combined.save_data(filename, to_format=to_format)
+
+        result_load = OptimisationResult.load_data(filename, file_format=to_format)
+        self.compare_result_data(result_combined, result_load)
+
+    def test_save_result(self, result, tmp_path):
+        test_stub = tmp_path / "test"
+
+        # test save whole result
+        filename = f"{test_stub}.pickle"
+        result.save(filename)
+        result_load = OptimisationResult.load(filename)
+        self.compare_result_data(result, result_load)
+        assert result.problem.parameters.names == result_load.problem.parameters.names
