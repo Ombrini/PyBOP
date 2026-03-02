@@ -91,7 +91,7 @@ class ErrorMeasure(BaseCost):
 
     def evaluate(
         self,
-        sol: Solution | pybamm.Solution | FailedSolution,
+        solution: Solution | pybamm.Solution | FailedSolution,
         inputs: Inputs | None = None,
         calculate_sensitivities: bool = False,
     ) -> float | tuple[float, np.ndarray]:
@@ -100,7 +100,7 @@ class ErrorMeasure(BaseCost):
 
         Parameters
         ----------
-        sol : pybop.Solution | pybamm.Solution
+        solution : pybop.Solution | pybamm.Solution
             The simulation result.
         inputs : Inputs, optional
             Input parameters (default: None).
@@ -114,33 +114,35 @@ class ErrorMeasure(BaseCost):
             gradient with dimension (len(parameters)), otherwise returns only the cost.
         """
         # Return failure cost if the solution failed
-        if isinstance(sol, FailedSolution):
-            return self.failure(calculate_sensitivities)
+        if isinstance(solution, FailedSolution):
+            return self.failure(self.parameters.names, calculate_sensitivities)
 
-        if not isinstance(sol, (Solution, pybamm.Solution)):
+        if not isinstance(solution, (Solution, pybamm.Solution)):
             raise ValueError(
-                f"sol must be a pybop.Solution object, got type {type(sol)} with value {sol}."
+                f"solution must be a pybop.Solution object, got type {type(solution)} with value {solution}."
             )
 
         # Early return if the prediction is not verified
-        if not self.verify_prediction(sol):
-            return self.failure(calculate_sensitivities)
+        if not self.verify_prediction(solution):
+            return self.failure(self.parameters.names, calculate_sensitivities)
 
         # Compute the residual for all output variables
-        r = np.asarray([sol[var].data - self._target_data[var] for var in self.target])
+        r = np.asarray(
+            [solution[var].data - self._target_data[var] for var in self.target]
+        )
 
         # Extract the sensitivities for all output variables and parameters
-        dy = self.stack_sensitivities(sol) if calculate_sensitivities else None
+        dy = self.stack_sensitivities(solution) if calculate_sensitivities else None
 
         return self.__call__(r=r, dy=dy, inputs=inputs)
 
-    def verify_prediction(self, sol: Solution):
+    def verify_prediction(self, solution: Solution):
         """
         Verify that the prediction matches the target data.
 
         Parameters
         ----------
-        sol : pybop.Solution | pybamm.Solution
+        solution : pybop.Solution | pybamm.Solution
             The simulation result.
 
         Returns
@@ -149,7 +151,7 @@ class ErrorMeasure(BaseCost):
             True if the prediction matches the target data, otherwise False.
         """
         if any(
-            len(sol[key].data) != len(self._target_data.get(key, []))
+            len(solution[key].data) != len(self._target_data.get(key, []))
             for key in self.target
         ):
             return False
@@ -170,9 +172,10 @@ class ErrorMeasure(BaseCost):
         r : np.ndarray
             The residual difference between the model prediction and the target. The
             dimensions of r are (len(target), len(domain_data)).
-        dy : np.ndarray, optional
-            The corresponding gradient with respect to the parameters for each output variable.
-            The dimensions of dy are (len(parameters), len(target), len(domain_data)).
+        dy : dict[str, np.ndarray], optional
+            The corresponding gradients dy/dx(t) for each output variable y with respect
+            to each parameter x over the domain t. The dictionary keys are the parameter
+            names and the arrays are of dimensions (len(target), len(domain_data)).
 
         Returns
         -------
@@ -217,7 +220,9 @@ class MeanSquaredError(ErrorMeasure):
         e = np.mean((np.abs(r) ** 2) * self.weighting)
 
         if dy is not None:
-            de = 2 * np.mean((r * self.weighting) * dy, axis=(1, 2))
+            de = {}
+            for key, value in dy.items():
+                de[key] = 2 * np.mean((r * self.weighting) * value)
             return e, de
 
         return e
@@ -241,9 +246,11 @@ class RootMeanSquaredError(ErrorMeasure):
         e = np.sqrt(np.mean((np.abs(r) ** 2) * self.weighting))
 
         if dy is not None:
-            de = np.mean((r * self.weighting) * dy, axis=(1, 2)) / (
-                e + np.finfo(float).eps
-            )
+            de = {}
+            for key, value in dy.items():
+                de[key] = np.mean((r * self.weighting) * value) / (
+                    e + np.finfo(float).eps
+                )
             return e, de
 
         return e
@@ -267,7 +274,9 @@ class MeanAbsoluteError(ErrorMeasure):
         e = np.mean(np.abs(r) * self.weighting)
 
         if dy is not None:
-            de = np.mean((np.sign(r) * self.weighting) * dy, axis=(1, 2))
+            de = {}
+            for key, value in dy.items():
+                de[key] = np.mean((np.sign(r) * self.weighting) * value)
             return e, de
 
         return e
@@ -291,7 +300,9 @@ class SumSquaredError(ErrorMeasure):
         e = np.sum(np.abs(r) ** 2 * self.weighting)
 
         if dy is not None:
-            de = 2 * np.sum((r * self.weighting) * dy, axis=(1, 2))
+            de = {}
+            for key, value in dy.items():
+                de[key] = 2 * np.sum((r * self.weighting) * value)
             return e, de
 
         return e
@@ -353,10 +364,11 @@ class Minkowski(ErrorMeasure):
         e = np.sum((np.abs(r) ** self.p) * self.weighting) ** (1 / self.p)
 
         if dy is not None:
-            de = np.sum(
-                ((np.sign(r) * np.abs(r) ** (self.p - 1)) * self.weighting) * dy,
-                axis=(1, 2),
-            ) / (e ** (self.p - 1) + np.finfo(float).eps)
+            de = {}
+            for key, value in dy.items():
+                de[key] = np.sum(
+                    ((np.sign(r) * np.abs(r) ** (self.p - 1)) * self.weighting) * value
+                ) / (e ** (self.p - 1) + np.finfo(float).eps)
             return e, de
 
         return e
@@ -420,10 +432,11 @@ class SumOfPower(ErrorMeasure):
         e = np.sum((np.abs(r) ** self.p) * self.weighting)
 
         if dy is not None:
-            de = self.p * np.sum(
-                ((np.sign(r) * np.abs(r) ** (self.p - 1)) * self.weighting) * dy,
-                axis=(1, 2),
-            )
+            de = {}
+            for key, value in dy.items():
+                de[key] = self.p * np.sum(
+                    ((np.sign(r) * np.abs(r) ** (self.p - 1)) * self.weighting) * value
+                )
             return e, de
 
         return e

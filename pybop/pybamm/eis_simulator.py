@@ -12,7 +12,6 @@ from scipy.sparse.linalg import spsolve
 
 if TYPE_CHECKING:
     from pybop.parameters.parameter import Inputs
-from pybop.parameters.parameter import Parameter, Parameters
 from pybop.processing.dataset import Dataset
 from pybop.pybamm.simulator import Simulator
 from pybop.pybamm.utils import SymbolReplacer
@@ -121,14 +120,11 @@ class EISSimulator(BaseSimulator):
             initial_current = protocol["Current [A]"][0]
         elif isinstance(protocol, np.ndarray):
             initial_current = 0  # assumption
-        model = self.set_up_for_eis(model.new_copy(), initial_current=float(initial_current))
+        model = self.set_up_for_eis(
+            model.new_copy(), initial_current=float(initial_current)
+        )
 
-        # Unpack the uncertain parameters from the parameter values
-        parameters = Parameters()
-        for name, param in parameter_values.items():
-            if isinstance(param, Parameter):
-                parameters.add(name, param)
-        super().__init__(parameters=parameters)
+        super().__init__(parameters=parameter_values)
 
         # Set up a simulation
         self._simulator = Simulator(
