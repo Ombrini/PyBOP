@@ -27,7 +27,7 @@ corrupt_values = solution["Voltage [V]"].data + np.random.normal(
 dataset = pybop.Dataset(
     {
         "Time [s]": solution.t,
-        "Current function [A]": solution["Current [A]"].data,
+        "Current [A]": solution["Current [A]"].data,
         "Discharge capacity [A.h]": solution["Discharge capacity [A.h]"].data,
         "Voltage [V]": corrupt_values,
     }
@@ -35,10 +35,7 @@ dataset = pybop.Dataset(
 
 for model in [pybop.lithium_ion.WeppnerHuggins(), pybop.lithium_ion.SPDiffusion()]:
     # GITT target parameter
-    diffusion_parameter = pybop.Parameter(
-        prior=pybop.Gaussian(5000, 1000),
-    )
-
+    diffusion_parameter = pybop.Parameter(pybop.Gaussian(5000, 1000))
     if isinstance(model, pybop.lithium_ion.WeppnerHuggins):
         # Group parameter values
         grouped_parameter_values = (
@@ -46,7 +43,7 @@ for model in [pybop.lithium_ion.WeppnerHuggins(), pybop.lithium_ion.SPDiffusion(
         )
 
         # We can fit only the duration of the pulse
-        pulse_index = np.flatnonzero(dataset["Current function [A]"])
+        pulse_index = np.flatnonzero(dataset["Current [A]"])
 
         # We linearise the open-circuit voltage function
         ocp_derivative = (

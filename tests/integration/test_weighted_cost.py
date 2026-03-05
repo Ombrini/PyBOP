@@ -2,6 +2,7 @@ import numpy as np
 import pybamm
 import pytest
 from pybamm import Parameter
+from scipy import stats
 
 import pybop
 
@@ -15,7 +16,7 @@ class TestWeightedCost:
 
     @pytest.fixture(autouse=True)
     def setup(self):
-        self.sigma0 = 0.002
+        self.sigma = 0.002
         self.ground_truth = np.clip(
             np.asarray([0.55, 0.55]) + np.random.normal(loc=0.0, scale=0.05, size=2),
             a_min=0.4,
@@ -51,8 +52,7 @@ class TestWeightedCost:
                 ),
                 "Cell mass [kg]": pybop.pybamm.cell_mass(),
                 "Cell volume [m3]": pybop.pybamm.cell_volume(),
-            },
-            check_already_exists=False,
+            }
         )
         x = self.ground_truth
         parameter_values.update(
@@ -67,11 +67,10 @@ class TestWeightedCost:
     def parameters(self):
         return {
             "Negative electrode active material volume fraction": pybop.Parameter(
-                prior=pybop.Uniform(0.4, 0.75),
-                bounds=[0.375, 0.75],
+                stats.uniform(0.4, 0.75 - 0.4),
             ),
             "Positive electrode active material volume fraction": pybop.Parameter(
-                prior=pybop.Uniform(0.4, 0.75),
+                stats.uniform(0.4, 0.75 - 0.4),
                 # no bounds
             ),
         }
@@ -104,7 +103,7 @@ class TestWeightedCost:
         costs = []
         for cost in cost_class:
             if issubclass(cost, pybop.LogLikelihood):
-                costs.append(cost(dataset, sigma0=self.sigma0))
+                costs.append(cost(dataset, sigma=self.sigma))
             else:
                 costs.append(cost(dataset))
 
@@ -144,12 +143,18 @@ class TestWeightedCost:
         parameter_values.update(
             {
                 "Positive electrode thickness [m]": pybop.Parameter(
-                    prior=pybop.Gaussian(5e-05, 5e-06),
-                    bounds=[2e-06, 10e-05],
+                    distribution=pybop.Gaussian(
+                        5e-05,
+                        5e-06,
+                        truncated_at=[2e-06, 10e-05],
+                    )
                 ),
                 "Negative electrode thickness [m]": pybop.Parameter(
-                    prior=pybop.Gaussian(5e-05, 5e-06),
-                    bounds=[2e-06, 10e-05],
+                    distribution=pybop.Gaussian(
+                        5e-05,
+                        5e-06,
+                        truncated_at=[2e-06, 10e-05],
+                    )
                 ),
             }
         )
@@ -192,7 +197,7 @@ class TestWeightedCost:
         return pybop.Dataset(
             {
                 "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
-                "Voltage [V]": self.noisy(solution["Voltage [V]"].data, self.sigma0),
+                "Current [A]": solution["Current [A]"].data,
+                "Voltage [V]": self.noisy(solution["Voltage [V]"].data, self.sigma),
             }
         )

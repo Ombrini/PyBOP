@@ -1,6 +1,7 @@
 import numpy as np
 import pybamm
 import pytest
+from scipy import stats
 
 import pybop
 
@@ -29,8 +30,7 @@ class TestLikelihoods:
     def parameters(self):
         return {
             "Negative electrode active material volume fraction": pybop.Parameter(
-                prior=pybop.Gaussian(0.5, 0.01),
-                bounds=[0.375, 0.625],
+                distribution=pybop.Gaussian(0.5, 0.01, truncated_at=[0.375, 0.625])
             )
         }
 
@@ -44,13 +44,7 @@ class TestLikelihoods:
         solution = pybamm.Simulation(
             model, parameter_values=parameter_values, experiment=experiment
         ).solve()
-        return pybop.Dataset(
-            {
-                "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
-                "Voltage [V]": solution["Terminal voltage [V]"].data,
-            }
-        )
+        return pybop.import_pybamm_solution(solution)
 
     @pytest.fixture
     def simulator(self, model_and_parameter_values, parameters, dataset):
@@ -65,19 +59,19 @@ class TestLikelihoods:
         with pytest.raises(NotImplementedError):
             likelihood(np.array([0.5]))
 
-    def test_likelihood_check_sigma0(self, dataset):
+    def test_likelihood_check_sigma(self, dataset):
         with pytest.raises(ValueError, match="Sigma0 must be positive"):
-            pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma0=None)
+            pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=None)
 
         likelihood = pybop.GaussianLogLikelihoodKnownSigma(dataset, 0.1)
-        likelihood.set_sigma0(0.2)
+        likelihood.set_sigma(0.2)
         assert likelihood.sigma2 == 0.2**2.0
 
         with pytest.raises(
             ValueError,
-            match=r"sigma0 must be either a scalar value",
+            match=r"sigma must be either a scalar value",
         ):
-            pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma0=[0.2, 0.3])
+            pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=[0.2, 0.3])
 
     @pytest.mark.parametrize(
         "target",
@@ -85,7 +79,7 @@ class TestLikelihoods:
     )
     def test_gaussian_log_likelihood_known_sigma(self, simulator, dataset, target):
         likelihood = pybop.GaussianLogLikelihoodKnownSigma(
-            dataset, target=target, sigma0=np.array([0.01])
+            dataset, target=target, sigma=np.array([0.01])
         )
         problem = pybop.Problem(simulator, likelihood)
         result = problem.evaluate([0.5]).values
@@ -95,10 +89,11 @@ class TestLikelihoods:
         assert isinstance(result[0], float)
         np.testing.assert_allclose(result, grad_result, atol=1e-5)
         # Since 0.5 < ground_truth, the likelihood should be increasing
-        assert grad_likelihood >= 0
+        key0 = problem.parameters.names[0]
+        assert grad_likelihood[key0] >= 0
 
     def test_gaussian_log_likelihood(self, simulator, dataset):
-        likelihood = pybop.GaussianLogLikelihood(dataset, sigma0=0.01)
+        likelihood = pybop.GaussianLogLikelihood(dataset, sigma=0.01)
         problem = pybop.Problem(simulator, likelihood)
         result = problem.evaluate(np.array([0.8, 0.02])).values
         grad_result, grad_likelihood = problem.evaluate(
@@ -106,32 +101,23 @@ class TestLikelihoods:
         ).get_values()
         assert isinstance(result[0], float)
         np.testing.assert_allclose(result, grad_result, atol=1e-5)
+        key = problem.parameters.names
         # Since 0.8 > ground_truth, the likelihood should be decreasing
-        assert grad_likelihood[0][0] <= 0
+        assert grad_likelihood[key[0]] <= 0
         # Since sigma < 0.02, the likelihood should be decreasing
-        assert grad_likelihood[0][1] <= 0
+        assert grad_likelihood[key[1]] <= 0
 
         # Test construction with sigma as a Parameter
-        sigma = pybop.Parameter(prior=pybop.Uniform(0.4, 0.6))
-        likelihood = pybop.GaussianLogLikelihood(dataset, sigma0=sigma)
+        sigma = pybop.Parameter(stats.uniform(loc=0.4, scale=0.6 - 0.4))
+        likelihood = pybop.GaussianLogLikelihood(dataset, sigma=sigma)
 
         # Test invalid sigma
         with pytest.raises(
             TypeError,
-            match=r"Expected sigma0 to contain Parameter objects or numeric values.",
+            match=r"Expected sigma to contain Parameter objects or numeric values.",
         ):
-            likelihood = pybop.GaussianLogLikelihood(dataset, sigma0="Invalid string")
+            likelihood = pybop.GaussianLogLikelihood(dataset, sigma="Invalid string")
             pybop.Problem(simulator, likelihood)
-
-    def test_gaussian_log_likelihood_dsigma_scale(self, dataset):
-        likelihood = pybop.GaussianLogLikelihood(dataset, dsigma_scale=0.05)
-        assert likelihood.dsigma_scale == 0.05
-        likelihood.dsigma_scale = 1e3
-        assert likelihood.dsigma_scale == 1e3
-
-        # Test incorrect sigma scale
-        with pytest.raises(ValueError):
-            likelihood.dsigma_scale = -1e3
 
     def test_gaussian_log_likelihood_returns_negative_inf(self, simulator, dataset):
         likelihood = pybop.GaussianLogLikelihood(dataset)
@@ -148,7 +134,7 @@ class TestLikelihoods:
         self, simulator, dataset
     ):
         likelihood = pybop.GaussianLogLikelihoodKnownSigma(
-            dataset, sigma0=np.array([0.2])
+            dataset, sigma=np.array([0.2])
         )
         problem = pybop.Problem(simulator, likelihood)
         assert (

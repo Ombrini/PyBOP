@@ -30,7 +30,7 @@ def noisy(data, sigma):
 dataset = pybop.Dataset(
     {
         "Time [s]": solution.t,
-        "Current function [A]": solution["Current [A]"].data,
+        "Current [A]": solution["Current [A]"].data,
         "Voltage [V]": noisy(solution["Voltage [V]"].data, sigma),
     }
 )
@@ -39,11 +39,11 @@ dataset = pybop.Dataset(
 parameter_values.update(
     {
         "Negative electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Gaussian(0.68, 0.02),
+            distribution=pybop.Gaussian(0.68, 0.02),
             transformation=pybop.LogTransformation(),
         ),
         "Positive electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Gaussian(0.65, 0.02),
+            distribution=pybop.Gaussian(0.65, 0.02),
             transformation=pybop.LogTransformation(),
         ),
     }
@@ -56,9 +56,8 @@ model = pybamm.lithium_ion.SPM()
 simulator = pybop.pybamm.Simulator(
     model, parameter_values=parameter_values, protocol=dataset
 )
-likelihood = pybop.GaussianLogLikelihood(dataset)
-posterior = pybop.LogPosterior(likelihood)
-problem = pybop.Problem(simulator, posterior)
+cost = pybop.GaussianLogLikelihood(dataset)
+log_pdf = pybop.LogPosterior(simulator, cost)
 
 # Create and run the sampler
 options = pybop.PintsSamplerOptions(
@@ -67,15 +66,15 @@ options = pybop.PintsSamplerOptions(
     warm_up_iterations=100,
     verbose=True,
 )
-sampler = pybop.DifferentialEvolutionMCMC(problem, options=options)
+sampler = pybop.DifferentialEvolutionMCMC(log_pdf, options=options)
 result = sampler.run()
 
 # Summary statistics
-posterior_summary = pybop.PosteriorSummary(result.chains)
-print(posterior_summary.get_summary_statistics())
-posterior_summary.plot_trace()
-posterior_summary.summary_table()
-posterior_summary.plot_posterior()
-posterior_summary.plot_chains()
-posterior_summary.effective_sample_size()
-print(f"rhat: {posterior_summary.rhat()}")
+summary = result.get_summary_statistics()
+print(summary)
+result.plot_trace()
+result.summary_table()
+result.plot_posterior()
+result.plot_chains()
+result.effective_sample_size()
+print(f"rhat: {result.rhat()}")

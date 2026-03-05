@@ -26,9 +26,9 @@ solution = pybamm.Simulation(model, parameter_values=parameter_values).solve(
 dataset = pybop.Dataset(
     {
         "Time [s]": t_eval,
+        "Current [A]": solution["Current [A]"](t_eval),
         "Voltage [V]": solution["Voltage [V]"](t_eval)
         + np.random.normal(0, sigma, len(t_eval)),
-        "Current function [A]": solution["Current [A]"](t_eval),
     }
 )
 
@@ -36,11 +36,14 @@ dataset = pybop.Dataset(
 parameter_values.update(
     {
         "Negative electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Gaussian(0.6, 0.05),
-            bounds=[0.5, 0.8],
+            distribution=pybop.Gaussian(
+                0.6,
+                0.05,
+                truncated_at=[0.5, 0.8],
+            )
         ),
         "Positive electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Gaussian(0.48, 0.05),
+            distribution=pybop.Gaussian(0.48, 0.05),
         ),
     }
 )
@@ -49,8 +52,8 @@ parameter_values.update(
 simulator = pybop.pybamm.Simulator(
     model, parameter_values=parameter_values, protocol=dataset
 )
-likelihood = pybop.GaussianLogLikelihood(dataset, sigma0=8e-3)
-problem = pybop.Problem(simulator, likelihood)
+cost = pybop.GaussianLogLikelihood(dataset, sigma=8e-3)
+problem = pybop.Problem(simulator, cost)
 
 # Set up the optimiser
 options = pybop.PintsOptions(

@@ -42,7 +42,7 @@ def noisy(data, sigma):
 dataset = pybop.Dataset(
     {
         "Time [s]": solution.t,
-        "Current function [A]": solution["Current [A]"].data,
+        "Current [A]": solution["Current [A]"].data,
         "Voltage [V]": noisy(solution["Voltage [V]"].data, sigma),
     }
 )
@@ -62,23 +62,35 @@ true_values = [
 parameter_values.update(
     {
         "Maximum concentration in negative electrode [mol.m-3]": pybop.Parameter(
-            prior=pybop.Gaussian(cs_n_max, 6e3),
-            bounds=[cs_n_max * 0.75, cs_n_max * 1.25],
+            pybop.Gaussian(
+                cs_n_max,
+                6e3,
+                truncated_at=[cs_n_max * 0.75, cs_n_max * 1.25],
+            ),
             initial_value=cs_n_max * 0.8,
         ),
         "Maximum concentration in positive electrode [mol.m-3]": pybop.Parameter(
-            prior=pybop.Gaussian(cs_p_max, 6e3),
-            bounds=[cs_p_max * 0.75, cs_p_max * 1.25],
+            pybop.Gaussian(
+                cs_p_max,
+                6e3,
+                truncated_at=[cs_p_max * 0.75, cs_p_max * 1.25],
+            ),
             initial_value=cs_p_max * 0.8,
         ),
         "Initial concentration in negative electrode [mol.m-3]": pybop.Parameter(
-            prior=pybop.Gaussian(cs_n_init, 6e3),
-            bounds=[cs_n_max * 0.75, cs_n_max * 1.25],
+            pybop.Gaussian(
+                cs_n_init,
+                6e3,
+                truncated_at=[cs_n_max * 0.75, cs_n_max * 1.25],
+            ),
             initial_value=cs_n_max * 0.8,
         ),
         "Initial concentration in positive electrode [mol.m-3]": pybop.Parameter(
-            prior=pybop.Gaussian(cs_p_init, 6e3),
-            bounds=[0, cs_p_max * 0.5],
+            pybop.Gaussian(
+                cs_p_init,
+                6e3,
+                truncated_at=[0, cs_p_max * 0.5],
+            ),
             initial_value=cs_p_max * 0.2,
         ),
     }
@@ -86,7 +98,7 @@ parameter_values.update(
 
 # Build the problem
 simulator = pybop.pybamm.Simulator(model, parameter_values, protocol=dataset)
-cost = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma0=sigma)
+cost = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=sigma)
 problem = pybop.Problem(simulator, cost)
 
 # Set up the optimiser

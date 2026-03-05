@@ -23,9 +23,9 @@ solution = pybamm.Simulation(model, parameter_values=parameter_values).solve(
 dataset = pybop.Dataset(
     {
         "Time [s]": t_eval,
+        "Current [A]": solution["Current [A]"](t_eval),
         "Voltage [V]": solution["Voltage [V]"](t_eval)
         + np.random.normal(0, sigma, len(t_eval)),
-        "Current function [A]": solution["Current [A]"](t_eval),
     }
 )
 
@@ -42,12 +42,18 @@ true_values = [
 parameter_values.update(
     {
         "Negative electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Gaussian(0.6, 0.05),
-            bounds=[0.5, 0.8],
+            distribution=pybop.Gaussian(
+                0.6,
+                0.05,
+                truncated_at=[0.5, 0.8],
+            ),
         ),
         "Positive electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Gaussian(0.48, 0.05),
-            bounds=[0.4, 0.7],
+            distribution=pybop.Gaussian(
+                0.48,
+                0.05,
+                truncated_at=[0.4, 0.7],
+            ),
         ),
     }
 )

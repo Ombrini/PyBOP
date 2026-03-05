@@ -1,5 +1,4 @@
 from pints import MALAMCMC as PintsMALAMCMC
-from pints import AdaptiveCovarianceMCMC as PintsAdaptiveCovarianceMCMC
 from pints import DifferentialEvolutionMCMC as PintsDifferentialEvolutionMCMC
 from pints import DramACMC as PintsDramACMC
 from pints import DreamMCMC as PintsDREAM
@@ -18,12 +17,11 @@ from pints import SliceRankShrinkingMCMC as PintsSliceRankShrinkingMCMC
 from pints import SliceStepoutMCMC as PintsSliceStepoutMCMC
 
 from pybop import BasePintsSampler, PintsSamplerOptions
-from pybop.problems.problem import Problem
+from pybop.problems.log_pdf import LogPDF
 
 __all__: list[str] = [
     "NUTS",
     "DREAM",
-    "AdaptiveCovarianceMCMC",
     "DifferentialEvolutionMCMC",
     "DramACMC",
     "EmceeHammerMCMC",
@@ -53,13 +51,13 @@ class NUTS(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, NoUTurnMCMC, options=options)
 
 
@@ -73,34 +71,14 @@ class DREAM(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsDREAM, options=options)
-
-
-class AdaptiveCovarianceMCMC(BasePintsSampler):
-    """
-    Implements the Adaptive Covariance Markov Chain Monte Carlo (MCMC) algorithm.
-
-    This class wraps the Adaptive Covariance MCMC sampler from the PINTS library.
-    The proposal distribution's covariance matrix is adapted during sampling
-    to improve efficiency and convergence.
-
-    Parameters
-    ----------
-    log_pdf : pybop.Problem
-        The log-posterior to sample.
-    options : pybop.PintsSamplerOptions, optional
-        Additional options for the sampler.
-    """
-
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
-        super().__init__(log_pdf, PintsAdaptiveCovarianceMCMC, options=options)
 
 
 class DifferentialEvolutionMCMC(BasePintsSampler):
@@ -113,13 +91,13 @@ class DifferentialEvolutionMCMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsDifferentialEvolutionMCMC, options=options)
 
 
@@ -132,13 +110,13 @@ class DramACMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsDramACMC, options=options)
 
 
@@ -152,13 +130,13 @@ class EmceeHammerMCMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsEmceeHammerMCMC, options=options)
 
 
@@ -172,13 +150,13 @@ class HaarioACMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsHaarioACMC, options=options)
 
 
@@ -192,13 +170,13 @@ class HaarioBardenetACMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsHaarioBardenetACMC, options=options)
 
 
@@ -212,13 +190,13 @@ class HamiltonianMCMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsHamiltonianMCMC, options=options)
 
 
@@ -232,13 +210,13 @@ class MALAMCMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsMALAMCMC, options=options)
 
 
@@ -252,13 +230,13 @@ class MetropolisRandomWalkMCMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsMetropolisRandomWalkMCMC, options=options)
 
 
@@ -272,13 +250,13 @@ class MonomialGammaHamiltonianMCMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsMonomialGammaHamiltonianMCMC, options=options)
 
 
@@ -292,13 +270,13 @@ class PopulationMCMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsPopulationMCMC, options=options)
 
 
@@ -312,13 +290,13 @@ class RaoBlackwellACMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsRaoBlackwellACMC, options=options)
 
 
@@ -332,13 +310,13 @@ class RelativisticMCMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsRelativisticMCMC, options=options)
 
 
@@ -352,13 +330,13 @@ class SliceDoublingMCMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsSliceDoublingMCMC, options=options)
 
 
@@ -372,13 +350,13 @@ class SliceRankShrinkingMCMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options for the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsSliceRankShrinkingMCMC, options=options)
 
 
@@ -392,11 +370,11 @@ class SliceStepoutMCMC(BasePintsSampler):
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The log-posterior to sample.
     options : pybop.PintsSamplerOptions, optional
         Additional options to pass to the sampler.
     """
 
-    def __init__(self, log_pdf: Problem, options: PintsSamplerOptions | None = None):
+    def __init__(self, log_pdf: LogPDF, options: PintsSamplerOptions | None = None):
         super().__init__(log_pdf, PintsSliceStepoutMCMC, options=options)

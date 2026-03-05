@@ -1,153 +1,24 @@
-import multiprocessing as mp
-import platform
+import json
+import pickle
 import re
-from dataclasses import dataclass, field
 
 import numpy as np
-import pybamm
+import pandas as pd
+from scipy.io import loadmat, savemat
 
 
-def is_numeric(x):
+class NumpyEncoder(json.JSONEncoder):
     """
-    Check if a variable is numeric.
-    """
-    return isinstance(x, int | float | np.number)
-
-
-@dataclass(frozen=True)
-class FailedVariable:
-    """
-    Check if a variable is numeric.
-    Container for a failed PyBaMM variable that returns np.inf.
-
-    Args:
-        name: Variable name
-        data: Array data, defaults to [np.inf]
-        sensitivities: Sensitivity data mapping parameter names to arrays
+    Numpy serialiser helper class that converts numpy arrays to a list.
+    Numpy arrays cannot be directly converted to JSON, so the arrays are
+    converted to python list objects before encoding.
     """
 
-    name: str
-    data: np.ndarray = field(default_factory=lambda: np.asarray([np.inf]))
-    sensitivities: {str, np.ndarray} = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        """Validate inputs after initialisation."""
-        if not isinstance(self.name, str) or not self.name.strip():
-            raise ValueError("Variable name must be a non-empty string")
-
-        if not isinstance(self.data, np.ndarray):
-            object.__setattr__(self, "data", np.asarray(self.data))
-
-
-class FailedSolution:
-    """
-    return isinstance(x, int | float | np.number)
-    Container for a failed PyBaMM solution that returns [np.inf] for all processed variables.
-
-    This class mimics the interface of a successful PyBaMM solution but returns
-    infinity values to indicate failure while maintaining API compatibility.
-
-    Args:
-        variable_names: List of variable names in the solution
-        parameter_names: List of parameter names for sensitivity analysis
-
-    Example:
-        >>> solution = FailedSolution(["Voltage [V]"], ["Negative particle radius [m]"])
-        >>> voltage = solution["Voltage [V]"]
-        >>> print(voltage.data)  # np.ndarray([inf])
-    """
-
-    def __init__(self, variable_names: list[str], parameter_names: list[str]):
-        self._validate_inputs(variable_names, parameter_names)
-        self._variable_names = variable_names
-        self._parameter_names = parameter_names
-
-        # Solution metadata
-        self.cycles: int | None = None
-        self.termination: str = "failure"
-        self.solve_time: float = 0.0
-        self.integration_time: float = 0.0
-        self._t_eval: np.ndarray = np.asarray([0.0])
-
-        # Initialise failed variables
-        self._variables: {str, FailedVariable} = pybamm.FuzzyDict()
-        self._initialise_variables()
-
-    def _validate_inputs(
-        self, variable_names: list[str], parameter_names: list[str] | None
-    ) -> None:
-        """Validate constructor inputs."""
-        if not variable_names:
-            raise ValueError("variable_names cannot be empty")
-
-        if not all(isinstance(name, str) and name.strip() for name in variable_names):
-            raise ValueError("All variable names must be non-empty strings")
-
-        if parameter_names is not None:
-            if not all(
-                isinstance(name, str) and name.strip() for name in parameter_names
-            ):
-                raise ValueError("All parameter names must be non-empty strings")
-
-    def _initialise_variables(self) -> None:
-        """Initialise all variables with failed state."""
-        inf_array = np.asarray([np.inf])
-
-        for var_name in self._variable_names:
-            if self._parameter_names:
-                sensitivities = {p: inf_array.copy() for p in self._parameter_names}
-                sensitivities["all"] = [inf_array.copy() for _ in self._parameter_names]
-            else:
-                sensitivities = {}
-
-            self._variables[var_name] = FailedVariable(
-                name=var_name, data=inf_array.copy(), sensitivities=sensitivities
-            )
-
-    def __getattr__(self, name):
-        # Return self for any method calls to allow chaining
-        return self
-
-    def __getitem__(self, key):
-        return self._variables[key]
-
-    def plot(self, *args, **kwargs):
-        print("Cannot plot a failed solution")
-        return None
-
-    def save(self, *args, **kwargs):
-        print("Cannot save a failed solution")
-        return None
-
-    def copy(self):
-        return FailedSolution(self._variable_names, self._parameter_names)
-
-    @property
-    def t_eval(self) -> np.ndarray:
-        """Time evaluation points (returns [inf] for failed solutions)."""
-        return self._t_eval
-
-    @property
-    def variable_names(self) -> list[str]:
-        """Get list of variable names (read-only)."""
-        return self._variable_names.copy()
-
-    @property
-    def parameter_names(self) -> list[str]:
-        """Get list of parameter names (read-only)."""
-        return self._parameter_names.copy()
-
-    def keys(self) -> list[str]:
-        """Get all variable names."""
-        return list(self._variables.keys())
-
-    def values(self) -> list[FailedVariable]:
-        """Get all variables."""
-        return list(self._variables.values())
-
-    def items(self) -> list[tuple[str, FailedVariable]]:
-        """Get all variable name-value pairs."""
-        return list(self._variables.items())
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        # won't be called since we only need to convert numpy arrays
+        return json.JSONEncoder.default(self, obj)  # pragma: no cover
 
 
 def add_spaces(string):
@@ -159,184 +30,162 @@ def add_spaces(string):
     return re_outer.sub(r"\1 \2", re_inner.sub(r" \1\2", string))
 
 
-class SymbolReplacer:
+def is_numeric(x):
     """
-    Helper class to replace all instances of one or more symbols in an expression tree
-    with another symbol, as defined by the dictionary `symbol_replacement_map`
-    Originally developed by pybamm: https://github.com/pybamm-team/pybamm
+    Check if a variable is numeric.
+    """
+    return isinstance(x, int | float | np.number)
+
+
+def save_data_dict(
+    data_dict: dict,
+    filename: str | None = None,
+    to_format: str = "pickle",
+) -> str | None:
+    """
+    Save data from given data dictionary
+
+    Based on pybamm.Solution.save_data
 
     Parameters
     ----------
-    symbol_replacement_map : dict {:class:`pybamm.Symbol` -> :class:`pybamm.Symbol`}
-        Map of which symbols should be replaced by which.
-    processed_symbols: dict {:class:`pybamm.Symbol` -> :class:`pybamm.Symbol`}, optional
-        cached replaced symbols
-    process_initial_conditions: bool, optional
-        Whether to process initial conditions, default is True
+    filename : str, optional
+        The name of the file to save data to. If None, then a str is returned
+    to_format : str, optional
+        The format to save to. Options are:
+
+        - 'pickle' (default): creates a pickle file with the data dictionary
+        - 'matlab': creates a .mat file, for loading in matlab
+        - 'csv': creates a csv file (0D variables only)
+        - 'json': creates a json file
+
+    Returns
+    -------
+    data : str, optional
+        str if 'json' is chosen and filename is None, otherwise None
     """
 
-    def __init__(
-        self,
-        symbol_replacement_map: dict[pybamm.Symbol, pybamm.Symbol],
-        processed_symbols: dict[pybamm.Symbol, pybamm.Symbol] | None = None,
-        process_initial_conditions: bool = True,
-    ):
-        self._symbol_replacement_map = symbol_replacement_map
-        self._processed_symbols = processed_symbols or {}
-        self._process_initial_conditions = process_initial_conditions
-
-    def process_model(self, unprocessed_model, inplace=True):
-        """
-        Replace all instances of a symbol in a PyBaMM model class.
-
-        Parameters
-        ----------
-        unprocessed_model : :class:`pybamm.BaseModel`
-            Model class to assign parameter values to
-        inplace: bool, optional
-            If True, replace the parameters in the model in place. Otherwise, return a
-            new model with parameter values set (default: True).
-        """
-
-        model = unprocessed_model if inplace else unprocessed_model.new_copy()
-
-        for variable, equation in unprocessed_model.rhs.items():
-            pybamm.logger.verbose(f"Replacing symbols in {variable!r} (rhs)")
-            model.rhs[self.process_symbol(variable)] = self.process_symbol(equation)
-
-        for variable, equation in unprocessed_model.algebraic.items():
-            pybamm.logger.verbose(f"Replacing symbols in {variable!r} (algebraic)")
-            model.algebraic[self.process_symbol(variable)] = self.process_symbol(
-                equation
-            )
-
-        for variable, equation in unprocessed_model.initial_conditions.items():
-            pybamm.logger.verbose(
-                f"Replacing symbols in {variable!r} (initial conditions)"
-            )
-            if self._process_initial_conditions:
-                model.initial_conditions[self.process_symbol(variable)] = (
-                    self.process_symbol(equation)
-                )
-            else:
-                model.initial_conditions[self.process_symbol(variable)] = equation
-
-        model.boundary_conditions = self.process_boundary_conditions(unprocessed_model)
-
-        for variable, equation in unprocessed_model.variables.items():
-            pybamm.logger.verbose(f"Replacing symbols in {variable!r} (variables)")
-            model.variables[variable] = self.process_symbol(equation)
-
-        model.events = self._process_events(unprocessed_model.events)
-        pybamm.logger.info(f"Finish replacing symbols in {model.name}")
-
-        return model
-
-    def _process_events(self, events: list) -> list:
-        new_events = []
-        for event in events:
-            pybamm.logger.verbose(f"Replacing symbols in event '{event.name}'")
-            new_events.append(
-                pybamm.Event(
-                    event.name, self.process_symbol(event.expression), event.event_type
-                )
-            )
-        return new_events
-
-    def process_boundary_conditions(self, model):
-        """
-        Process boundary conditions for a PybaMM model class
-        Boundary conditions are dictionaries {"left": left bc, "right": right bc}
-        in general, but may be imposed on the tabs (or *not* on the tab) for a
-        small number of variables, e.g. {"negative tab": neg. tab bc,
-        "positive tab": pos. tab bc "no tab": no tab bc}.
-        """
-        boundary_conditions = {}
-        sides = ["left", "right", "negative tab", "positive tab", "no tab"]
-        for variable, bcs in model.boundary_conditions.items():
-            processed_variable = self.process_symbol(variable)
-            boundary_conditions[processed_variable] = {}
-
-            for side in sides:
-                try:
-                    bc, typ = bcs[side]
-                    pybamm.logger.verbose(
-                        f"Replacing symbols in {variable!r} ({side} bc)"
+    if to_format == "pickle":
+        if filename is None:
+            raise ValueError("pickle format must be written to a file")
+        with open(filename, "wb") as f:
+            pickle.dump(data_dict, f, pickle.HIGHEST_PROTOCOL)
+    elif to_format == "matlab":
+        if filename is None:
+            raise ValueError("matlab format must be written to a file")
+        # Check all the variable names only contain a-z, A-Z or _ or numbers
+        for name in data_dict.keys():
+            # Check the string only contains the following ASCII:
+            # a-z (97-122)
+            # A-Z (65-90)
+            # _ (95)
+            # 0-9 (48-57) but not in the first position
+            for i, s in enumerate(name):
+                if not (
+                    97 <= ord(s) <= 122
+                    or 65 <= ord(s) <= 90
+                    or ord(s) == 95
+                    or (i > 0 and 48 <= ord(s) <= 57)
+                ):
+                    raise ValueError(
+                        f"Invalid character '{s}' found in '{name}'. "
+                        "MATLAB variable names must only contain a-z, A-Z, _, "
+                        "or 0-9 (except the first position). "
                     )
-                    processed_bc = (self.process_symbol(bc), typ)
-                    boundary_conditions[processed_variable][side] = processed_bc
-                except KeyError as err:
-                    # Don't raise if side is not in the boundary conditions
-                    if err.args[0] in side:
-                        pass
-                    # Raise otherwise
-                    else:  # pragma: no cover
-                        raise KeyError(err) from err
-
-        return boundary_conditions
-
-    def process_symbol(self, symbol):
-        """
-        This function recurses down the tree, replacing any symbols in
-        self._symbol_replacement_map.keys() with their corresponding value
-
-        Parameters
-        ----------
-        symbol : :class:`pybamm.Symbol`
-            The symbol to replace
-
-        Returns
-        -------
-        :class:`pybamm.Symbol`
-            Symbol with all replacements performed
-        """
-        if symbol in self._processed_symbols:
-            return self._processed_symbols[symbol]
-
-        processed_symbol = self._process_symbol(symbol)
-        self._processed_symbols[symbol] = processed_symbol
-        return processed_symbol
-
-    def _process_symbol(self, symbol: pybamm.Symbol) -> pybamm.Symbol:
-        if symbol in self._symbol_replacement_map:
-            return self._symbol_replacement_map[symbol]
-
-        if isinstance(symbol, pybamm.BinaryOperator):
-            # process children
-            new_left = self.process_symbol(symbol.left)
-            new_right = self.process_symbol(symbol.right)
-            return symbol._binary_new_copy(new_left, new_right)  # noqa: SLF001
-
-        if isinstance(symbol, pybamm.UnaryOperator):
-            new_child = self.process_symbol(symbol.child)
-            return symbol._unary_new_copy(new_child)  # noqa: SLF001
-
-        if isinstance(symbol, pybamm.Function):
-            new_children = [self.process_symbol(child) for child in symbol.children]
-            # Return a new copy with the replaced symbols
-            return symbol._function_new_copy(new_children)  # noqa: SLF001
-
-        if isinstance(symbol, pybamm.Concatenation):
-            new_children = [self.process_symbol(child) for child in symbol.children]
-            return symbol._concatenation_new_copy(new_children)  # noqa: SLF001
-
-        # Return leaf
-        return symbol
+        savemat(filename, data_dict)
+    elif to_format == "csv":
+        # use copy to avoid modifying input
+        data_dict_copy = data_dict.copy()
+        for name, var in data_dict.items():
+            var = np.asarray(var)
+            if var.ndim == 0:
+                data_dict_copy[name] = [var]
+            elif var.ndim >= 2:
+                raise ValueError(
+                    f"only 0D variables can be saved to csv, but '{name}' is {var.ndim - 1}D"
+                )
+        df = pd.DataFrame(data_dict_copy)
+        return df.to_csv(filename, index=False)
+    elif to_format == "json":
+        if filename is None:
+            return json.dumps(data_dict, cls=NumpyEncoder)
+        else:
+            with open(filename, "w") as outfile:
+                json.dump(data_dict, outfile, cls=NumpyEncoder)
+    else:
+        raise ValueError(f"format '{to_format}' is not supported")
 
 
-class RecommendedSolver(pybamm.IDAKLUSolver):
-    """A shortcut for creating the PyBaMM solver recommended for optimisation."""
+def load_data_dict(
+    filename: str,
+    file_format: str = "pickle",
+    data_keys_0d: list[str] | None = None,
+    data_keys_1d: list[str] | None = None,
+) -> dict:
+    """
+    Load data as dictionary from a given file. Restores data saved with
+    save_data_dict.
 
-    def __init__(self, output_variables: list[str] | None = None):
-        solver_options = {}
+    Parameters
+    ----------
+    filename : str
+        The name of the file containing the data.
+    file_format : str, optional
+        The format the data was save to. Options are:
+        - 'pickle' (default)
+        - 'matlab'
+        - 'csv'
+        - 'json'
+    data_keys_0d: list[str], optional
+        A list of keys for which the data is a scalar/0-dimensional.
+        This is only needed for file_format='matlab' or file_format = 'csv'.
+        scipy.io.savemat turns any data into a multi-dimensional array with at least 2 dimensions.
+        If provided, data dimensions will be consistent with the original data.
+    data_keys_1d: list[str], optional
+        A list of keys for which the data is a 1-dimensional list or array.
+        This is only needed for file_format='matlab'. scipy.io.savemat turns any
+        data into a multi-dimensional array with at least 2 dimensions.
+        If provided, data dimensions will be consistent with the original data.
 
-        if platform.system() != "Windows":
-            solver_options["num_threads"] = max(1, mp.cpu_count())
+    Returns
+    -------
+    data_dict :
+        python dictionary containing the data in the file.
+    """
 
-        super().__init__(
-            on_failure="ignore",
-            atol=1e-6,
-            rtol=1e-6,
-            options=solver_options,
-            output_variables=output_variables,
-        )
+    # Load data using appropriate method according to the file_format
+    if file_format == "pickle":
+        with open(filename, "rb") as f:
+            data_dict = pickle.load(f)
+
+    elif file_format == "matlab":
+        data_dict = {}
+        loadmat(filename, mdict=data_dict)
+
+        # fix dimensions for 0-d and 1-d data
+        data_keys_0d = data_keys_0d or []
+        data_keys_1d = data_keys_1d or []
+        for key in data_keys_0d:
+            if key in data_dict.keys():
+                data_dict[key] = data_dict[key][0, 0]
+        for key in data_keys_1d:
+            if key in data_dict.keys():
+                data_dict[key] = data_dict[key].flatten()
+
+    elif file_format == "json":
+        with open(filename) as f:
+            data_dict = json.load(f)
+
+    elif file_format == "csv":
+        data_dict = pd.read_csv(filename).to_dict(orient="list")
+
+        # fix dimensions for 0-d data
+        data_keys_0d = data_keys_0d or []
+        for key in data_keys_0d:
+            if key in data_dict.keys():
+                data_dict[key] = data_dict[key][0]
+
+    else:
+        raise ValueError(f"format '{file_format}' is not supported.")
+
+    return data_dict

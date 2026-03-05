@@ -1,7 +1,7 @@
 from copy import copy
 
-from pybop._utils import FailedSolution
 from pybop.parameters.parameter import Inputs, Parameter, Parameters
+from pybop.simulators.failed_solution import FailedSolution
 from pybop.simulators.solution import Solution
 
 
@@ -10,27 +10,28 @@ class BaseSimulator:
     Base simulator.
     """
 
-    def __init__(self, parameters: Parameters | None = None):
+    def __init__(self, parameters: Parameters | dict | None = None):
         if parameters is None:
             parameters = Parameters()
-        # Check if parameters is a list of pybop.Parameter objects
-        elif isinstance(parameters, list):
-            if all(isinstance(param, Parameter) for param in parameters):
-                parameters = Parameters(*parameters)
-            else:
-                raise TypeError(
-                    "All elements in the list must be pybop.Parameter objects."
-                )
-        # Check if parameters is a single pybop.Parameter object
-        elif isinstance(parameters, Parameter):
-            parameters = Parameters(parameters)
-        # Check if parameters is already a pybop.Parameters object
         elif not isinstance(parameters, Parameters):
-            raise TypeError(
-                "The input parameters must be a pybop.Parameter, a list of pybop.Parameter objects, or a pybop.Parameters object."
-            )
+            try:
+                parameters = self.get_parameters_from_dict(parameters)
+            except Exception:
+                raise TypeError(
+                    "Parameters must be a dictionary of pybop.Parameter objects "
+                    "or a pybop.Parameters object."
+                ) from None
 
         self.parameters = parameters
+
+    def get_parameters_from_dict(self, parameter_values: dict):
+        """Extract any pybop.Parameter objects and replace with the "[input]" string."""
+        parameters = Parameters()
+        for name, param in parameter_values.items():
+            if isinstance(param, Parameter):
+                parameters.add(name, param)
+                parameter_values.update({name: "[input]"})
+        return parameters
 
     def set_output_variables(self, target: list[str]):
         return NotImplementedError
@@ -46,15 +47,15 @@ class BaseSimulator:
         calculate_sensitivities=True.
         """
         if not isinstance(inputs, list):
-            return self.batch_solve(
+            return self.solve_batch(
                 inputs=[inputs], calculate_sensitivities=calculate_sensitivities
             )[0]
 
-        return self.batch_solve(
+        return self.solve_batch(
             inputs=inputs, calculate_sensitivities=calculate_sensitivities
         )
 
-    def batch_solve(
+    def solve_batch(
         self,
         inputs: "list[Inputs]",
         calculate_sensitivities: bool = False,

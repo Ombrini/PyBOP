@@ -21,7 +21,7 @@ parameter_values.update(
 )
 parameter_values.set_initial_state(0.5)
 n_frequency = 20
-sigma0 = 1e-4
+sigma = 1e-4
 f_eval = np.logspace(-4, 5, n_frequency)
 
 # Create synthetic data for parameter inference
@@ -44,8 +44,8 @@ def noisy(data, sigma):
 dataset = pybop.Dataset(
     {
         "Frequency [Hz]": f_eval,
-        "Current function [A]": np.zeros_like(f_eval),
-        "Impedance": noisy(solution["Impedance"].data, sigma0),
+        "Current [A]": np.zeros_like(f_eval),
+        "Impedance": noisy(solution["Impedance"].data, sigma),
     },
     domain="Frequency [Hz]",
 )
@@ -63,12 +63,10 @@ true_values = [
 parameter_values.update(
     {
         "Negative electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Uniform(0.4, 0.75),
-            bounds=[0.375, 0.75],
+            pybop.Uniform(0.4, 0.75)
         ),
         "Positive electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Uniform(0.4, 0.75),
-            bounds=[0.375, 0.75],
+            pybop.Uniform(0.4, 0.75)
         ),
     }
 )
@@ -77,7 +75,7 @@ parameter_values.update(
 simulator = pybop.pybamm.EISSimulator(
     model, parameter_values=parameter_values, f_eval=dataset["Frequency [Hz]"]
 )
-cost = pybop.GaussianLogLikelihoodKnownSigma(dataset, target="Impedance", sigma0=sigma0)
+cost = pybop.GaussianLogLikelihoodKnownSigma(dataset, target="Impedance", sigma=sigma)
 problem = pybop.Problem(simulator, cost)
 
 # Set up the optimiser

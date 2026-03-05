@@ -35,8 +35,7 @@ parameter_values.update(
         ),
         "Cell mass [kg]": pybop.pybamm.cell_mass(),
         "Cell volume [m3]": pybop.pybamm.cell_volume(),
-    },
-    check_already_exists=False,
+    }
 )
 
 # Define an initial guess for the discharge rate
@@ -46,12 +45,14 @@ discharge_rate = 2 * parameter_values["Nominal cell capacity [A.h]"]
 parameter_values.update(
     {
         "Positive electrode thickness [m]": pybop.Parameter(
-            prior=pybop.Gaussian(7.56e-05, 0.5e-05),
-            bounds=[65e-06, 10e-05],
+            pybop.Gaussian(7.56e-05, 0.5e-05, truncated_at=[65e-06, 10e-05]),
         ),
         "Nominal cell capacity [A.h]": pybop.Parameter(  # controls the C-rate in the experiment
-            prior=pybop.Gaussian(discharge_rate, 0.2),
-            bounds=[0.8 * discharge_rate, 1.2 * discharge_rate],
+            pybop.Gaussian(
+                discharge_rate,
+                0.2,
+                truncated_at=[0.8 * discharge_rate, 1.2 * discharge_rate],
+            ),
         ),
     }
 )
@@ -90,5 +91,5 @@ print(f"Optimised volumetric power density: {problem_2(result.x):.2f} W.m-3")
 result.plot_surface()
 
 # Plot the timeseries output
-problem_1.target = "Voltage [V]"
+problem_1.set_target("Voltage [V]")
 pybop.plot.problem(problem_1, inputs=result.best_inputs, title="Optimised Comparison")

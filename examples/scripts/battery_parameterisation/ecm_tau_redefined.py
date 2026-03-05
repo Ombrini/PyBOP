@@ -50,8 +50,7 @@ parameter_values.update(
         "R2 [Ohm]": 0.0003,
         "C2 [F]": 5000,
         "Element-2 initial overpotential [V]": 0,
-    },
-    check_already_exists=False,
+    }
 )
 
 # PyBaMM wants to see capacitances, but it's better to fit time-constants, so let's introduce
@@ -60,8 +59,7 @@ parameter_values.update(
     {
         "tau1 [s]": parameter_values["R1 [Ohm]"] * parameter_values["C1 [F]"],
         "tau2 [s]": parameter_values["R2 [Ohm]"] * parameter_values["C2 [F]"],
-    },
-    check_already_exists=False,
+    }
 )
 parameter_values.update(
     {
@@ -83,7 +81,7 @@ corrupt_values = solution["Voltage [V]"](t_eval) + np.random.normal(
 dataset = pybop.Dataset(
     {
         "Time [s]": t_eval,
-        "Current function [A]": solution["Current [A]"](t_eval),
+        "Current [A]": solution["Current [A]"](t_eval),
         "Voltage [V]": corrupt_values,
     }
 )
@@ -96,16 +94,25 @@ true_values.append(parameter_values.evaluate(pybamm.Parameter("C1 [F]")))
 parameter_values.update(
     {
         "R0 [Ohm]": pybop.Parameter(
-            prior=pybop.Gaussian(0.0002, 0.0001),
-            bounds=[1e-4, 1e-2],
+            pybop.Gaussian(
+                0.0002,
+                0.0001,
+                truncated_at=[1e-4, 1e-2],
+            ),
         ),
         "R1 [Ohm]": pybop.Parameter(
-            prior=pybop.Gaussian(0.0001, 0.0001),
-            bounds=[1e-5, 1e-2],
+            pybop.Gaussian(
+                0.0001,
+                0.0001,
+                truncated_at=[1e-5, 1e-2],
+            ),
         ),
         "tau1 [s]": pybop.Parameter(
-            prior=pybop.Gaussian(1.0, 0.025),
-            bounds=[0, 3.0],
+            pybop.Gaussian(
+                1.0,
+                0.025,
+                truncated_at=[0, 3.0],
+            ),
         ),
     }
 )

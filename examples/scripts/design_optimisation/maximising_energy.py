@@ -38,20 +38,17 @@ parameter_values.update(
         ),
         "Cell mass [kg]": pybop.pybamm.cell_mass(),
         "Cell volume [m3]": pybop.pybamm.cell_volume(),
-    },
-    check_already_exists=False,
+    }
 )
 
 # Fitting parameters
 parameter_values.update(
     {
         "Positive electrode thickness [m]": pybop.Parameter(
-            prior=pybop.Gaussian(7.56e-05, 0.1e-05),
-            bounds=[65e-06, 10e-05],
+            pybop.Gaussian(7.56e-05, 0.1e-05, truncated_at=[65e-06, 10e-05]),
         ),
         "Positive particle radius [m]": pybop.Parameter(
-            prior=pybop.Gaussian(5.22e-06, 0.1e-06),
-            bounds=[2e-06, 9e-06],
+            pybop.Gaussian(5.22e-06, 0.1e-06, truncated_at=[2e-06, 9e-06]),
         ),
     }
 )
@@ -93,5 +90,5 @@ print(f"Optimised volumetric energy density: {problem_2(result.x):.2f} W.h.m-3")
 result.plot_surface()
 
 # Plot the timeseries output
-problem_1.target = "Voltage [V]"
+problem_1.set_target("Voltage [V]")
 pybop.plot.problem(problem_1, inputs=result.best_inputs, title="Optimised Comparison")

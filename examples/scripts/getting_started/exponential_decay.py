@@ -30,14 +30,14 @@ dataset = pybop.Dataset(
 # Fitting parameters
 parameter_values.update(
     {
-        "k": pybop.Parameter(prior=pybop.Gaussian(0.5, 0.05)),
-        "y0": pybop.Parameter(prior=pybop.Gaussian(0.2, 0.05)),
+        "k": pybop.Parameter(pybop.Gaussian(0.5, 0.05)),
+        "y0": pybop.Parameter(pybop.Gaussian(0.2, 0.05)),
     }
 )
 
 # Build the problem
 simulator = pybop.pybamm.Simulator(
-    model, parameter_values=parameter_values, protocol=dataset
+    model, parameter_values=parameter_values, protocol=dataset["Time [s]"]
 )
 cost = pybop.Minkowski(dataset, target=["y_0", "y_1"], p=2)
 problem = pybop.Problem(simulator, cost)

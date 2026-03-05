@@ -23,9 +23,9 @@ sigma = 5e-3
 dataset = pybop.Dataset(
     {
         "Time [s]": t_eval,
+        "Current [A]": solution["Current [A]"](t_eval),
         "Voltage [V]": solution["Voltage [V]"](t_eval)
         + np.random.normal(0, sigma, len(t_eval)),
-        "Current function [A]": solution["Current [A]"](t_eval),
         "Bulk open-circuit voltage [V]": solution["Bulk open-circuit voltage [V]"](
             t_eval
         ),
@@ -45,14 +45,20 @@ true_values = [
 parameter_values.update(
     {
         "Negative electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Gaussian(0.68, 0.05),
+            pybop.Gaussian(
+                0.68,
+                0.05,
+                truncated_at=[0.4, 0.9],
+            ),
             initial_value=0.65,
-            bounds=[0.4, 0.9],
         ),
         "Positive electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Gaussian(0.58, 0.05),
+            pybop.Gaussian(
+                0.58,
+                0.05,
+                truncated_at=[0.4, 0.9],
+            ),
             initial_value=0.65,
-            bounds=[0.4, 0.9],
         ),
     }
 )

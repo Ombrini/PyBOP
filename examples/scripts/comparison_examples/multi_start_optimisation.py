@@ -26,7 +26,7 @@ corrupt_values = solution["Voltage [V]"](t_eval) + np.random.normal(
 dataset = pybop.Dataset(
     {
         "Time [s]": t_eval,
-        "Current function [A]": solution["Current [A]"](t_eval),
+        "Current [A]": solution["Current [A]"](t_eval),
         "Voltage [V]": corrupt_values,
     }
 )
@@ -35,10 +35,10 @@ dataset = pybop.Dataset(
 parameter_values.update(
     {
         "Negative electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Gaussian(0.65, 0.1),
+            pybop.Gaussian(0.65, 0.1)
         ),
         "Positive electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Gaussian(0.55, 0.1),
+            pybop.Gaussian(0.55, 0.1)
         ),
     }
 )

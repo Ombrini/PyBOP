@@ -33,15 +33,30 @@ class TestPlots:
     def parameters(self):
         return {
             "Negative electrode active material volume fraction": pybop.Parameter(
-                prior=pybop.Gaussian(0.68, 0.05),
-                bounds=[0.5, 0.8],
+                distribution=pybop.Gaussian(0.68, 0.05, truncated_at=[0.5, 0.8]),
                 transformation=pybop.ScaledTransformation(
                     coefficient=1 / 0.3, intercept=-0.5
                 ),
             ),
             "Positive electrode active material volume fraction": pybop.Parameter(
-                prior=pybop.Gaussian(0.58, 0.05),
-                bounds=[0.4, 0.7],
+                distribution=pybop.Gaussian(0.58, 0.05, truncated_at=[0.4, 0.7]),
+                transformation=pybop.ScaledTransformation(
+                    coefficient=1 / 0.3, intercept=-0.4
+                ),
+            ),
+        }
+
+    @pytest.fixture
+    def parameters_no_bounds(self):
+        return {
+            "Negative electrode active material volume fraction": pybop.Parameter(
+                distribution=pybop.Gaussian(0.68, 0.05),
+                transformation=pybop.ScaledTransformation(
+                    coefficient=1 / 0.3, intercept=-0.5
+                ),
+            ),
+            "Positive electrode active material volume fraction": pybop.Parameter(
+                distribution=pybop.Gaussian(0.58, 0.05),
                 transformation=pybop.ScaledTransformation(
                     coefficient=1 / 0.3, intercept=-0.4
                 ),
@@ -51,14 +66,8 @@ class TestPlots:
     @pytest.fixture
     def dataset(self, model):
         t_eval = np.arange(0, 50, 2)
-        solution = pybamm.Simulation(model).solve(t_eval=t_eval)
-        return pybop.Dataset(
-            {
-                "Time [s]": t_eval,
-                "Current function [A]": solution["Current [A]"](t_eval),
-                "Voltage [V]": solution["Voltage [V]"](t_eval),
-            }
-        )
+        solution = pybamm.Simulation(model).solve(t_eval=t_eval, t_interp=t_eval)
+        return pybop.import_pybamm_solution(solution)
 
     def test_dataset_plots(self, dataset):
         # Test plot of Dataset objects
@@ -73,6 +82,16 @@ class TestPlots:
     def fitting_problem(self, model, parameters, dataset):
         parameter_values = model.default_parameter_values
         parameter_values.update(parameters)
+        simulator = pybop.pybamm.Simulator(
+            model, parameter_values=parameter_values, protocol=dataset
+        )
+        cost = pybop.SumSquaredError(dataset)
+        return pybop.Problem(simulator, cost)
+
+    @pytest.fixture
+    def fitting_problem_no_bounds(self, model, parameters_no_bounds, dataset):
+        parameter_values = model.default_parameter_values
+        parameter_values.update(parameters_no_bounds)
         simulator = pybop.pybamm.Simulator(
             model, parameter_values=parameter_values, protocol=dataset
         )
@@ -103,16 +122,15 @@ class TestPlots:
             fitting_problem, inputs=fitting_problem.parameters.to_dict([0.6, 0.6])
         )
 
-    def test_cost_plots(self, fitting_problem):
+    def test_cost_plots(self, fitting_problem, fitting_problem_no_bounds):
         # Test plot of Cost objects
         pybop.plot.contour(fitting_problem, gradient=True, steps=5)
 
         pybop.plot.contour(fitting_problem, gradient=True, steps=5, transformed=True)
 
         # Test without bounds
-        fitting_problem.parameters.remove_bounds()
         with pytest.raises(ValueError, match="All parameters require bounds for plot."):
-            pybop.plot.contour(fitting_problem, steps=5)
+            pybop.plot.contour(fitting_problem_no_bounds, steps=5)
 
         # Test with bounds
         pybop.plot.contour(
@@ -155,32 +173,32 @@ class TestPlots:
             result.plot_surface(bounds=[[0.5, 0.8], [0.7, 0.4]])
 
     @pytest.fixture
-    def posterior_summary(self, model, parameters, dataset):
+    def sampling_result(self, model, parameters, dataset):
         parameter_values = model.default_parameter_values
         parameter_values.update(parameters)
         simulator = pybop.pybamm.Simulator(
             model, parameter_values=parameter_values, protocol=dataset
         )
-        likelihood = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma0=2e-3)
-        posterior = pybop.LogPosterior(likelihood)
-        problem = pybop.Problem(simulator, posterior)
+        log_likelihood = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=2e-3)
+        log_pdf = pybop.LogPosterior(simulator, log_likelihood)
         options = pybop.PintsSamplerOptions(n_chains=1, max_iterations=1)
-        sampler = pybop.SliceStepoutMCMC(problem, options=options)
-        result = sampler.run()
-        return pybop.PosteriorSummary(result.chains)
+        sampler = pybop.SliceStepoutMCMC(log_pdf, options=options)
+        return sampler.run()
 
-    def test_posterior_plots(self, posterior_summary):
+    def test_posterior_plots(self, sampling_result):
+        sampling_result.get_summary_statistics()
+
         # Plot trace
-        posterior_summary.plot_trace()
+        sampling_result.plot_trace()
 
         # Plot posterior
-        posterior_summary.plot_posterior()
+        sampling_result.plot_posterior()
 
         # Plot chains
-        posterior_summary.plot_chains()
+        sampling_result.plot_chains()
 
         # Plot summary table
-        posterior_summary.summary_table()
+        sampling_result.summary_table()
 
     def test_with_ipykernel(self, dataset, fitting_problem, result):
         import ipykernel
@@ -199,9 +217,8 @@ class TestPlots:
         parameter_values.update(
             {
                 "Negative electrode active material volume fraction": pybop.Parameter(
-                    prior=pybop.Gaussian(0.68, 0.05),
-                    bounds=[0.5, 0.8],
-                ),
+                    distribution=pybop.Gaussian(0.68, 0.05, truncated_at=[0.5, 0.8]),
+                )
             }
         )
         simulator = pybop.pybamm.Simulator(
@@ -218,12 +235,12 @@ class TestPlots:
         parameter_values.update(
             {
                 "Positive electrode active material volume fraction": pybop.Parameter(
-                    prior=pybop.Gaussian(0.58, 0.05),
-                    bounds=[0.4, 0.7],
+                    pybop.Gaussian(0.58, 0.05, truncated_at=[0.4, 0.7])
                 ),
                 "Positive particle radius [m]": pybop.Parameter(
-                    prior=pybop.Gaussian(4.8e-06, 0.05e-06),
-                    bounds=[4e-06, 6e-06],
+                    distribution=pybop.Gaussian(
+                        4.8e-06, 0.05e-06, truncated_at=[4e-06, 6e-06]
+                    )
                 ),
             }
         )
@@ -243,9 +260,10 @@ class TestPlots:
         parameter_values.update(
             {
                 "Positive electrode thickness [m]": pybop.Parameter(
-                    prior=pybop.Gaussian(60e-6, 1e-6),
-                    bounds=[10e-6, 80e-6],
-                )
+                    distribution=pybop.Gaussian(
+                        60e-6, 1e-6, truncated_at=[10e-6, 80e-6]
+                    )
+                ),
             }
         )
 
@@ -253,7 +271,7 @@ class TestPlots:
         dataset = pybop.Dataset(
             {
                 "Frequency [Hz]": np.logspace(-4, 5, 10),
-                "Current function [A]": np.ones(10) * 0.0,
+                "Current [A]": np.ones(10) * 0.0,
                 "Impedance": np.ones(10) * 0.0,
             },
             domain="Frequency [Hz]",

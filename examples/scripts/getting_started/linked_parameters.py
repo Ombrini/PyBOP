@@ -33,8 +33,7 @@ parameter_values.update(
             "Positive electrode density [kg.m-3]"
         ),
         "Cell mass [kg]": pybop.pybamm.cell_mass(),
-    },
-    check_already_exists=False,
+    }
 )
 
 # Add and link parameters
@@ -42,8 +41,7 @@ parameter_values.update(
     {
         "Positive electrode binder fraction": 0.02,
         "Negative electrode binder fraction": 0.02,
-    },
-    check_already_exists=False,
+    }
 )
 parameter_values.update(
     {
@@ -64,12 +62,18 @@ parameter_values.update(
 parameter_values.update(
     {
         "Positive electrode thickness [m]": pybop.Parameter(
-            prior=pybop.Gaussian(7.56e-05, 0.1e-05),
-            bounds=[65e-06, 10e-05],
+            distribution=pybop.Gaussian(
+                7.56e-05,
+                0.1e-05,
+                truncated_at=[65e-06, 10e-05],
+            ),
         ),
         "Positive electrode active material volume fraction": pybop.Parameter(
-            prior=pybop.Gaussian(0.6, 0.15),
-            bounds=[0.1, 0.9],
+            distribution=pybop.Gaussian(
+                0.6,
+                0.15,
+                truncated_at=[0.1, 0.9],
+            ),
         ),
     }
 )
@@ -105,5 +109,5 @@ print(f"Optimised gravimetric energy density: {problem(result.x):.2f} W.h.kg-1")
 result.plot_surface()
 
 # Plot the timeseries output
-problem.target = "Voltage [V]"
+problem.set_target("Voltage [V]")
 pybop.plot.problem(problem, inputs=result.best_inputs, title="Optimised Comparison")

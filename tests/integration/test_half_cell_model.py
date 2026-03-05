@@ -2,6 +2,7 @@ import numpy as np
 import pybamm
 import pytest
 from pybamm import Parameter
+from scipy import stats
 
 import pybop
 
@@ -15,7 +16,7 @@ class TestHalfCellModel:
 
     @pytest.fixture(autouse=True)
     def setup(self):
-        self.sigma0 = 0.002
+        self.sigma = 0.002
         self.ground_truth = np.clip(
             np.asarray([0.5]) + np.random.normal(loc=0.0, scale=0.05, size=1),
             a_min=0.4,
@@ -55,8 +56,7 @@ class TestHalfCellModel:
                 "Positive electrode density [kg.m-3]": 3262.0,
                 "Separator density [kg.m-3]": 0.0,
                 "Cell mass [kg]": pybop.pybamm.cell_mass(),
-            },
-            check_already_exists=False,
+            }
         )
         x = self.ground_truth
         parameter_values.update(
@@ -68,7 +68,7 @@ class TestHalfCellModel:
     def parameters(self):
         return {
             "Positive electrode active material volume fraction": pybop.Parameter(
-                prior=pybop.Uniform(0.4, 0.75),
+                stats.uniform(0.4, 0.75 - 0.4),
                 # no bounds
             ),
         }
@@ -114,9 +114,12 @@ class TestHalfCellModel:
         parameter_values.update(
             {
                 "Positive electrode thickness [m]": pybop.Parameter(
-                    prior=pybop.Gaussian(5e-05, 5e-06),
-                    bounds=[2e-06, 10e-05],
-                ),
+                    distribution=pybop.Gaussian(
+                        5e-05,
+                        5e-06,
+                        truncated_at=[2e-06, 10e-05],
+                    ),
+                )
             }
         )
         experiment = pybamm.Experiment(
@@ -154,7 +157,7 @@ class TestHalfCellModel:
         return pybop.Dataset(
             {
                 "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
-                "Voltage [V]": self.noisy(solution["Voltage [V]"].data, self.sigma0),
+                "Current [A]": solution["Current [A]"].data,
+                "Voltage [V]": self.noisy(solution["Voltage [V]"].data, self.sigma),
             }
         )

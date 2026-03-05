@@ -1,45 +1,45 @@
-from typing import TYPE_CHECKING
+import pickle
+import types
 
 import numpy as np
 
-if TYPE_CHECKING:
-    from pybop import BaseOptimiser, BaseSampler
-from pybop import Logger, plot
+from pybop import plot
+from pybop._logging import Logger
+from pybop._utils import load_data_dict, save_data_dict
+from pybop.problems.problem import Problem
 
 
-class OptimisationResult:
+class Result:
     """
-    Stores the result of the optimisation.
+    Stores the result produced by an optimiser or sampler.
 
     Attributes
     ----------
-    optim : pybop.BaseOptimiser
-        The optimisation object used to generate the results.
+    problem : pybop.Problem
+        The optimisation problem used to generate the results.
     logger : pybop.Logger
-        The log of the optimisation process.
+        The log of the optimisation or sampling process.
     time : float
         The time taken.
-    optim_name : str
-        The name of the optimiser.
+    method_name : str
+        The name of the optimiser or sampler.
     message : str
-        The reason for stopping given by the optimiser.
-    scipy_result : scipy.optimize.OptimizeResult, optional
-        The result obtained from a SciPy optimiser.
+        The reason for stopping given by the optimiser or sampler.
     """
 
     def __init__(
         self,
-        optim: "BaseOptimiser",
+        problem: Problem,
         logger: Logger,
         time: float,
-        optim_name: str | None = None,
+        method_name: str | None = None,
         message: str | None = None,
         scipy_result=None,
     ):
-        self._optim = optim
-        self._minimising = optim.problem.minimising
-        self.optim_name = optim_name
-        self.n_runs = 0
+        self._problem = problem
+        self._minimising = problem.minimising
+        self.method_name = method_name
+        self.n_runs = 1
         self._best_run = None
         self._x = [logger.x_model_best]
         self._x_model = [logger.x_model]
@@ -57,19 +57,19 @@ class OptimisationResult:
         self._validate()
 
     @staticmethod
-    def combine(results: list["OptimisationResult"]) -> "OptimisationResult":
+    def combine(results: list["Result"]) -> "Result":
         """
-        Combine multiple OptimisationResult objects into a single one.
+        Combine multiple Result objects into a single one.
 
         Parameters
         ----------
-        results : list[OptimisationResult]
-            List of OptimisationResult objects to combine.
+        results : list[Result]
+            List of Result objects to combine.
 
         Returns
         -------
-        OptimisationResult
-            Combined OptimisationResult object.
+        Result
+            Combined Result object.
         """
         if len(results) == 0:
             raise ValueError("No results to combine.")
@@ -117,7 +117,7 @@ class OptimisationResult:
 
         ret._best_run = None  # noqa: SLF001
         ret.n_runs = len(results)
-        ret._validate()  #  noqa: SLF001
+        ret._validate()  # noqa: SLF001
 
         return ret
 
@@ -138,18 +138,18 @@ class OptimisationResult:
         """
         if not any(np.isfinite(self._best_cost)):
             raise ValueError(
-                f"Optimised parameters {self._optim.problem.parameters.to_dict(self._x[-1])} do not produce a finite cost value."
+                f"Optimised parameters {self._problem.parameters.to_dict(self._x[-1])} do not produce a finite cost value."
             )
 
     def __str__(self) -> str:
         """
-        A string representation of the OptimisationResult object.
+        A string representation of the Result object.
 
         Returns:
             str: A formatted string containing optimisation result information.
         """
         return (
-            f"OptimisationResult:\n"
+            f"Result:\n"
             f"  Best result from {self.n_runs} run(s).\n"
             f"  Initial parameters: {self.x0}\n"
             f"  Optimised parameters: {self.x}\n"
@@ -196,7 +196,7 @@ class OptimisationResult:
     @property
     def best_inputs(self) -> dict[str, np.ndarray]:
         """The best parameters as a dictionary."""
-        return self._optim.problem.parameters.to_dict(self.x)
+        return self._problem.parameters.to_dict(self.x)
 
     @property
     def best_cost(self) -> float:
@@ -229,9 +229,9 @@ class OptimisationResult:
         return self._get_single_or_all("_n_evaluations")
 
     @property
-    def optim(self) -> "BaseOptimiser":
+    def problem(self) -> Problem:
         """The optimisation problem."""
-        return self._optim
+        return self._problem
 
     @property
     def minimising(self) -> bool:
@@ -321,42 +321,146 @@ class OptimisationResult:
         """
         return plot.contour(call_object=self, **kwargs)
 
+    def save(self, filename) -> None:
+        """Save the whole result using pickle"""
+        with open(filename, "wb") as f:
+            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 
-class SamplingResult(OptimisationResult):
-    """
-    Stores the result of the sampling.
+    @staticmethod
+    def load(filename: str) -> "Result":
+        """Load a saved Result."""
+        with open(filename, "rb") as f:
+            result = pickle.load(f)
+        return result
 
-    Attributes
-    ----------
-    sampler : pybop.BaseSampler
-        The sampler used to generate the results.
-    logger : pybop.Logger
-        The log of the optimisation process.
-    time : float
-        The time taken.
-    chains : np.ndarray, optional
-        An array containing the samples from the posterior distribution, or None.
-    sampler_name : str
-        The name of the sampler.
-    message : str
-        The reason for stopping given by the sampler.
-    """
+    def data_dict(self) -> dict:
+        """return result data as dictionary for saving to file"""
 
-    def __init__(
+        return {
+            "minimising": self._minimising,
+            "method_name": self.method_name,
+            "n_runs": self.n_runs,
+            "best_run": self._best_run,
+            "x": self._x,
+            "x_model": self._x_model,
+            "x0": self._x0,
+            "best_cost": self._best_cost,
+            "cost": self._cost,
+            "initial_cost": self._initial_cost,
+            "n_iterations": self._n_iterations,
+            "iteration_number": self._iteration_number,
+            "n_evaluations": self._n_evaluations,
+            "message": self._message,
+            "scipy_result": [0 if x is None else x for x in self._scipy_result],
+            "time": self._time,
+        }
+
+    def save_data(
         self,
-        sampler: "BaseSampler",
-        logger: Logger,
-        time: float,
-        chains: np.ndarray,
-        sampler_name: str | None = None,
-        message: str | None = None,
-    ):
-        sampler.problem = sampler.log_pdf
-        super().__init__(
-            optim=sampler,
-            logger=logger,
-            time=time,
-            optim_name=sampler_name,
-            message=message,
+        filename=None,
+        to_format="pickle",
+    ) -> str | None:
+        """
+        Save result data
+
+        Based on pybamm.Solution.save_data
+
+        Parameters
+        ----------
+        filename : str, optional
+            The name of the file to save data to. If None, then a str is returned
+            for json format or an error is thrown for pickle/matlab.
+        to_format : str, optional
+            The format to save to. Options are:
+
+            - 'pickle' (default): creates a pickle file with the data dictionary
+            - 'matlab': creates a .mat file, for loading in matlab
+            - 'json': creates a json file
+
+        Returns
+        -------
+        data : str, optional
+            str if 'json' is chosen and filename is None, otherwise None
+        """
+
+        data = self.data_dict()
+        return save_data_dict(data, filename=filename, to_format=to_format)
+
+    @staticmethod
+    def load_data(filename: str, file_format: str = "pickle") -> dict:
+        """
+        Load results data as dictionary from a given file. Restores data saved with
+        save_data.
+
+        Calls load_data_dict defined in _utils.py and provides the keys of
+        data that is 0-d and 1-d to ensure consistent data dimensions.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file containing the data.
+        file_format : str, optional
+            The format the data was save to. Options are:
+            - 'pickle' (default)
+            - 'matlab'
+            - 'csv'
+            - 'json'
+
+        Returns
+        -------
+        data_dict :
+            python dictionary containing the data in the file.
+        """
+        data = load_data_dict(
+            filename,
+            file_format=file_format,
+            data_keys_0d=["_minimising", "n_runs", "best_run"],
+            data_keys_1d=[
+                "method_name",
+                "best_cost",
+                "initial_cost",
+                "n_iterations",
+                "n_evaluations",
+                "message",
+                "scipy_result",
+                "time",
+            ],
         )
-        self.chains = chains
+
+        # Create a dummy problem
+        problem = types.SimpleNamespace()
+        problem.minimising = data["minimising"]
+
+        # Create one logging result for each run
+        n_runs = data["n_runs"]
+        list_of_results = []
+        for i in range(n_runs):
+            # Create a dummy logger
+            logger = types.SimpleNamespace()
+            for logger_key, result_key in [
+                ("x_model_best", "x"),
+                ("x_model", "x_model"),
+                ("x0", "x0"),
+                ("cost_best", "best_cost"),
+                ("cost_convergence", "cost"),
+                ("iteration", "n_iterations"),
+                ("iteration_number", "iteration_number"),
+                ("evaluations", "n_evaluations"),
+            ]:
+                setattr(logger, logger_key, data[result_key][i])
+            logger.cost = [data["initial_cost"][i]]
+
+            list_of_results.append(
+                Result(
+                    problem=problem,
+                    logger=logger,
+                    time=data["time"][i],
+                    method_name=data["method_name"],
+                    message=data["message"][i],
+                    scipy_result=data["scipy_result"][i]
+                    if data["scipy_result"][i] != 0
+                    else None,
+                )
+            )
+
+        return Result.combine(results=list_of_results)
