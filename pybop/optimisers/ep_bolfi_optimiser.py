@@ -196,10 +196,7 @@ class EP_BOLFI(BaseOptimiser):
         options: EPBOLFIOptions | None = None,
     ):
         if type(problem) is not pybop.MetaProblem:
-            # Store the parameters and replace the forced univariate Parameters with them
-            parameters = problem.parameters
             problem = pybop.MetaProblem(problem)
-            problem.parameters = parameters
         super().__init__(problem, options)
         # citations.register("""@article{
         #     Minka2013,
@@ -244,9 +241,9 @@ class EP_BOLFI(BaseOptimiser):
         # Use the first output variable to pass to EP-BOLFI; define separate simulators
         # for multiple output variables.
         simulators = [
-            lambda inputs, sim=problem._simulator: sim.solve(inputs)[  # noqa: SLF001
-                sim.output_variables[0]
-            ].data
+            lambda inputs, sim=problem._simulator: (  # noqa: SLF001
+                sim.solve(inputs)[sim.output_variables[0]].data
+            )
             for problem in self.problem.problems
         ]
         experimental_datasets = [
