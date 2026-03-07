@@ -12,111 +12,14 @@ from torch import tensor
 import pybop
 from pybop.optimisers.sober_basq_optimiser import SOBER_BASQ, SOBER_BASQ_Options
 
+from pybop.models.kneepoints import KneepointModel
+from pybop.plot.predictive import predictive
 
-class KneepointModel(pybop.BaseSimulator):
-    def __init__(self, parameters, t, n_kneepoints=2):
-        super().__init__(parameters)
-        self.t = t
-        self.output_variables = ["Capacity fade"]
-        self.n_kneepoints = n_kneepoints
+import plotly.graph_objects as go
 
-    def one_kneepoint_model(self, parameters):
-        first_slope = parameters[0].reshape(-1, 1)
-        kneepoint = parameters[1].reshape(-1, 1)
-        second_slope = parameters[2].reshape(-1, 1)
-
-        return (
-            (1.0 - first_slope * self.t) * (self.t < kneepoint)
-            + ((1.0 - first_slope * kneepoint) - second_slope * (self.t - kneepoint))
-            * (self.t >= kneepoint)
-        ).T
-
-    def two_kneepoints_model(self, parameters):
-        first_slope = parameters[0].reshape(-1, 1)
-        first_kneepoint = parameters[1].reshape(-1, 1)
-        second_slope = parameters[2].reshape(-1, 1)
-        second_kneepoint = parameters[3].reshape(-1, 1) + first_kneepoint
-        third_slope = parameters[4].reshape(-1, 1)
-
-        return (
-            (1.0 - first_slope * self.t) * (self.t < first_kneepoint)
-            + (
-                (1.0 - first_slope * first_kneepoint)
-                - second_slope * (self.t - first_kneepoint)
-            )
-            * (self.t >= first_kneepoint)
-            * (self.t < second_kneepoint)
-            + (
-                (1.0 - first_slope * first_kneepoint)
-                - second_slope * (second_kneepoint - first_kneepoint)
-                - third_slope * (self.t - second_kneepoint)
-            )
-            * (self.t >= second_kneepoint)
-        ).T
-
-    def batch_solve(self, inputs, calculate_sensitivities=False):
-        inputs_array = tensor(np.asarray([entry for entry in inputs[0].values()]))
-        capacity_fade = self(inputs_array)
-        sols = []
-        for entry, cf in zip(inputs, capacity_fade, strict=False):
-            sol = pybop.Solution(entry)
-            sol.set_solution_variable("Capacity fade", cf)
-            sols.append(sol)
-        return sols
-
-    def __call__(self, parameters):
-        if self.n_kneepoints == 1:
-            return self.one_kneepoint_model(parameters)
-        elif self.n_kneepoints == 2:
-            return self.two_kneepoints_model(parameters)
-        else:
-            raise ValueError("Only one or two kneepoints are implemented.")
-
-
-def marginalize_pdf(raw_taken_samples, sober_basq, x_eval=None):
-    """Calculate the marginal PDF of the kneepoint(s)."""
-    kde = gaussian_kde(raw_taken_samples)
-    dim = len(raw_taken_samples)
-    kneepoint_pdf_x = []
-    kneepoint_pdf_y = []
-    for i in range(1, dim, 2):
-        # Note: the rough order of parameters may be switched around.
-        # sober_basq.diag_order keeps track of that order.
-        raw_i = sober_basq.diag_order[i]
-        kneepoint_pdf_part_x = []
-        kneepoint_pdf_part_y = []
-        if x_eval is None:
-            k_p_p_min = kde.dataset[raw_i].min()
-            k_p_p_max = kde.dataset[raw_i].max()
-            raw_kneepoint_edges = np.linspace(k_p_p_min, k_p_p_max, 101)
-        else:
-            raw_kneepoint_edges = np.array(
-                [
-                    sober_basq.apply_transform_and_normalize_one_variable(x, i)
-                    for x in x_eval
-                ]
-            )
-            k_p_p_min = raw_kneepoint_edges.min()
-            k_p_p_max = raw_kneepoint_edges.max()
-        for k0, k1 in zip(
-            raw_kneepoint_edges[:-1], raw_kneepoint_edges[1:], strict=False
-        ):
-            lower_bound = [kde.dataset[j].min() for j in range(dim)]
-            lower_bound[raw_i] = k0
-            upper_bound = [kde.dataset[j].max() for j in range(dim)]
-            upper_bound[raw_i] = k1
-            kneepoint_pdf_part_x.append(
-                sober_basq.denormalize_and_reverse_transform_one_variable(
-                    0.5 * (k0 + k1),
-                    i,  # this method uses diag_order
-                )
-            )
-            kneepoint_pdf_part_y.append(kde.integrate_box(lower_bound, upper_bound))
-        k_norm = np.sum(kneepoint_pdf_part_y) * (k_p_p_max - k_p_p_min)
-        kneepoint_pdf_part_y = np.array(kneepoint_pdf_part_y) / k_norm
-        kneepoint_pdf_x.append(kneepoint_pdf_part_x)
-        kneepoint_pdf_y.append(kneepoint_pdf_part_y)
-    return kneepoint_pdf_x, kneepoint_pdf_y, kde
+# For the machine this was tested on; comment out for default behaviour.
+import plotly.io as pio
+pio.renderers.default = "browser"
 
 
 """
@@ -228,47 +131,26 @@ if __name__ == "__main__":
         )
         sober_basq_wrapper = SOBER_BASQ(pybop_problem, pybop_options)
         pybop_result = sober_basq_wrapper.run()
-        kneepoint_pdf_x, kneepoint_pdf_y, kde = marginalize_pdf(
-            pybop_result.posterior.distribution.distribution.dataset,
-            sober_basq_wrapper.optimiser,
-            x_eval=np.linspace(t[1], t[-1], 201),  # zeroth is 0
+        kneepoint_pdf_x_eval = np.linspace(np.log(t[1]), np.log(t[-1]), 201)
+        kneepoint_pdf_y = np.zeros_like(kneepoint_pdf_x_eval)
+        for i in range(n_kneepoints):
+            kneepoint_pdf_y += pybop_result.posterior.distribution.distribution.marginal(1 + 2 * i).pdf(kneepoint_pdf_x_eval)
+        kneepoint_pdf_x_plot = np.exp(kneepoint_pdf_x_eval)
+        fig = predictive(
+            pybop_result,
+            simulator=lambda p: simulator(tensor(p.T)).T.detach().cpu().numpy(),
+            number_of_traces=64,
+            dataset_y="Capacity fade",
+            data_legend_entry="degradation data",
+            rvs_legend_entry="candidate fits",
+            pdf_plot=[kneepoint_pdf_x_plot, kneepoint_pdf_y],
+            pdf_label="PDF for knee points",
+            show=True,
+            xaxis_title="Cycles",
+            yaxis_title="Capacity",
+            yaxis2={'title': "PDF for knee points", 'overlaying': 'y', 'side': 'right'},
+            yaxis_range=[-0.1, 1.1],
+            title=str(n_kneepoints) + "-knee point model",
         )
-        # Sample the predictive posterior.
-        posterior_resamples = pybop_result.posterior.rvs(64, apply_transform=True)
-        posterior_resamples_pdf = pybop_result.posterior.pdf(posterior_resamples)
-        simulations = simulator(tensor(posterior_resamples))
-        fig, ax = plt.subplots(figsize=(3 * 2**0.5, 3), layout="constrained")
-        norm = matplotlib.colors.Normalize(
-            posterior_resamples_pdf.min(), posterior_resamples_pdf.max()
-        )
-        cmap = plt.get_cmap("viridis")
-        for pr, pr_pdf, sim in zip(
-            posterior_resamples, posterior_resamples_pdf, simulations, strict=False
-        ):
-            ax.plot(
-                t,
-                simulator(torch.atleast_2d(tensor(pr)).T),
-                ls=":",
-                color=cmap(norm(pr_pdf)),
-            )
-        degr_plot = ax.plot(t, data, color="black", lw=2, label="degradation data")[0]
-        ax_pdf = ax.twinx()
-        ax_pdf.plot(kneepoint_pdf_x[0], np.sum(kneepoint_pdf_y, axis=0))
-        fig.colorbar(
-            matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap),
-            ax=ax_pdf,
-            label="Posterior PDF from KDE approximation",
-        )
-        ax.set_xlabel("Cycles")
-        ax.set_ylabel("Capacity")
-        ax_pdf.set_ylabel("Kneepoints PDF")
-        ax.set_ylim((-0.1, 1.1))
-        fig.legend(
-            [degr_plot],
-            [degr_plot.get_label()],
-            loc="outside lower center",
-        )
+    print_citations()
 
-        print_citations()
-
-        plt.show()
