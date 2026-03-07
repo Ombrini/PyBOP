@@ -232,12 +232,11 @@ class SOBER_BASQ(BaseOptimiser):
 
         return BayesianOptimisationResult(
             optim=self,
-            logger=self._logger,
             time=end - start,
-            optim_name="SOBER + BASQ",
-            posterior=posterior,
+            method_name="SOBER + BASQ",
             lower_bounds=None if self.bounds is None else self.bounds[:, 0],
             upper_bounds=None if self.bounds is None else self.bounds[:, 1],
+            posterior=posterior,
             maximum_a_posteriori=MAP,
             log_evidence_mean=log_expected_marginal_likelihood,
             log_evidence_variance=log_approx_variance_marginal_likelihood,
@@ -444,12 +443,11 @@ class SOBER_BASQ_EPLFI(SOBER_BASQ):
 
         return BayesianOptimisationResult(
             optim=self,
-            logger=self._logger,
             time=end - start,
-            optim_name="EP-LFI + SOBER + BASQ",
-            posterior=posterior,
+            method_name="EP-LFI + SOBER + BASQ",
             lower_bounds=None if self.bounds is None else self.bounds[:, 0],
             upper_bounds=None if self.bounds is None else self.bounds[:, 1],
+            posterior=posterior,
             maximum_a_posteriori=MAP,
             log_evidence_mean=log_expected_marginal_likelihood,
             log_evidence_variance=log_approx_variance_marginal_likelihood,
