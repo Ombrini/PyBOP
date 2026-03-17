@@ -119,9 +119,6 @@ class GroupedSPM(BaseGroupedModel):
         Q_th_p = Parameter("Measured cell capacity [A.s]") / (y_0 - y_100)
         Q_th_n = Parameter("Measured cell capacity [A.s]") / (x_100 - x_0)
 
-        tau_d_p = Parameter("Positive particle diffusion time scale [s]")
-        tau_d_n = Parameter("Negative particle diffusion time scale [s]")
-
         tau_ct_p = Parameter("Positive electrode charge transfer time scale [s]")
         tau_ct_n = Parameter("Negative electrode charge transfer time scale [s]")
 
@@ -208,17 +205,23 @@ class GroupedSPM(BaseGroupedModel):
         ######################
         # The div and grad operators will be converted to the appropriate matrix
         # multiplication at the discretisation stage
-        self.rhs[sto_n] = pybamm.div(pybamm.grad(sto_n) / tau_d_n)
-        self.rhs[sto_p] = pybamm.div(pybamm.grad(sto_p) / tau_d_p)
+        self.rhs[sto_n] = pybamm.div(pybamm.grad(sto_n) / self.tau_d(sto_n, "negative"))
+        self.rhs[sto_p] = pybamm.div(pybamm.grad(sto_p) / self.tau_d(sto_p, "positive"))
 
         # Boundary conditions must be provided for equations with spatial derivatives
         self.boundary_conditions[sto_n] = {
             "left": (Scalar(0), "Neumann"),
-            "right": (-tau_d_n * pybamm.x_average(j_n), "Neumann"),
+            "right": (
+                -self.tau_d(sto_n_surf, "negative") * pybamm.x_average(j_n),
+                "Neumann",
+            ),
         }
         self.boundary_conditions[sto_p] = {
             "left": (Scalar(0), "Neumann"),
-            "right": (-tau_d_p * pybamm.x_average(j_p), "Neumann"),
+            "right": (
+                -self.tau_d(sto_p_surf, "positive") * pybamm.x_average(j_p),
+                "Neumann",
+            ),
         }
 
         self.initial_conditions[sto_n] = sto_n_init
@@ -337,6 +340,14 @@ class GroupedSPM(BaseGroupedModel):
         elif domain == "positive":
             out.print_name = r"U_\mathrm{p}(c^\mathrm{surf}_\mathrm{s,p})"
         return out
+
+    def tau_d(self, sto, domain):
+        """
+        Dimensional diffusion time scale [s].
+        """
+        Domain = domain.capitalize()
+        inputs = {f"{Domain} particle surface stoichiometry": sto}
+        return FunctionParameter(f"{Domain} particle diffusion time scale [s]", inputs)
 
     @property
     def default_parameter_values(self) -> ParameterValues:
