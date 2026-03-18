@@ -208,11 +208,14 @@ class Datasets:
     """
 
     def __init__(
-        self, datasets: list, domain="Time [s]", control_variable="Current function [A]"
+        self,
+        datasets: list[Dataset],
+        domain: str | None = None,
+        control_functions: list[str] | None = None,
     ):
         self.datasets = []
-        self.domain = domain
-        self.control_variable = control_variable
+        self.domain = domain or "Time [s]"
+        self.control_functions = control_functions or ["Current function [A]"]
         for dataset in datasets:
             if not isinstance(dataset, Dataset):
                 dataset = Dataset(data_dictionary=dataset, domain=domain)
@@ -220,7 +223,7 @@ class Datasets:
 
     def get_subset(self, indices):
         return Datasets(
-            [self.datasets[i] for i in indices], self.domain, self.control_variable
+            [self.datasets[i] for i in indices], self.domain, self.control_functions
         )
 
     def __iter__(self):
