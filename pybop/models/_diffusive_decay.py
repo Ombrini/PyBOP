@@ -1,4 +1,4 @@
-from numpy import pi, exp, sin, cos
+from numpy import cos, exp, pi, sin
 
 
 class Diffusive_Relaxation:
@@ -20,9 +20,7 @@ class Diffusive_Relaxation:
             [
                 2.0
                 / self.L
-                * quad(lambda x: self.f(x) * cos(n * pi * x / self.L), 0, self.L)[
-                    0
-                ]
+                * quad(lambda x: self.f(x) * cos(n * pi * x / self.L), 0, self.L)[0]
                 for n in range(0, self.summands)
             ]
         )
@@ -34,11 +32,15 @@ class Diffusive_Relaxation:
     def compute_zero_concentration_coefficients(self):
         # In order to use the same summation expression for both cases,
         # the "zeroth" coefficient is set to 0.
-        return tensor([0] + [
-            2.0 / self.L * quad(
-            lambda x: self.f(x) * sin(n * pi * x / self.L), 0, self.L)[0]
-            for n in range(1, self.summands)
-        ])
+        return tensor(
+            [0]
+            + [
+                2.0
+                / self.L
+                * quad(lambda x: self.f(x) * sin(n * pi * x / self.L), 0, self.L)[0]
+                for n in range(1, self.summands)
+            ]
+        )
 
     def concentration(self, x, t, D=1.0):
         value = zeros_like(D * t)
@@ -58,4 +60,3 @@ class Diffusive_Relaxation:
             - self.concentration(1.0, 0.0, D)
             + self.concentration(0.0, 0.0, D)
         )
-

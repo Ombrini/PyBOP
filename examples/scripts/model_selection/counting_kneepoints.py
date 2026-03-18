@@ -1,24 +1,19 @@
 import importlib.util
 import sys
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
-from pybamm import print_citations
-from scipy.stats import gaussian_kde
-from torch import tensor
-
-import pybop
-from pybop.optimisers.sober_basq_optimiser import SOBER_BASQ, SOBER_BASQ_Options
-
-from pybop.models.kneepoints import KneepointModel
-from pybop.plot.predictive import predictive
-
-import plotly.graph_objects as go
 
 # For the machine this was tested on; comment out for default behaviour.
 import plotly.io as pio
+from pybamm import print_citations
+from torch import tensor
+
+import pybop
+from pybop.models.kneepoints import KneepointModel
+from pybop.optimisers.sober_basq_optimiser import SOBER_BASQ, SOBER_BASQ_Options
+from pybop.plot.predictive import predictive
+
 pio.renderers.default = "browser"
 
 
@@ -134,7 +129,11 @@ if __name__ == "__main__":
         kneepoint_pdf_x_eval = np.linspace(np.log(t[1]), np.log(t[-1]), 201)
         kneepoint_pdf_y = np.zeros_like(kneepoint_pdf_x_eval)
         for i in range(n_kneepoints):
-            kneepoint_pdf_y += pybop_result.posterior.distribution.distribution.marginal(1 + 2 * i).pdf(kneepoint_pdf_x_eval)
+            kneepoint_pdf_y += (
+                pybop_result.posterior.distribution.distribution.marginal(
+                    1 + 2 * i
+                ).pdf(kneepoint_pdf_x_eval)
+            )
         kneepoint_pdf_x_plot = np.exp(kneepoint_pdf_x_eval)
         fig = predictive(
             pybop_result,
@@ -148,9 +147,8 @@ if __name__ == "__main__":
             show=True,
             xaxis_title="Cycles",
             yaxis_title="Capacity",
-            yaxis2={'title': "PDF for knee points", 'overlaying': 'y', 'side': 'right'},
+            yaxis2={"title": "PDF for knee points", "overlaying": "y", "side": "right"},
             yaxis_range=[-0.1, 1.1],
             title=str(n_kneepoints) + "-knee point model",
         )
     print_citations()
-

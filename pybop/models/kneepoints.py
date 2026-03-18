@@ -1,6 +1,8 @@
 import numpy as np
-import pybop
 from torch import tensor
+
+import pybop
+
 
 class KneepointModel(pybop.BaseSimulator):
     def __init__(self, parameters, t, n_kneepoints=2):
@@ -60,4 +62,3 @@ class KneepointModel(pybop.BaseSimulator):
             return self.two_kneepoints_model(parameters)
         else:
             raise ValueError("Only one or two kneepoints are implemented.")
-

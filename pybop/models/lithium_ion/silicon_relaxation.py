@@ -1,4 +1,13 @@
-from pybamm import citations, constants, Parameter, ParameterValues, exp, log, tanh, DummySolver
+from pybamm import (
+    DummySolver,
+    Parameter,
+    ParameterValues,
+    citations,
+    constants,
+    exp,
+    log,
+    tanh,
+)
 from pybamm import t as pybamm_t
 from pybamm.models.base_model import BaseModel
 
@@ -25,7 +34,7 @@ class SiliconRelaxation(BaseModel):
             pages={67609-67619},
             year={2024}
         }""")
-        
+
         ##############
         # Parameters #
         ##############
@@ -54,34 +63,46 @@ class SiliconRelaxation(BaseModel):
 
         U_infty = Parameter("Terminal voltage of observed relaxation [V]")
         slope = Parameter("Logarithmic slope of observed mechanical relaxation [V]")
-        timescale_exp = Parameter("Exponential timescale for decay of observed mechanical relaxation [s]")
+        timescale_exp = Parameter(
+            "Exponential timescale for decay of observed mechanical relaxation [s]"
+        )
 
         # Express the effective parameters from above by adjusting the parameters the model is written in.
-        lambda_ch = 1  # lumped parameter of the model, set to 1 without loss of generality
+        lambda_ch = (
+            1  # lumped parameter of the model, set to 1 without loss of generality
+        )
         sigma_ref = slope * alpha * F * lambda_ch**3 / (2 * v_Li)
         tau = lambda_ch * E_core * alpha * timescale_exp / sigma_ref
 
         # Optionally add a diffusive relaxation.
         if kwargs.get("with diffusion"):
-            diff_portion = Parameter("Fraction of observed relaxation that is diffusive")
+            diff_portion = Parameter(
+                "Fraction of observed relaxation that is diffusive"
+            )
             diff_timescale = Parameter("Timescale of observed diffusive relaxation [s]")
             rel_magnitude = (1 - diff_portion) * U_infty
             diff_magnitude = diff_portion * U_infty
         else:
             rel_magnitude = U_infty
             diff_magnitude = 0
-        
+
         # Determine integration constant from t=0 with
-        # sigma_ev(t=0) = sigma_0 from sigma_ev = delta_U * F / v_Li. 
+        # sigma_ev(t=0) = sigma_0 from sigma_ev = delta_U * F / v_Li.
         integration_constant = tanh(
             rel_magnitude * alpha * F * lambda_ch**3 / (2 * v_Li * sigma_ref)
         )
-        
+
         # As PyBaMM has no arctanh, write it via arctanh = 0.5 * log((1 + x) / (1 - x)).
-        arctanh_argument = integration_constant * exp(-E_core * alpha * lambda_ch / (tau * sigma_ref) * pybamm_t)
+        arctanh_argument = integration_constant * exp(
+            -E_core * alpha * lambda_ch / (tau * sigma_ref) * pybamm_t
+        )
         delta_U = (
-            2 * v_Li * sigma_ref / (alpha * F * lambda_ch**3)
-            * 0.5 * log((1 + arctanh_argument) / (1 - arctanh_argument))
+            2
+            * v_Li
+            * sigma_ref
+            / (alpha * F * lambda_ch**3)
+            * 0.5
+            * log((1 + arctanh_argument) / (1 - arctanh_argument))
         )
 
         if kwargs.get("with diffusion"):
@@ -99,32 +120,36 @@ class SiliconRelaxation(BaseModel):
     @property
     def default_geometry(self):
         return {}
-    
+
     @property
     def default_parameter_values(self) -> ParameterValues:
-        return ParameterValues({
-            "Negative particle radius [m]": 30e-9,
-            "Negative particle diffusivity [m]": 1e-17,
-            "Initial SEI thickness [m]": 20e-9,
-            "Ambient temperature [K]": 298,
-            "Negative particle Young modulus [Pa]": 200e9,
-            "Negative particle Poisson ratio": 0.22,
-            "Negative particle yield stress [Pa]": 3e9,
-            "Negative particle partial molar volume [m3.mol-1]": 9e-6,
-            "Negative shell Young modulus [Pa]": 100e9,
-            "Negative shell Poisson ratio": 0.3,
-            "Negative shell yield stress [Pa]": 2e9,
-            "Negative shell Newtonian viscosity [Pa.s]": 135e12,
-            "Terminal voltage of observed relaxation [V]": 0.12,
-            "Logarithmic slope of observed mechanical relaxation [V]": 0.025,
-            "Exponential timescale for decay of observed mechanical relaxation [s]": 2e4,
-            "Fraction of observed relaxation that is diffusive": 0.0,
-            "Timescale of observed diffusive relaxation [s]": 90.0,
-        })
+        return ParameterValues(
+            {
+                "Negative particle radius [m]": 30e-9,
+                "Negative particle diffusivity [m]": 1e-17,
+                "Initial SEI thickness [m]": 20e-9,
+                "Ambient temperature [K]": 298,
+                "Negative particle Young modulus [Pa]": 200e9,
+                "Negative particle Poisson ratio": 0.22,
+                "Negative particle yield stress [Pa]": 3e9,
+                "Negative particle partial molar volume [m3.mol-1]": 9e-6,
+                "Negative shell Young modulus [Pa]": 100e9,
+                "Negative shell Poisson ratio": 0.3,
+                "Negative shell yield stress [Pa]": 2e9,
+                "Negative shell Newtonian viscosity [Pa.s]": 135e12,
+                "Terminal voltage of observed relaxation [V]": 0.12,
+                "Logarithmic slope of observed mechanical relaxation [V]": 0.025,
+                "Exponential timescale for decay of observed mechanical relaxation [s]": 2e4,
+                "Fraction of observed relaxation that is diffusive": 0.0,
+                "Timescale of observed diffusive relaxation [s]": 90.0,
+            }
+        )
 
     @property
     def default_quick_plot_variables(self):
-        return ["Voltage [V]",]
+        return [
+            "Voltage [V]",
+        ]
 
     @property
     def default_submesh_types(self):
@@ -141,4 +166,3 @@ class SiliconRelaxation(BaseModel):
     @property
     def default_solver(self):
         return DummySolver()
-
