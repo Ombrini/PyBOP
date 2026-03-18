@@ -1,6 +1,12 @@
+import pickle
+import types
+
 import numpy as np
 
-from pybop import Logger, Problem, plot
+from pybop import plot
+from pybop._logging import Logger
+from pybop._utils import load_data_dict, save_data_dict
+from pybop.problems.problem import Problem
 
 
 class Result:
@@ -33,14 +39,14 @@ class Result:
         self._problem = problem
         self._minimising = problem.minimising
         self.method_name = method_name
-        self.n_runs = 0
+        self.n_runs = 1
         self._best_run = None
         self._x = [logger.x_model_best]
         self._x_model = [logger.x_model]
         self._x0 = [logger.x0]
         self._best_cost = [logger.cost_best]
-        self._cost = [logger.cost_convergence]
-        self._initial_cost = [logger.cost[0]]
+        self._cost_convergence = [logger.cost_convergence]
+        self._cost = [logger.cost]
         self._n_iterations = [logger.iteration]
         self._iteration_number = [logger.iteration_number]
         self._n_evaluations = [logger.evaluations]
@@ -77,11 +83,12 @@ class Result:
             for x in result._best_cost  # noqa: SLF001
         ]
         ret._cost = [x for result in results for x in result._cost]  # noqa: SLF001
-        ret._initial_cost = [  # noqa: SLF001
+        ret._cost_convergence = [  # noqa: SLF001
             x
             for result in results
-            for x in result._initial_cost  # noqa: SLF001
+            for x in result._cost_convergence  # noqa: SLF001
         ]
+
         ret._n_iterations = [  # noqa: SLF001
             x
             for result in results
@@ -203,9 +210,17 @@ class Result:
         return self._get_single_or_all("_cost")
 
     @property
+    def cost_convergence(self) -> np.ndarray:
+        """The log of the cost convergence values."""
+        return self._get_single_or_all("_cost_convergence")
+
+    @property
     def initial_cost(self) -> float:
         """The initial cost value(s)."""
-        return self._get_single_or_all("_initial_cost")
+        if len(self._cost) > 1:
+            return [c[0] for c in self._cost]
+        else:
+            return self._cost[0][0]
 
     @property
     def n_iterations(self) -> int:
@@ -314,3 +329,147 @@ class Result:
             Valid Plotly layout keys and their values.
         """
         return plot.contour(call_object=self, **kwargs)
+
+    def save(self, filename) -> None:
+        """Save the whole result using pickle"""
+        with open(filename, "wb") as f:
+            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def load(filename: str) -> "Result":
+        """Load a saved Result."""
+        with open(filename, "rb") as f:
+            result = pickle.load(f)
+        return result
+
+    def data_dict(self) -> dict:
+        """return result data as dictionary for saving to file"""
+
+        return {
+            "minimising": self._minimising,
+            "method_name": self.method_name,
+            "n_runs": self.n_runs,
+            "best_run": self._best_run,
+            "x": self._x,
+            "x_model": self._x_model,
+            "x0": self._x0,
+            "best_cost": self._best_cost,
+            "cost": self._cost,
+            "cost_convergence": self._cost_convergence,
+            "n_iterations": self._n_iterations,
+            "iteration_number": self._iteration_number,
+            "n_evaluations": self._n_evaluations,
+            "message": self._message,
+            "scipy_result": [0 if x is None else x for x in self._scipy_result],
+            "time": self._time,
+        }
+
+    def save_data(
+        self,
+        filename=None,
+        to_format="pickle",
+    ) -> str | None:
+        """
+        Save result data
+
+        Based on pybamm.Solution.save_data
+
+        Parameters
+        ----------
+        filename : str, optional
+            The name of the file to save data to. If None, then a str is returned
+            for json format or an error is thrown for pickle/matlab.
+        to_format : str, optional
+            The format to save to. Options are:
+
+            - 'pickle' (default): creates a pickle file with the data dictionary
+            - 'matlab': creates a .mat file, for loading in matlab
+            - 'json': creates a json file
+
+        Returns
+        -------
+        data : str, optional
+            str if 'json' is chosen and filename is None, otherwise None
+        """
+
+        data = self.data_dict()
+        return save_data_dict(data, filename=filename, to_format=to_format)
+
+    @staticmethod
+    def load_data(filename: str, file_format: str = "pickle") -> dict:
+        """
+        Load results data as dictionary from a given file. Restores data saved with
+        save_data.
+
+        Calls load_data_dict defined in _utils.py and provides the keys of
+        data that is 0-d and 1-d to ensure consistent data dimensions.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file containing the data.
+        file_format : str, optional
+            The format the data was save to. Options are:
+            - 'pickle' (default)
+            - 'matlab'
+            - 'csv'
+            - 'json'
+
+        Returns
+        -------
+        data_dict :
+            python dictionary containing the data in the file.
+        """
+        data = load_data_dict(
+            filename,
+            file_format=file_format,
+            data_keys_0d=["_minimising", "n_runs", "best_run"],
+            data_keys_1d=[
+                "method_name",
+                "best_cost",
+                "initial_cost",
+                "n_iterations",
+                "n_evaluations",
+                "message",
+                "scipy_result",
+                "time",
+            ],
+        )
+
+        # Create a dummy problem
+        problem = types.SimpleNamespace()
+        problem.minimising = data["minimising"]
+
+        # Create one logging result for each run
+        n_runs = data["n_runs"]
+        list_of_results = []
+        for i in range(n_runs):
+            # Create a dummy logger
+            logger = types.SimpleNamespace()
+            for logger_key, result_key in [
+                ("x_model_best", "x"),
+                ("x_model", "x_model"),
+                ("x0", "x0"),
+                ("cost_best", "best_cost"),
+                ("cost_convergence", "cost_convergence"),
+                ("cost", "cost"),
+                ("iteration", "n_iterations"),
+                ("iteration_number", "iteration_number"),
+                ("evaluations", "n_evaluations"),
+            ]:
+                setattr(logger, logger_key, data[result_key][i])
+
+            list_of_results.append(
+                Result(
+                    problem=problem,
+                    logger=logger,
+                    time=data["time"][i],
+                    method_name=data["method_name"],
+                    message=data["message"][i],
+                    scipy_result=data["scipy_result"][i]
+                    if data["scipy_result"][i] != 0
+                    else None,
+                )
+            )
+
+        return Result.combine(results=list_of_results)

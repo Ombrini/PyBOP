@@ -73,12 +73,8 @@ class TestClassification:
         solution = pybamm.Simulation(
             model, parameter_values=parameter_values, experiment=experiment
         ).solve()
-        return pybop.Dataset(
-            {
-                "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
-                "Voltage [V]": solution["Voltage [V]"].data,
-            }
+        return pybop.import_pybamm_solution(
+            solution, variables=["Time [s]", "Current [A]", "Voltage [V]"]
         )
 
     @pytest.fixture
@@ -197,7 +193,7 @@ class TestClassification:
             raise Exception(f"Please add a check for these values: {x}")
 
         if np.all(x == np.asarray([0.05, 0.05])):
-            cost = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma0=0.002)
+            cost = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=0.002)
             problem = pybop.Problem(simulator, cost)
             logger = pybop.Logger(minimising=problem.minimising)
             logger.iteration = 1
@@ -221,12 +217,8 @@ class TestClassification:
         solution = pybamm.Simulation(
             model, parameter_values=parameter_values, experiment=experiment
         ).solve()
-        dataset = pybop.Dataset(
-            {
-                "Time [s]": solution["Time [s]"].data,
-                "Current function [A]": solution["Current [A]"].data,
-                "Voltage [V]": solution["Voltage [V]"].data,
-            }
+        dataset = pybop.import_pybamm_solution(
+            solution, variables=["Time [s]", "Current [A]", "Voltage [V]"]
         )
 
         parameter_values.update({"R0_a [Ohm]": param_R0_a, "R0_b [Ohm]": param_R0_b})

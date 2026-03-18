@@ -13,7 +13,7 @@ class SeparableParaboloidProblem(pybop.Problem):
 
     def __init__(self, centre: np.ndarray, c: float = 0.0):
         super().__init__(simulator=None, cost=None)
-        self.parameters = pybop.Parameters(
+        self._parameters = pybop.Parameters(
             {
                 "x0": pybop.Parameter(bounds=[-10, 10]),
                 "x1": pybop.Parameter(bounds=[-10, 10]),
@@ -85,3 +85,44 @@ def test_classify_paraboloid_minimum_and_grid(result):
 
     # Because the paraboloid is convex and result.x is the minimiser, expect a minimum
     assert "minimum" in info["message"].lower()
+
+
+@pytest.mark.unit
+def test_near_bounds():
+    dx = np.asarray([0.2, 0.2])
+
+    # construct result within 'dx' of upper boundary
+    centre = np.asarray([0.0, 0.0], dtype=float)
+    problem = SeparableParaboloidProblem(centre=centre, c=1.0)
+    logger = pybop.Logger(minimising=True)
+    logger.iteration = 1
+    logger.extend_log(
+        x_search=[np.asarray([9.9, 0.0])],
+        x_model=[np.asarray([9.9, 0.0])],
+        cost=problem.evaluate([9.9, 0.0]).values,
+    )
+    result = pybop.Result(problem=problem, logger=logger, time=1.0)
+
+    # check message text
+    info = pybop.classify_using_hessian(result, dx=dx, cost_tolerance=1e-8)
+    assert (
+        info["message"]
+        == "The optimiser has not converged to a stationary point. The result is near the upper bound of x0."
+    )
+
+    # construct result within 'dx' of lower boundary
+    logger = pybop.Logger(minimising=True)
+    logger.iteration = 1
+    logger.extend_log(
+        x_search=[np.asarray([-9.9, 0.0])],
+        x_model=[np.asarray([-9.9, 0.0])],
+        cost=problem.evaluate([-9.9, 0.0]).values,
+    )
+    result = pybop.Result(problem=problem, logger=logger, time=1.0)
+
+    # check message text
+    info = pybop.classify_using_hessian(result, dx=dx, cost_tolerance=1e-8)
+    assert (
+        info["message"]
+        == "The optimiser has not converged to a stationary point. The result is near the lower bound of x0."
+    )

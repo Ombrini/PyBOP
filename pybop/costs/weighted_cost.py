@@ -31,11 +31,10 @@ class WeightedCost(BaseCost):
             raise ValueError("All costs must have the same domain.")
         super().__init__()
 
-        self.domain = self.costs[0].domain
-        self.target = []
+        self._domain = self.costs[0].domain
         for cost in self.costs:
-            self.target.extend(cost.target)
             self.parameters.join(cost.parameters)
+        self.set_target([cost.target for cost in self.costs])
 
         # Check if weights are provided
         if weights is not None:
@@ -59,7 +58,7 @@ class WeightedCost(BaseCost):
 
     def evaluate(
         self,
-        sol: Solution,
+        solution: Solution,
         inputs: Inputs | None = None,
         calculate_sensitivities: bool = False,
     ) -> float | tuple[float, np.ndarray]:
@@ -68,7 +67,7 @@ class WeightedCost(BaseCost):
 
         Parameters
         ----------
-        sol : pybop.Solution | pybamm.Solution
+        solution : pybop.Solution | pybamm.Solution
             The simulation result.
         inputs : Inputs, optional
             Input parameters (default: None).
@@ -82,21 +81,43 @@ class WeightedCost(BaseCost):
             gradient with dimension (len(parameters)), otherwise returns only the cost.
         """
         e = np.empty_like(self.costs)
-        de = np.empty((len(self.parameters), len(self.costs)))
+        de = {key: np.zeros(len(self.costs)) for key in inputs.keys()}
 
         for i, cost in enumerate(self.costs):
             if calculate_sensitivities:
-                e[i], de[:, i] = cost.evaluate(
-                    sol, inputs=inputs, calculate_sensitivities=calculate_sensitivities
+                e[i], sensitivities = cost.evaluate(
+                    solution,
+                    inputs=inputs,
+                    calculate_sensitivities=calculate_sensitivities,
                 )
+                for key, value in sensitivities.items():
+                    de[key][i] = value
             else:
                 e[i] = cost.evaluate(
-                    sol, inputs=inputs, calculate_sensitivities=calculate_sensitivities
+                    solution,
+                    inputs=inputs,
+                    calculate_sensitivities=calculate_sensitivities,
                 )
 
         e = np.dot(e, self.weights)
         if calculate_sensitivities:
-            de = np.dot(de, self.weights)
+            for key in de.keys():
+                de[key] = np.dot(de[key], self.weights)
             return e, de
 
         return e
+
+    def set_target(self, target: list[list[str]] | list[str] | str | None = None):
+        """Set the target variable for all costs. Expecting a list of list[str] the same length as self.costs."""
+        target = [target] if isinstance(target, str) else target or self._target
+        if isinstance(target[0], str):
+            target = [target] * len(self.costs)
+
+        self._target = []
+        for i, cost in enumerate(self.costs):
+            cost.set_target(target[i])
+            self._target.extend(cost.target)
+
+    @property
+    def target(self):
+        return list(set(self._target))
