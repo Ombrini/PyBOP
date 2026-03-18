@@ -1,4 +1,5 @@
 import importlib.util
+import os
 import sys
 
 import matplotlib
@@ -23,9 +24,11 @@ seed = 0
 
 if __name__ == "__main__":
     data_index = 16
+    folder = os.path.dirname(os.path.realpath(__file__))
 
     spec = importlib.util.spec_from_file_location(
-        "read_dataset", "../../data/Wycisk2024/read_dataset.py"
+        "read_dataset",
+        os.path.join(folder, "..", "..", "data", "Wycisk2024", "read_dataset.py"),
     )
     read_dataset = importlib.util.module_from_spec(spec)
     sys.modules["read_dataset"] = read_dataset
