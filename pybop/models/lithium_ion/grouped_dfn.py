@@ -674,6 +674,7 @@ class GroupedDFN(BaseGroupedModel):
         parameter_dictionary = {
             "Nominal cell capacity [A.h]": param["Nominal cell capacity [A.h]"],
             "Current function [A]": param["Current function [A]"],
+            "Ambient temperature [K]": param["Ambient temperature [K]"],
             "Initial temperature [K]": param["Ambient temperature [K]"],
             "Initial SoC": soc_init,
             "Minimum negative stoichiometry": x_0,
