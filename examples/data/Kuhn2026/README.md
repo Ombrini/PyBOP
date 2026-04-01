@@ -13,4 +13,4 @@ The full dataset can be accessed through the following link:
 If you use this dataset in your work, please cite the original publication as follows:
 
 ```plaintext
-Y. Kuhn et al., "Workflows and Principles for Collaboration and Communication in Battery Research," Digital Discovery, Advance Article, 2026, doi: 10.1039/D5DD00247H.
+Y. Kuhn et al., "Workflows and Principles for Collaboration and Communication in Battery Research," Digital Discovery, vol. 5, p. 177-192, 2026, doi: 10.1039/D5DD00247H.
