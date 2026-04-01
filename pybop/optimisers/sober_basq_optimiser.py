@@ -458,3 +458,131 @@ class SOBER_BASQ_EPLFI(SOBER_BASQ):
             "Solving Optimisation as Bayesian Estimation via Recombination "
             "within Expectation Propagation for Likelihood-Free Inference"
         )
+
+
+class SOBER_BASQ_GIS(SOBER_BASQ):
+    """"
+    Uses SOBER to train a Global Inverse Surrogate (GIS) on a given
+    parameterisation task. Requires a generator for (synthetic) data."
+
+    Short version: given x -> simulator(x), calculates y -> simulator^(-1)(y).
+    The prior becomes the domain on which this inversion is calculated.
+    """
+
+    def _set_up_optimiser(self, **kwargs):
+        import sober
+
+        prior = self.problem.parameters.distribution
+
+        self.mean = prior.properties.get("mean")
+        self.covariance = prior.properties.get("cov")
+        self.bounds = prior.properties.get("bounds")
+        if self.bounds is None and hasattr(prior, "bounds"):
+            self.bounds = prior.bounds
+
+        if isinstance(prior, pybop.MultivariateUniform):
+            self.prior_name = "Uniform"
+        elif isinstance(prior, pybop.MultivariateGaussian):
+            self.prior_name = "TruncatedGaussian"
+        else:
+            raise ValueError(
+                "The provided prior must be a multivariate uniform or multivariate Gaussian one."
+            )
+
+                # ToDo: generalise to other transformations (has to be PyTorch,
+                # else the vmap-vectorisation for that within SoberWrapper fails).
+                self.transform_parameters = [
+                    (torch.log, torch.exp)
+                    if isinstance(par.transformation, pybop.LogTransformation)
+                    else (torch.nn.Identity(), torch.nn.Identity())
+                    for par in self.problem.parameters.values()
+                ]
+
+
+        #ToDo: can only use one problem function for now, else multiprocessing breaks.
+        if isinstance(self.problem.target_data, dict):
+            target_data = tensor(np.asarray(list(self.problem.target_data.values())[0]))
+        else:
+            target_data = tensor(self.problem.target_data)
+
+        self.optimiser = sober.InverseModel(
+            self.evaluate_problem,
+            self._options.model_initial_samples,
+            self.mean,
+            None if self.covariance is None else tensor(self.covariance),
+            None if self.bounds is None else tensor(self.bounds).T,
+            self.prior_name,
+            self.transform_parameters,
+            self._options.seed,
+            False,  # disable_numpy_mode,
+            True,  # parallellization,
+            False,  # visualizations,
+        )
+        self._logger = Logger(
+            minimising=True,
+            verbose=self._options.verbose,
+            verbose_print_rate=self.verbose_print_rate,
+        )
+
+    def _run(self):
+        verbose_log_target = stdout if self._options.verbose else None
+        verbose_err_target = stderr if self._options.verbose else None
+        with redirect_stdout(verbose_log_target):
+            with redirect_stderr(verbose_err_target):
+                start = time.time()
+                self.optimiser.optimize_inverse_model_with_SOBER(
+                    stopping_criterion_variance,
+                    adaptive_batchsize_tolerance=0.1,  # not yet implemented
+                    # may be increased for performance, but gives a more detailed convergence trajectory this way
+                    sober_iterations_per_convergence_check=1,
+                    # may be increased for performance, but it suffices to tweak the batch size
+                    sober_iterations_per_training_data_updates=1, 
+                    maximum_number_of_batches,
+                    model_samples_per_iteration,
+                    integration_nodes,
+                    visualizations=False,
+                    verbose,
+                )
+                end = time.time()
+
+        x_list = self.optimiser.X_all.numpy()
+        cost_list = self.optimiser.Y_all.numpy()
+        x_best = copy.deepcopy(x_list)
+        cost_best = copy.deepcopy(cost_list)
+        for i in range(1, len(cost_list)):
+            if cost_list[i] < cost_best[i - 1]:
+                x_best[i:, None] = x_list[i, None]
+                cost_best[i:] = cost_list[i]
+        self._logger.x_model = x_list.tolist()
+        self._logger.x_search = [
+            [
+                par.transformation.to_search(e)[0]
+                for e, par in zip(entry, self.problem.parameters.values(), strict=False)
+            ]
+            for entry in x_list
+        ]
+        self._logger.cost = cost_list
+        self._logger.iterations = [
+            i // (self._options.sober_iterations) for i in range(len(cost_list))
+        ]
+        self._logger.evaluations = [i + 1 for i in range(len(cost_list))]
+        self._logger.x_model_best = x_best[-1]
+        x_search_best_over_time = [
+            [
+                par.transformation.to_search(e)[0]
+                for e, par in zip(entry, self.problem.parameters.values(), strict=False)
+            ]
+            for entry in x_best
+        ]
+        self._logger.x_search_best = x_search_best_over_time[-1]
+        self._logger.cost_best = cost_best[-1]
+        
+        return GlobalInverseSurrogate(
+            optim=self,
+            time=end - start,
+            method_name="SOBER + BASQ",
+            lower_bounds=None if self.bounds is None else self.bounds[:, 0],
+            upper_bounds=None if self.bounds is None else self.bounds[:, 1],
+            surrogate=self,
+        )
+
