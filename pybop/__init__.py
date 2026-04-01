@@ -25,12 +25,13 @@ script_path = path.dirname(__file__)
 #
 # Utilities
 #
-from ._utils import add_spaces, is_numeric, FailedVariable, FailedSolution, SymbolReplacer, RecommendedSolver
+from ._utils import add_spaces, is_numeric, load_data_dict, save_data_dict
 
 #
 # Dataset class
 #
-from ._dataset import Dataset, Datasets, import_pyprobe_result
+from .processing.dataset import Dataset, import_pybamm_solution, Datasets, import_pyprobe_result
+from .processing.interpolate_current import generate_consistent_current, downsample_constant_current
 
 #
 # Transformation classes
@@ -48,15 +49,15 @@ from .transformation.transformations import (
 # Parameter classes
 #
 from .parameters.parameter import Parameter, Parameters
-from .parameters.multivariate_parameters import MultivariateParameters
 from .parameters.distributions import Distribution, Gaussian, Uniform, Exponential, JointDistribution
-from .parameters.multivariate_distributions import MultivariateNonparametric, MultivariateUniform, MultivariateGaussian
+from .parameters.multivariate_distributions import MultivariateNonparametric, MultivariateUniform, MultivariateGaussian, MultivariateLogNormal, MarginalDistribution
 
 #
 # Model classes
 #
 from .models import lithium_ion
 from .models._exponential_decay import ExponentialDecayModel
+from .models.lithium_ion.utils import Interpolant, InverseOCV
 
 #
 # PyBaMM utility classes
@@ -68,12 +69,14 @@ from . import pybamm
 #
 from .problems.problem import Problem
 from .problems.meta_problem import MetaProblem
+from .problems.log_pdf import LogPDF, LogPosterior
 
 #
 # Simulator classes
 #
 from .simulators.base_simulator import BaseSimulator
 from .simulators.solution import Solution
+from .simulators.failed_solution import FailedVariable, FailedSolution
 
 #
 # Cost classes
@@ -87,12 +90,12 @@ from .costs.error_measures import (
     Minkowski,
     SumOfPower,
 )
-from .costs.likelihoods import (
+from .costs.log_likelihoods import (
     LogLikelihood,
     GaussianLogLikelihood,
     GaussianLogLikelihoodKnownSigma,
-    LogPosterior,
 )
+from .costs.base_cost import LogPrior
 from .costs.weighted_cost import WeightedCost
 from .costs.design_cost import DesignCost
 from .costs.feature_distances import SquareRootFeatureDistance, ExponentialFeatureDistance
@@ -174,7 +177,7 @@ from .analysis.classification import classify_using_hessian, plot_hessian_eigenv
 #
 # Applications
 #
-from .applications.base_method import BaseApplication, Interpolant, InverseOCV
+from .applications.base_method import BaseApplication
 from .applications.ocp_methods import OCPMerge, OCPAverage, OCPCapacityToStoichiometry
 from .applications.gitt_methods import GITTPulseFit, GITTFit
 

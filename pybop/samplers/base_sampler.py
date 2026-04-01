@@ -4,10 +4,10 @@ import numpy as np
 import pints
 import scipy
 
+from pybop import plot
 from pybop._logging import Logger
 from pybop._result import Result
-from pybop.plot import PlotlyManager
-from pybop.problems.problem import Problem
+from pybop.problems.log_pdf import LogPDF
 
 
 @dataclass
@@ -19,12 +19,9 @@ class SamplerOptions:
     ----------
     n_chains : int
         The number of chains to concurrently sample from.
-    cov : float | np.ndarray
-        Covariance matrix.
     """
 
     n_chains: int = 1
-    cov: float | np.ndarray = 0.05
 
     def validate(self):
         """
@@ -45,7 +42,7 @@ class BaseSampler:
 
     Parameters
     ----------
-    log_pdf : pybop.Problem
+    log_pdf : pybop.LogPDF
         The negative unnormalised posterior distribution.
     options : SamplerOptions, optional
         Options for the sampler. If None, default options are used.
@@ -53,24 +50,32 @@ class BaseSampler:
 
     def __init__(
         self,
-        log_pdf: Problem,
+        log_pdf: LogPDF,
         options: SamplerOptions | None = None,
     ):
         self._log_pdf = log_pdf
+        self._n_parameters = len(self._log_pdf.parameters)
         self._logger = None
         self._options = options or self.default_options()
         self._options.validate()
 
         # Get initial conditions
-        self._x0 = self._log_pdf.parameters.get_initial_values(
-            transformed=True
-        ) * np.ones([self._options.n_chains, 1])
+        self._mean0 = self._log_pdf.parameters.get_mean(transformed=True) * np.ones(
+            [self._options.n_chains, 1]
+        )
+        self._cov0 = self._log_pdf.parameters.get_covariance(transformed=True)
+        self._validate_covariance_matrix()
 
-        param_dims = len(self._log_pdf.parameters)
-        if np.isscalar(self._options.cov):
-            self._cov0 = np.eye(param_dims) * self._options.cov
+    def _validate_covariance_matrix(self) -> None:
+        """Check or create the initial covariance matrix."""
+        if self._cov0 is None:
+            self._cov0 = 0.05
+        if np.isscalar(self._cov0):
+            self._cov0 = np.eye(self._n_parameters) * self._cov0
         else:
-            self._cov0 = np.atleast_2d(self._options.cov)
+            self._cov0 = np.atleast_2d(self._cov0)
+        if (np.atleast_1d(self._cov0) < 0).any():
+            raise ValueError("Covariance values must be nonnegative.")
 
     @staticmethod
     def default_options() -> SamplerOptions:
@@ -78,15 +83,15 @@ class BaseSampler:
         return SamplerOptions()
 
     @property
-    def x0(self) -> np.ndarray:
-        return self._x0
+    def mean0(self) -> np.ndarray:
+        return self._mean0
 
     @property
     def cov0(self) -> np.ndarray:
         return self._cov0
 
     @property
-    def log_pdf(self) -> Problem:
+    def log_pdf(self) -> LogPDF:
         return self._log_pdf
 
     @property
@@ -162,8 +167,7 @@ class SamplingResult(Result):
         )
         self.chains = chains
         self.all_samples = np.concatenate(chains, axis=0)
-        self.num_parameters = self.chains.shape[2]
-        self.go = PlotlyManager().go
+        self.n_parameters = self.chains.shape[2]
 
     def signif(self, x, p: int):
         """
@@ -220,113 +224,25 @@ class SamplingResult(Result):
         """
         Plot trace plots for the posterior samples.
         """
-
-        for i in range(self.num_parameters):
-            fig = self.go.Figure()
-
-            for j, chain in enumerate(self.chains):
-                fig.add_trace(
-                    self.go.Scatter(y=chain[:, i], mode="lines", name=f"Chain {j}")
-                )
-
-            fig.update_layout(
-                title=f"Parameter {i} Trace Plot",
-                xaxis_title="Sample Index",
-                yaxis_title="Value",
-            )
-            fig.update_layout(**kwargs)
-            fig.show()
+        return plot.trace(result=self, **kwargs)
 
     def plot_chains(self, **kwargs):
         """
         Plot posterior distributions for each chain.
         """
-        fig = self.go.Figure()
-
-        for i, chain in enumerate(self.chains):
-            for j in range(chain.shape[1]):
-                fig.add_trace(
-                    self.go.Histogram(
-                        x=chain[:, j],
-                        name=f"Chain {i} - Parameter {j}",
-                        opacity=0.75,
-                    )
-                )
-
-                fig.add_shape(
-                    type="line",
-                    x0=self.mean[j],
-                    y0=0,
-                    x1=self.mean[j],
-                    y1=self.max[j],
-                    name=f"Mean - Parameter {j}",
-                    line=dict(color="Black", width=1.5, dash="dash"),
-                )
-
-        fig.update_layout(
-            barmode="overlay",
-            title="Posterior Distribution",
-            xaxis_title="Value",
-            yaxis_title="Density",
-        )
-        fig.update_layout(**kwargs)
-        fig.show()
+        return plot.chains(result=self, **kwargs)
 
     def plot_posterior(self, **kwargs):
         """
         Plot the summed posterior distribution across chains.
         """
-        fig = self.go.Figure()
+        return plot.posterior(result=self, **kwargs)
 
-        for j in range(self.all_samples.shape[1]):
-            histogram = self.go.Histogram(
-                x=self.all_samples[:, j],
-                name=f"Parameter {j}",
-                opacity=0.75,
-            )
-            fig.add_trace(histogram)
-            fig.add_vline(
-                x=self.mean[j], line_width=3, line_dash="dash", line_color="black"
-            )
-
-        fig.update_layout(
-            barmode="overlay",
-            title="Posterior Distribution",
-            xaxis_title="Value",
-            yaxis_title="Density",
-        )
-        fig.update_layout(**kwargs)
-        fig.show()
-        return fig
-
-    def summary_table(self):
+    def summary_table(self, **kwargs):
         """
         Display summary statistics in a table.
         """
-        summary_stats = self.get_summary_statistics()
-
-        header = ["Statistic", "Value"]
-        values = [
-            ["Mean", summary_stats["mean"]],
-            ["Median", summary_stats["median"]],
-            ["Standard Deviation", summary_stats["std"]],
-            ["95% CI Lower", summary_stats["ci_lower"]],
-            ["95% CI Upper", summary_stats["ci_upper"]],
-        ]
-
-        fig = self.go.Figure(
-            data=[
-                self.go.Table(
-                    header=dict(values=header),
-                    cells=dict(
-                        values=[[row[0] for row in values], [row[1] for row in values]]
-                    ),
-                )
-            ]
-        )
-
-        fig.update_layout(title="Summary Statistics")
-        fig.show()
+        return plot.summary_table(result=self, **kwargs)
 
     def autocorrelation(self, x: np.ndarray) -> np.ndarray:
         """
@@ -374,7 +290,7 @@ class SamplingResult(Result):
         def compute_ess(samples):
             """Helper function to compute the ESS for a single set of samples."""
             ess = []
-            for j in range(self.num_parameters):
+            for j in range(self.n_parameters):
                 rho = self.autocorrelation(samples[:, j])
                 T = self._autocorrelate_negative(rho)
                 ess.append(len(samples[:, j]) / (1 + 2 * rho[:T].sum()))

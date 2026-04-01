@@ -15,7 +15,7 @@ class TestEISParameterisation:
 
     @pytest.fixture(autouse=True)
     def setup(self):
-        self.sigma0 = 5e-4
+        self.sigma = 5e-4
         self.ground_truth = np.clip(
             np.asarray([0.55, 0.55]) + np.random.normal(loc=0.0, scale=0.05, size=2),
             a_min=0.4,
@@ -62,7 +62,6 @@ class TestEISParameterisation:
             pybop.MeanAbsoluteError,
             pybop.MeanSquaredError,
             pybop.Minkowski,
-            pybop.LogPosterior,
         ]
     )
     def cost_class(self, request):
@@ -109,16 +108,11 @@ class TestEISParameterisation:
         # Construct the cost
         target = "Impedance"
         if cost_class is pybop.GaussianLogLikelihoodKnownSigma:
-            cost = cost_class(dataset, target=target, sigma0=self.sigma0)
+            cost = cost_class(dataset, target=target, sigma=self.sigma)
         elif cost_class is pybop.GaussianLogLikelihood:
             cost = cost_class(
-                dataset, target=target, sigma0=self.sigma0 * 4
-            )  # Initial sigma0 guess
-        elif cost_class is pybop.LogPosterior:
-            likelihood = pybop.GaussianLogLikelihoodKnownSigma(
-                dataset, target=target, sigma0=self.sigma0
-            )
-            cost = cost_class(likelihood)
+                dataset, target=target, sigma=self.sigma * 4
+            )  # Initial sigma guess
         elif cost_class in [pybop.SumOfPower, pybop.Minkowski]:
             cost = cost_class(dataset, target=target, p=2)
         else:
@@ -146,10 +140,10 @@ class TestEISParameterisation:
     def test_eis_optimisers(self, optim):
         x0 = optim.problem.parameters.get_initial_values()
 
-        # Add sigma0 to ground truth for GaussianLogLikelihood
+        # Add sigma to ground truth for GaussianLogLikelihood
         if isinstance(optim.problem.cost, pybop.GaussianLogLikelihood):
             self.ground_truth = np.concatenate(
-                (self.ground_truth, np.asarray([self.sigma0]))
+                (self.ground_truth, np.asarray([self.sigma]))
             )
 
         initial_cost = optim.problem(x0)
@@ -185,8 +179,8 @@ class TestEISParameterisation:
         return pybop.Dataset(
             {
                 "Frequency [Hz]": f_eval,
-                "Current function [A]": np.zeros_like(f_eval),
-                "Impedance": self.noisy(solution["Impedance"].data, self.sigma0),
+                "Current [A]": np.zeros_like(f_eval),
+                "Impedance": self.noisy(solution["Impedance"].data, self.sigma),
             },
             domain="Frequency [Hz]",
         )

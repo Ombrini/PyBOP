@@ -10,10 +10,10 @@ from scipy.sparse.linalg import spsolve
 
 if TYPE_CHECKING:
     from pybop.parameters.parameter import Inputs
-from pybop._utils import FailedSolution, SymbolReplacer
-from pybop.parameters.parameter import Parameter, Parameters
 from pybop.pybamm.simulator import Simulator
+from pybop.pybamm.utils import SymbolReplacer
 from pybop.simulators.base_simulator import BaseSimulator, Solution
+from pybop.simulators.failed_solution import FailedSolution
 
 
 class EISSimulator(BaseSimulator):
@@ -43,7 +43,7 @@ class EISSimulator(BaseSimulator):
         Defaults to None, indicating that the existing initial state of charge (for an ECM)
         or initial concentrations (for an EChem model) will be used.
     solver : pybamm.BaseSolver, optional
-        The solver to simulate the composed Simulator. If None, uses `pybop.RecommendedSolver`.
+        The solver to simulate the composed Simulator. If None, uses `pybop.pybamm.RecommendedSolver`.
     geometry : pybamm.Geometry, optional
         The geometry upon which to solve the model.
     submesh_types : dict, optional
@@ -80,12 +80,7 @@ class EISSimulator(BaseSimulator):
         parameter_values = parameter_values or model.default_parameter_values
         parameter_values["Current function [A]"] = 0
 
-        # Unpack the uncertain parameters from the parameter values
-        parameters = Parameters()
-        for name, param in parameter_values.items():
-            if isinstance(param, Parameter):
-                parameters.add(name, param)
-        super().__init__(parameters=parameters)
+        super().__init__(parameters=parameter_values)
 
         # Set up a simulation
         self._simulator = Simulator(

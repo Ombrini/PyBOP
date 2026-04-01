@@ -2,7 +2,7 @@ import copy
 import json
 import time
 from contextlib import redirect_stderr, redirect_stdout
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from sys import stderr, stdout
 
 import numpy as np
@@ -12,7 +12,7 @@ import pybop
 from pybop._logging import Logger
 from pybop.optimisers.base_optimiser import BaseOptimiser, OptimisationResult
 from pybop.parameters.multivariate_distributions import MultivariateGaussian
-from pybop.parameters.multivariate_parameters import MultivariateParameters
+from pybop.parameters.parameter import Parameters
 
 
 def ep_bolfi_problem_processing(y, problem):
@@ -59,6 +59,10 @@ class EPBOLFIOptions(pybop.OptimiserOptions):
     # Defaults to calculating a final effective fraction of 0.5.
     ep_stepwise_dampener: float | None = None
     ep_total_dampening: float | None = None
+
+    # Parameter boundaries in the model space. Samples are not taken
+    # from outside these boundaries.
+    model_parameter_boundaries: dict = field(default_factory=dict)
 
     # Adjusts the hard parameter boundaries relative to their
     # standard deviations. Defaults to 95 % confidence regions.
@@ -192,10 +196,7 @@ class EP_BOLFI(BaseOptimiser):
         options: EPBOLFIOptions | None = None,
     ):
         if type(problem) is not pybop.MetaProblem:
-            # Store the parameters and replace the forced univariate Parameters with them
-            parameters = problem.parameters
             problem = pybop.MetaProblem(problem)
-            problem.parameters = parameters
         super().__init__(problem, options)
         # citations.register("""@article{
         #     Minka2013,
@@ -241,19 +242,12 @@ class EP_BOLFI(BaseOptimiser):
     def _set_up_optimiser(self):
         import ep_bolfi
 
-        transposed_boundaries = {}
-        model_bounds = self.problem.parameters.get_bounds(transformed=False)  # noqa: SLF001
-        for i, name in enumerate(self.problem.parameters.keys()):  # noqa: SLF001
-            transposed_boundaries[name] = [
-                model_bounds["lower"][i],
-                model_bounds["upper"][i],
-            ]
         # Use the first output variable to pass to EP-BOLFI; define separate simulators
         # for multiple output variables.
         simulators = [
-            lambda inputs, sim=problem._simulator: sim.solve(inputs)[  # noqa: SLF001
-                sim.output_variables[0]
-            ].data
+            lambda inputs, sim=problem._simulator: (  # noqa: SLF001
+                sim.solve(inputs)[sim.output_variables[0]].data
+            )
             for problem in self.problem.problems
         ]
         experimental_datasets = [
@@ -269,11 +263,11 @@ class EP_BOLFI(BaseOptimiser):
             feature_extractors,
             fixed_parameters={},  # probably baked into self.problem.model
             free_parameters={
-                name: par.get_initial_value_transformed()
-                for name, par in self.problem.parameters.items()  # noqa: SLF001
+                name: par.get_mean(transformed=True)
+                for name, par in self.problem.parameters.items()
             },
-            initial_covariance=self.problem.parameters.distribution.properties["cov"],  # noqa: SLF001
-            free_parameters_boundaries=transposed_boundaries,
+            initial_covariance=self.problem.parameters.get_covariance(transformed=True),
+            free_parameters_boundaries=self._options.model_parameter_boundaries,
             boundaries_in_deviations=self._options.boundaries_in_standard_deviations,
             Q=self._options.precision_matrix,
             r=self._options.covariance_scaled_mean,
@@ -281,11 +275,11 @@ class EP_BOLFI(BaseOptimiser):
             r_features=self._options.covariance_scaled_means_per_feature,
             transform_parameters={
                 name: (par.transformation.to_model, par.transformation.to_search)
-                for name, par in self.problem.parameters.items()  # noqa: SLF001
+                for name, par in self.problem.parameters.items()
             },
             weights=None,  # only applicable within vector-valued features and better handled within PyBOP costs
             display_current_feature=None,  # ToDo: costs with names
-            fixed_parameter_order=list(enumerate(self.problem.parameters.keys())),  # noqa: SLF001
+            fixed_parameter_order=list(enumerate(self.problem.parameters.keys())),
         )
         self._logger = Logger(
             minimising=True,
@@ -356,7 +350,7 @@ class EP_BOLFI(BaseOptimiser):
         self._logger.x_search = [
             [
                 par.transformation.to_search(e)[0]
-                for e, par in zip(entry, self.problem.parameters.values(), strict=False)  # noqa: SLF001
+                for e, par in zip(entry, self.problem.parameters.values(), strict=False)
             ]
             for entry in x_list
         ]
@@ -370,7 +364,7 @@ class EP_BOLFI(BaseOptimiser):
         x_search_best_over_time = [
             [
                 par.transformation.to_search(e)[0]
-                for e, par in zip(entry, self.problem.parameters.values(), strict=False)  # noqa: SLF001
+                for e, par in zip(entry, self.problem.parameters.values(), strict=False)
             ]
             for entry in x_best_over_time
         ]
@@ -385,7 +379,7 @@ class EP_BOLFI(BaseOptimiser):
             par.transformation.to_search(entry)[0]
             for entry, par in zip(
                 model_mean_array,
-                self.problem.parameters.values(),  # noqa: SLF001
+                self.problem.parameters.values(),
                 strict=False,
             )
         ]
@@ -396,14 +390,14 @@ class EP_BOLFI(BaseOptimiser):
             [bounds[1][0] for bounds in ep_bolfi_result["error bounds"].values()]
         )
         # The re-use of `parameters` makes transformations easily usable.
-        posterior = copy.deepcopy(self.problem.parameters)  # noqa: SLF001
+        posterior = copy.deepcopy(self.problem.parameters)
         posterior.prior = MultivariateGaussian(
             search_mean_array, np.array(ep_bolfi_result["covariance"])
         )
         self._logger.iteration = {
             "EP iterations": self._options.ep_iterations,
             "total feature iterations": self._options.ep_iterations
-            * len(self.problem.problems),  # noqa: SLF001
+            * len(self.problem.problems),
         }
         self._logger.evaluations = {
             "model evaluations": len(
@@ -477,7 +471,7 @@ class BayesianOptimisationResult(OptimisationResult):
         message: str | None = None,
         lower_bounds: np.ndarray | None = None,
         upper_bounds: np.ndarray | None = None,
-        posterior: MultivariateParameters | None = None,
+        posterior: Parameters | None = None,
         maximum_a_posteriori: np.ndarray | None = None,
         log_evidence_mean: float | None = None,
         log_evidence_variance: float | None = None,

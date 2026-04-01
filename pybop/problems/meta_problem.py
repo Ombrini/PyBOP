@@ -1,8 +1,8 @@
 import numpy as np
 
-from pybop import Problem
 from pybop.costs.evaluation import Evaluation
 from pybop.parameters.parameter import Inputs, Parameters
+from pybop.problems.problem import Problem
 
 
 class MetaProblem(Problem):
@@ -31,7 +31,7 @@ class MetaProblem(Problem):
                 sensitivities_available = False
 
         super().__init__(simulator=None, cost=None)
-        self.parameters = combined_parameters
+        self._parameters = combined_parameters
         self._has_sensitivities = sensitivities_available
 
         # Check if weights are provided
@@ -53,6 +53,9 @@ class MetaProblem(Problem):
             # If all problems are maximising, convert the weighted problem to maximising
             self.weights = -self.weights
             self._minimising = False
+
+    def get_problem_inputs(self, inputs: Inputs, i: int):
+        return {key: inputs[key] for key in self.problems[i].parameters.keys()}
 
     def evaluate_batch(
         self,
@@ -79,21 +82,35 @@ class MetaProblem(Problem):
         n_inputs = len(inputs)
         n_problems = len(self.problems)
         e = np.empty((n_inputs, n_problems))
-        de = np.empty((n_inputs, len(self.parameters), n_problems))
+        de = {key: np.zeros((n_inputs, n_problems)) for key in self.parameters.keys()}
 
         for i, problem in enumerate(self.problems):
+            problem_inputs = [self.get_problem_inputs(x, i) for x in inputs]
             if calculate_sensitivities:
-                e[:, i], de[:, :, i] = problem.evaluate_batch(
-                    inputs, calculate_sensitivities=calculate_sensitivities
+                e[:, i], sensitivities = problem.evaluate_batch(
+                    problem_inputs, calculate_sensitivities=calculate_sensitivities
                 ).get_values()
+                for key, value in sensitivities.items():
+                    de[key][:, i] = value
             else:
                 e[:, i] = problem.evaluate_batch(
-                    inputs, calculate_sensitivities=calculate_sensitivities
+                    problem_inputs, calculate_sensitivities=calculate_sensitivities
                 ).values
 
         e = np.dot(e, self.weights)
         if calculate_sensitivities:
-            de = np.dot(de, self.weights)
+            for key in de.keys():
+                de[key] = np.dot(de[key], self.weights)
             return Evaluation(values=e, sensitivities=de)
 
         return Evaluation(values=e)
+
+    def set_target(self, value: list[str] | str | None = None):
+        for problem in self.problems:
+            problem.set_target(value)
+
+    @property
+    def has_sensitivities(self):
+        if all(problem.has_sensitivities for problem in self.problems):
+            return True
+        return False

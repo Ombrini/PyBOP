@@ -7,10 +7,11 @@ from pybamm import SolverError
 
 if TYPE_CHECKING:
     from pybop.parameters.parameter import Inputs
-from pybop._dataset import Dataset
-from pybop._utils import FailedSolution, RecommendedSolver
-from pybop.parameters.parameter import Parameter, Parameters
+from pybop.parameters.parameter import Parameter
+from pybop.processing.dataset import Dataset
+from pybop.pybamm.utils import RecommendedSolver
 from pybop.simulators.base_simulator import BaseSimulator
+from pybop.simulators.failed_solution import FailedSolution
 
 
 class Simulator(BaseSimulator):
@@ -38,7 +39,7 @@ class Simulator(BaseSimulator):
     protocol : pybamm.Experiment | Dataset | np.ndarray | None
         The protocol as an experiment, a 1D array of values or dataset containing (time) domain data.
     solver : pybamm.BaseSolver, optional
-        The solver to use to solve the model. If None, uses `pybop.RecommendedSolver`.
+        The solver to use to solve the model. If None, uses `pybop.pybamm.RecommendedSolver`.
     output_variables : list, optional
         A list of output variables to return.
     geometry : pybamm.Geometry, optional
@@ -81,15 +82,12 @@ class Simulator(BaseSimulator):
         )
         self._output_variables = output_variables
 
-        # Unpack the uncertain parameters from the parameter values
-        parameters = Parameters()
-        for name, param in parameter_values.items():
-            if isinstance(param, Parameter):
-                parameters.add(name, param)
-                self._parameter_values.update({name: "[input]"})
-            elif isinstance(param, pybamm.InputParameter):
-                parameters.add(name, Parameter())
-        super().__init__(parameters=parameters)
+        # Replace any PyBaMM InputParameter with a PyBOP Parameter
+        for name, param in self._parameter_values.items():
+            if isinstance(param, pybamm.InputParameter):
+                self._parameter_values[name] = Parameter()
+
+        super().__init__(parameters=self._parameter_values)
 
         # Simulation params
         self._initial_state = self.convert_to_pybamm_initial_state(initial_state)
@@ -130,6 +128,27 @@ class Simulator(BaseSimulator):
         )
         self._set_up_solution_method(output_variables=output_variables)
 
+    def __getstate__(self):
+        # Copy the object's state from self.__dict__ which contains
+        # all instance attributes.
+        # Copy() method avoid modifying the original state.
+        state = self.__dict__.copy()
+
+        # Remove the unpicklable entries.
+        del state["_simulation"]
+        del state["_solve"]
+        return state
+
+    def __setstate__(self, state):
+        # Restore instance attributes.
+        self.__dict__.update(state)
+
+        # Restore unpickalable attributes
+        self._simulation = None
+        self._solve = None
+
+        self._set_up_solution_method(output_variables=self.output_variables)
+
     def _set_protocol(self, protocol: pybamm.Experiment | Dataset | np.ndarray | None):
         """
         Set up the protocol for the simulation.
@@ -162,13 +181,9 @@ class Simulator(BaseSimulator):
             time_data = protocol[protocol.domain]
             self._t_eval = [time_data[0], time_data[-1]]
             self._t_interp = time_data
-            control = "Current function [A]"
-            if control in protocol.data.keys():
-                self._parameter_values[control] = pybamm.Interpolant(
-                    protocol["Time [s]"],
-                    protocol[control],
-                    pybamm.t,
-                )
+            for key in protocol.control_functions:
+                control = key.replace(" function", "")
+                self._parameter_values[key] = protocol.get_interpolant(control)
         else:
             self._experiment = None
             time_data = protocol
@@ -449,6 +464,11 @@ class Simulator(BaseSimulator):
         return self._output_variables
 
     def set_output_variables(self, value: list[str] | None):
+        if value is not None:
+            for var in value:
+                if var not in self._model.variable_names():
+                    raise ValueError(f"{var} is not a variable in the model.")
+
         self._output_variables = value
         if self.experiment is None:
             self._set_up_solution_method(output_variables=value)

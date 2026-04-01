@@ -1,22 +1,21 @@
 import importlib.util
+import os
 import sys
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from pybamm import citations, print_citations, DummySolver
-from scipy.integrate import quad
+from pybamm import print_citations
 from sober import setting_parameters
-from torch import device, float64, set_default_dtype, tensor, zeros_like
+from torch import device, float64, set_default_dtype, tensor
 
 import pybop
 from pybop.costs.feature_distances import indices_of
+from pybop.models.lithium_ion.silicon_relaxation import SiliconRelaxation
 from pybop.optimisers.sober_basq_optimiser import (
     SOBER_BASQ_EPLFI,
     SOBER_BASQ_EPLFI_Options,
 )
-
-from pybop.models.lithium_ion.silicon_relaxation import SiliconRelaxation
 
 set_default_dtype(float64)
 setting_parameters(device=device("cpu"), dtype=float64)
@@ -25,9 +24,11 @@ seed = 0
 
 if __name__ == "__main__":
     data_index = 16
+    folder = os.path.dirname(os.path.realpath(__file__))
 
     spec = importlib.util.spec_from_file_location(
-        "read_dataset", "../../data/Wycisk2024/read_dataset.py"
+        "read_dataset",
+        os.path.join(folder, "..", "..", "data", "Wycisk2024", "read_dataset.py"),
     )
     read_dataset = importlib.util.module_from_spec(spec)
     sys.modules["read_dataset"] = read_dataset
@@ -64,9 +65,7 @@ if __name__ == "__main__":
             "Current function [A]": np.asarray(
                 relaxations[data_index]["Current function [A]"]
             ),
-            "Voltage [V]": np.asarray(
-                relaxations[data_index]["Voltage change [V]"]
-            ),
+            "Voltage [V]": np.asarray(relaxations[data_index]["Voltage change [V]"]),
         }
     )
     len_data = len(t)
@@ -113,7 +112,6 @@ if __name__ == "__main__":
     )
     model = SiliconRelaxation()
     simulator = pybop.pybamm.simulator.Simulator(model, model.default_parameter_values)
-
 
     # Override the forced univariate Parameters
     simulator.parameters = unknowns
@@ -193,4 +191,3 @@ if __name__ == "__main__":
     print_citations()
 
     plt.show()
-

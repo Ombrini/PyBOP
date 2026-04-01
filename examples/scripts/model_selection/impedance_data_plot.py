@@ -1,4 +1,5 @@
 import json
+import os
 
 import matplotlib.pyplot as plt
 from ep_bolfi.utility.dataset_formatting import read_parquet_table
@@ -15,7 +16,12 @@ y_lims = {
     "porous_80_microns": (0, 50),
 }
 
-with open("../../data/Gunther2025/impedance_ocv_alignment.json") as f:
+folder = os.path.dirname(os.path.realpath(__file__))
+with open(
+    os.path.join(
+        folder, "..", "..", "data", "Gunther2025", "impedance_ocv_alignment.json"
+    )
+) as f:
     alignment = json.load(f)
 
 data = {}
@@ -53,7 +59,8 @@ for filename, plotname in [
 filename = "18650_LG_3500_MJ1_EIS_anode_discharge"
 soc = alignment[filename]["Negative electrode SOC [-]"]
 data[filename] = read_parquet_table(
-    "../../data/Kuhn2026/" + filename + ".parquet", "impedance"
+    os.path.join(folder, "..", "..", "data", "Kuhn2026", filename + ".parquet"),
+    "impedance",
 )
 fig, ax = plt.subplots(figsize=(5, 3))
 nyquist_plot(
