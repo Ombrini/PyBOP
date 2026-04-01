@@ -1,5 +1,6 @@
 from pybop._utils import FailedSolution
 from pybop.costs.base_cost import BaseCost
+from pybop.costs.feature_distances import indices_of
 from pybop.parameters.parameter import Inputs
 from pybop.simulators.base_simulator import Solution
 
@@ -29,7 +30,7 @@ class EndOfLifeCost(BaseCost):
         eol_index = indices_of(
             (sol["SEI thicknesses [m]"].entries - sol["SEI thicknesses [m]"].entries(0))
             * sol["Negative electrode surface area to volume ratio [m-1]"]
-            * F
+            * 96485.33212
             / (3600 * sol["Nominal cell capacity [A.h]"]),
             1 - self.relative_capacity_cutoff,
         )[0]
@@ -57,4 +58,4 @@ class RelativeEndOfLifeCost(EndOfLifeCost):
         if isinstance(sol, FailedSolution):
             return self.failure(calculate_sensitivities)
         eol_time = super().evaluate(sol)
-        return (eol_time - eol_reference) / (sol["Adjustment factor"] - 1)
+        return (eol_time - self.eol_reference) / (sol["Adjustment factor"] - 1)

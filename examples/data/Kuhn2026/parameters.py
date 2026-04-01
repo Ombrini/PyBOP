@@ -6,7 +6,6 @@ from copy import deepcopy
 
 from ep_bolfi.utility.preprocessing import SubstitutionDict
 from numpy import exp, log
-from pybamm import Parameter
 
 ##############################
 # Reaction symmetry factors. #
@@ -564,26 +563,18 @@ def derivative__18650_LG_3500_MJ1_Cathode_GITT_ch_ohne_EIS_2327__extraction(SOC)
 
 
 def graphite_exchange_prefactor(cₑ, cₙ, cₙ_max, T):
-    αₙₙ = Parameter("Anodic symmetry factor at Graphite-SiOx")
-    αₚₙ = Parameter("Cathodic symmetry factor at Graphite-SiOx")
     return Negative_electrode_exchange_current_density_A_per_m2(cₙ / cₙ_max)
 
 
 def graphite_exchange_prefactor_derivative(cₑ, cₙ, cₙ_max, T):
-    αₙₙ = Parameter("Anodic symmetry factor at Graphite-SiOx")
-    αₚₙ = Parameter("Cathodic symmetry factor at Graphite-SiOx")
     return Negative_electrode_exchange_current_density_A_per_m2(cₙ / cₙ_max) * αₚₙ / cₑ
 
 
 def nmc_exchange_prefactor(cₑ, cₚ, cₚ_max, T):
-    αₙₚ = Parameter("Anodic symmetry factor at NMC")
-    αₚₚ = Parameter("Cathodic symmetry factor at NMC")
     return Positive_electrode_exchange_current_density_A_per_m2(cₚ / cₚ_max)
 
 
 def nmc_exchange_prefactor_derivative(cₑ, cₚ, cₚ_max, T):
-    αₙₚ = Parameter("Anodic symmetry factor at NMC")
-    αₚₚ = Parameter("Cathodic symmetry factor at NMC")
     return Positive_electrode_exchange_current_density_A_per_m2(cₚ / cₚ_max) * αₚₚ / cₑ
 
 

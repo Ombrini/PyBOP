@@ -113,7 +113,7 @@ if __name__ == "__main__":
         # Override the forced univariate Parameters
         simulator.parameters = pybop_prior
         cost = pybop.MeanSquaredError(dataset, "Capacity fade")
-        cost._target_data = np.asarray([0])
+        cost.target_data = np.asarray([0])
         pybop_problem = pybop.Problem(simulator, cost)
         # Copy the MultivariateParameters to the meta-problem
         pybop_problem.parameters = simulator.parameters
@@ -137,7 +137,9 @@ if __name__ == "__main__":
         kneepoint_pdf_x_plot = np.exp(kneepoint_pdf_x_eval)
         fig = predictive(
             pybop_result,
-            simulator=lambda p: simulator(tensor(p.T)).T.detach().cpu().numpy(),
+            simulator=lambda p, sim=simulator: (
+                sim(tensor(p.T)).T.detach().cpu().numpy()
+            ),
             number_of_traces=64,
             dataset_y="Capacity fade",
             data_legend_entry="degradation data",

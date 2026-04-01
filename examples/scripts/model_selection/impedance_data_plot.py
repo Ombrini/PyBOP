@@ -72,7 +72,7 @@ nyquist_plot(
     legend_text=[f"{int(round(100 * s)):d} %" for s in soc],
 )
 handles = ax.get_legend().legend_handles
-labels = [t._text for t in ax.get_legend().texts]
+labels = [t.get_text() for t in ax.get_legend().texts]
 ax.legend(handles, labels, fontsize=6, ncols=2)
 ax.set_xlim((0, 5))
 ax.set_ylim((0, 5))

@@ -458,7 +458,9 @@ def automated_model_assessment(
         sober_wrapper.run_SOBER(
             sober_iterations=1,
             model_samples_per_iteration=48,
-            acquisition_function=lambda x: acquisition_function(x.unsqueeze(1)),
+            acquisition_function=lambda x, acq=acquisition_function: acq(
+                x.unsqueeze(1)
+            ),
             visualizations=False,
             verbose=True,
         )

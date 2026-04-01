@@ -22,8 +22,10 @@ import pybop
 
 
 torch.set_default_dtype(torch.float32)
-sober.setting_parameters(dtype=torch.float32)  # , device=torch.device('cpu'))
-torch.set_default_device(sober._settings._device)
+device, _dtype = sober.setting_parameters(
+    dtype=torch.float32
+)  # , device=torch.device('cpu'))
+torch.set_default_device(device)
 
 seed = 0
 model = pybamm.lithium_ion.DFN()

@@ -14,6 +14,7 @@ from torch import tensor
 import pybop
 from pybop import BaseOptimiser
 from pybop._logging import Logger
+from pybop.optimisers.base_optimiser import OptimisationResult
 from pybop.optimisers.ep_bolfi_optimiser import BayesianOptimisationResult
 
 
@@ -461,7 +462,7 @@ class SOBER_BASQ_EPLFI(SOBER_BASQ):
 
 
 class SOBER_BASQ_GIS(SOBER_BASQ):
-    """"
+    """ "
     Uses SOBER to train a Global Inverse Surrogate (GIS) on a given
     parameterisation task. Requires a generator for (synthetic) data."
 
@@ -488,22 +489,20 @@ class SOBER_BASQ_GIS(SOBER_BASQ):
             raise ValueError(
                 "The provided prior must be a multivariate uniform or multivariate Gaussian one."
             )
+        # ToDo: generalise to other transformations (has to be PyTorch,
+        # else the vmap-vectorisation for that within SoberWrapper fails).
+        self.transform_parameters = [
+            (torch.log, torch.exp)
+            if isinstance(par.transformation, pybop.LogTransformation)
+            else (torch.nn.Identity(), torch.nn.Identity())
+            for par in self.problem.parameters.values()
+        ]
 
-                # ToDo: generalise to other transformations (has to be PyTorch,
-                # else the vmap-vectorisation for that within SoberWrapper fails).
-                self.transform_parameters = [
-                    (torch.log, torch.exp)
-                    if isinstance(par.transformation, pybop.LogTransformation)
-                    else (torch.nn.Identity(), torch.nn.Identity())
-                    for par in self.problem.parameters.values()
-                ]
-
-
-        #ToDo: can only use one problem function for now, else multiprocessing breaks.
-        if isinstance(self.problem.target_data, dict):
-            target_data = tensor(np.asarray(list(self.problem.target_data.values())[0]))
-        else:
-            target_data = tensor(self.problem.target_data)
+        # ToDo: can only use one problem function for now, else multiprocessing breaks.
+        # if isinstance(self.problem.target_data, dict):
+        #     target_data = tensor(np.asarray(list(self.problem.target_data.values())[0]))
+        # else:
+        #     target_data = tensor(self.problem.target_data)
 
         self.optimiser = sober.InverseModel(
             self.evaluate_problem,
@@ -531,17 +530,17 @@ class SOBER_BASQ_GIS(SOBER_BASQ):
             with redirect_stderr(verbose_err_target):
                 start = time.time()
                 self.optimiser.optimize_inverse_model_with_SOBER(
-                    stopping_criterion_variance,
+                    stopping_criterion_variance=0.1,  # ToDo: add settings
                     adaptive_batchsize_tolerance=0.1,  # not yet implemented
                     # may be increased for performance, but gives a more detailed convergence trajectory this way
                     sober_iterations_per_convergence_check=1,
                     # may be increased for performance, but it suffices to tweak the batch size
-                    sober_iterations_per_training_data_updates=1, 
-                    maximum_number_of_batches,
-                    model_samples_per_iteration,
-                    integration_nodes,
+                    sober_iterations_per_training_data_updates=1,
+                    maximum_number_of_batches=10,  # usually it makes more sense to adjust batch size rather than count
+                    model_samples_per_iteration=self._options.model_samples_per_iteration,
+                    integration_nodes=self._options.integration_nodes,
                     visualizations=False,
-                    verbose,
+                    verbose=self._options.verbose,
                 )
                 end = time.time()
 
@@ -576,7 +575,7 @@ class SOBER_BASQ_GIS(SOBER_BASQ):
         ]
         self._logger.x_search_best = x_search_best_over_time[-1]
         self._logger.cost_best = cost_best[-1]
-        
+
         return GlobalInverseSurrogate(
             optim=self,
             time=end - start,
@@ -586,3 +585,28 @@ class SOBER_BASQ_GIS(SOBER_BASQ):
             surrogate=self,
         )
 
+
+class GlobalInverseSurrogate(OptimisationResult):
+    """
+    Stores a surrogate model and the optimiser that trained it..
+    """
+
+    def __init__(
+        self,
+        optim: SOBER_BASQ,
+        time: float | dict,
+        method_name: str | None = None,
+        message: str | None = None,
+        lower_bounds: np.ndarray | None = None,
+        upper_bounds: np.ndarray | None = None,
+        surrogate=None,
+    ):
+        super().__init__(
+            optim=optim,
+            time=time,
+            method_name=method_name,
+            message=message,
+        )
+        self.lower_bounds = lower_bounds
+        self.upper_bounds = upper_bounds
+        self.surrogate = surrogate

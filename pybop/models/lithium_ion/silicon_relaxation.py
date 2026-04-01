@@ -41,23 +41,23 @@ class SiliconRelaxation(BaseModel):
 
         # Parameters that match onto existing PyBaMM notation.
         R_core = Parameter("Negative particle radius [m]")
-        D = Parameter("Negative particle diffusivity [m]")
+        # D = Parameter("Negative particle diffusivity [m]")
         L_shell = Parameter("Initial SEI thickness [m]")
-        T = Parameter("Ambient temperature [K]")
+        # T = Parameter("Ambient temperature [K]")
         F = constants.F
-        R = constants.R
+        # R = constants.R
         # New parameters for the mechanical properties.
         E_core = Parameter("Negative particle Young modulus [Pa]")
-        nu_core = Parameter("Negative particle Poisson ratio")
-        sigma_Y_core = Parameter("Negative particle yield stress [Pa]")
+        # nu_core = Parameter("Negative particle Poisson ratio")
+        # sigma_Y_core = Parameter("Negative particle yield stress [Pa]")
         v_Li = Parameter("Negative particle partial molar volume [m3.mol-1]")
-        E_shell = Parameter("Negative shell Young modulus [Pa]")
-        nu_shell = Parameter("Negative shell Poisson ratio")
-        sigma_Y_shell = Parameter("Negative shell yield stress [Pa]")
-        eta_shell = Parameter("Negative shell Newtonian viscosity [Pa.s]")
+        # E_shell = Parameter("Negative shell Young modulus [Pa]")
+        # nu_shell = Parameter("Negative shell Poisson ratio")
+        # sigma_Y_shell = Parameter("Negative shell yield stress [Pa]")
+        # eta_shell = Parameter("Negative shell Newtonian viscosity [Pa.s]")
 
-        G_core = E_core / (2 * (1 + nu_core))  # Second Lame constant.
-        lambda_core = 2 * G_core * nu_core / (2 * (1 + nu_core))  # First Lame constant.
+        # G_core = E_core / (2 * (1 + nu_core))  # Second Lame constant.
+        # lambda_core = 2 * G_core * nu_core / (2 * (1 + nu_core))  # First Lame constant.
 
         alpha = 0.5 * (R_core / L_shell - 1)
 

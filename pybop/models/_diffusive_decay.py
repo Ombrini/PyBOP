@@ -1,4 +1,5 @@
-from numpy import cos, exp, pi, sin
+from numpy import asarray, cos, exp, pi, sin, zeros_like
+from scipy.integrate import quad
 
 
 class Diffusive_Relaxation:
@@ -16,11 +17,13 @@ class Diffusive_Relaxation:
             self.coefficients = self.compute_zero_flow_coefficients()
 
     def compute_zero_flow_coefficients(self):
-        coefficients = tensor(
+        coefficients = asarray(
             [
                 2.0
                 / self.L
-                * quad(lambda x: self.f(x) * cos(n * pi * x / self.L), 0, self.L)[0]
+                * quad(lambda x, n=n: self.f(x) * cos(n * pi * x / self.L), 0, self.L)[
+                    0
+                ]
                 for n in range(0, self.summands)
             ]
         )
@@ -32,12 +35,14 @@ class Diffusive_Relaxation:
     def compute_zero_concentration_coefficients(self):
         # In order to use the same summation expression for both cases,
         # the "zeroth" coefficient is set to 0.
-        return tensor(
+        return asarray(
             [0]
             + [
                 2.0
                 / self.L
-                * quad(lambda x: self.f(x) * sin(n * pi * x / self.L), 0, self.L)[0]
+                * quad(lambda x, n=n: self.f(x) * sin(n * pi * x / self.L), 0, self.L)[
+                    0
+                ]
                 for n in range(1, self.summands)
             ]
         )

@@ -162,8 +162,8 @@ if __name__ == "__main__":
         posterior_resamples_pdf.min(), posterior_resamples_pdf.max()
     )
     cmap = plt.get_cmap("viridis")
-    for pr, pr_pdf, u in zip(
-        posterior_resamples.T, posterior_resamples_pdf, simulations.T
+    for _pr, pr_pdf, u in zip(
+        posterior_resamples.T, posterior_resamples_pdf, simulations.T, strict=False
     ):
         ax_pos.semilogx(
             t,

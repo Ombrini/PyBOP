@@ -106,7 +106,10 @@ def set_up_simulator(reference_lifetime=-1):
         termination=[capacity_loss_termination],
     )
     solar_battery_model = pybop.pybamm.Simulator(
-        sei_model, battery_parameters, output_variables=["Voltage [V]"]
+        sei_model,
+        battery_parameters,
+        protocol=protocol,
+        output_variables=["Voltage [V]"],
     )
     return solar_battery_model
 
@@ -123,7 +126,6 @@ if __name__ == "__main__":
             / battery_parameters["Negative particle radius [m]"],
             "Electrolyte diffusivity [m2.s-1]": 2.8e-10,
             "Electrode width [m]": (1 / 24) ** 0.5,
-            "Electrode height [m]": (1 / 24) ** 0.5,
             "Nominal cell capacity [A.h]": 0.05,
             "SEI reaction exchange current density [A.m-2]": 1e-5,
             "SEI lithium ion conductivity [S.m-1]": 1e-8,
@@ -151,7 +153,7 @@ if __name__ == "__main__":
             # "SEI Bruggeman coefficient": 4.54,  # not required for growth
             "Relative capacity cut-off for End-Of-Life": 0.4,
             # Change cell capacity by adjusting cross-section area.
-            "Electrode height [m]": battery_parameters["Electrode height [m]"]
+            "Electrode height [m]": (1 / 24) ** 0.5
             * pybamm.Parameter("Oversize factor"),
             "Oversize factor": "[input]",
         },
@@ -174,9 +176,10 @@ if __name__ == "__main__":
     # we use to optimiser to get away with much sparser evaluations.
     reference_lifetime = set_up_simulator().solve()["Time [d]"].entries[-1]
     simulator = set_up_simulator(reference_lifetime)
-    cost = DesignCost(target="Time [d]")
+    cost = pybop.DesignCost(target="Time [d]")
     oversize_factors = np.asarray([1 + 0.002 * i for i in range(1, 101)])
     eol_days = [reference_lifetime]
+    solar_battery_model = set_up_simulator(reference_lifetime)
     for oversize_factor in oversize_factors:
         eol_days.append(
             cost.evaluate(
@@ -271,7 +274,7 @@ if __name__ == "__main__":
     """
 
     cost = pybop.DesignCost("EOL [d]")
-    cost._target_data = np.asarray([0])
+    cost.target_data = np.asarray([0])
     pybop_problem = pybop.Problem(solar_battery_model, cost)
     pybop_problem.parameters = pybop_prior
     pybop_options = SOBER_BASQ_Options(
