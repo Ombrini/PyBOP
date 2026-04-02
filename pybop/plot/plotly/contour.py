@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pybop.plot.plotly_manager import PlotlyManager
+from pybop.plot.plotly.plotly_manager import PlotlyManager
 from pybop.problems.problem import Problem
 
 if TYPE_CHECKING:

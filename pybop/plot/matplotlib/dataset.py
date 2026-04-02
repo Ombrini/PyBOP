@@ -1,7 +1,8 @@
-from pybop.plot.standard_plots import StandardPlot, trajectories
+import matplotlib.pyplot as plt
+from pybop.plot.matplotlib.standard_plots import StandardPlot, trajectories
 
 
-def dataset(dataset, signal=None, trace_names=None, show=True, **layout_kwargs):
+def dataset(dataset, signal=None, trace_names=None, show=True):
     """
     Quickly plot a PyBOP Dataset using Plotly.
 
@@ -15,10 +16,6 @@ def dataset(dataset, signal=None, trace_names=None, show=True, **layout_kwargs):
         Name(s) for the trace(s) (default: "Data").
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    **layout_kwargs : optional
-        Valid Plotly layout keys and their values,
-        e.g. `xaxis_title="Time / s"` or
-        `xaxis={"title": "Time [s]", font={"size":14}}`
 
     Returns
     -------
@@ -51,8 +48,7 @@ def dataset(dataset, signal=None, trace_names=None, show=True, **layout_kwargs):
         xaxis_title=StandardPlot.remove_brackets(dataset.domain),
         yaxis_title=yaxis_title,
     )
-    fig.update_layout(**layout_kwargs)
     if show:
-        fig.show()
+        plt.show()
 
     return fig

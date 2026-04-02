@@ -6,6 +6,7 @@ from packaging import version
 import pybop
 
 
+@pytest.mark.parametrize("backend", ["plotly", "matplotlib"])
 class TestPlots:
     """
     A class to test the plot classes.
@@ -13,7 +14,8 @@ class TestPlots:
 
     pytestmark = pytest.mark.unit
 
-    def test_standard_plot(self):
+    def test_standard_plot(self, backend):
+        pybop.plot.set_backend(backend)
         # Test standard plot
         trace_names = pybop.plot.StandardPlot.remove_brackets(
             ["Trace [1]", "Trace [2]"]
@@ -69,7 +71,8 @@ class TestPlots:
         solution = pybamm.Simulation(model).solve(t_eval=t_eval, t_interp=t_eval)
         return pybop.import_pybamm_solution(solution)
 
-    def test_dataset_plots(self, dataset):
+    def test_dataset_plots(self, dataset, backend):
+        pybop.plot.set_backend(backend)
         # Test plot of Dataset objects
         pybop.plot.trajectories(
             dataset["Time [s]"],
@@ -112,7 +115,8 @@ class TestPlots:
         )
         return pybop.Problem(simulator)
 
-    def test_problem_plots(self, fitting_problem, design_problem):
+    def test_problem_plots(self, fitting_problem, design_problem, backend):
+        pybop.plot.set_backend(backend)
         # Test plot of Problem objects
         pybop.plot.problem(fitting_problem, title="Optimised Comparison")
         pybop.plot.problem(design_problem)
@@ -122,7 +126,8 @@ class TestPlots:
             fitting_problem, inputs=fitting_problem.parameters.to_dict([0.6, 0.6])
         )
 
-    def test_cost_plots(self, fitting_problem, fitting_problem_no_bounds):
+    def test_cost_plots(self, fitting_problem, fitting_problem_no_bounds, backend):
+        pybop.plot.set_backend(backend)
         # Test plot of Cost objects
         pybop.plot.contour(fitting_problem, gradient=True, steps=5)
 
@@ -143,7 +148,8 @@ class TestPlots:
         optim = pybop.XNES(fitting_problem)
         return optim.run()
 
-    def test_optim_plots(self, result):
+    def test_optim_plots(self, result, backend):
+        pybop.plot.set_backend(backend)
         bounds = np.asarray([[0.5, 0.8], [0.4, 0.7]])
 
         # Plot convergence
@@ -185,7 +191,8 @@ class TestPlots:
         sampler = pybop.SliceStepoutMCMC(log_pdf, options=options)
         return sampler.run()
 
-    def test_posterior_plots(self, sampling_result):
+    def test_posterior_plots(self, sampling_result, backend):
+        pybop.plot.set_backend(backend)
         sampling_result.get_summary_statistics()
 
         # Plot trace
@@ -200,8 +207,10 @@ class TestPlots:
         # Plot summary table
         sampling_result.summary_table()
 
-    def test_with_ipykernel(self, dataset, fitting_problem, result):
+    def test_with_ipykernel(self, dataset, fitting_problem, result, backend):
         import ipykernel
+
+        pybop.plot.set_backend(backend)
 
         assert version.parse(ipykernel.__version__) >= version.parse("0.6")
         pybop.plot.dataset(dataset, signal=["Voltage [V]"])
@@ -210,7 +219,8 @@ class TestPlots:
         result.plot_parameters()
         result.plot_contour(steps=5)
 
-    def test_contour_incorrect_number_of_parameters(self, model, dataset):
+    def test_contour_incorrect_number_of_parameters(self, model, dataset, backend):
+        pybop.plot.set_backend(backend)
         parameter_values = model.default_parameter_values
 
         # Test with less than two paramters
@@ -251,7 +261,8 @@ class TestPlots:
         fitting_problem = pybop.Problem(simulator, cost)
         pybop.plot.contour(fitting_problem)
 
-    def test_nyquist(self):
+    def test_nyquist(self, backend):
+        pybop.plot.set_backend(backend)
         # Define model
         model = pybamm.lithium_ion.SPM(options={"surface form": "differential"})
         parameter_values = model.default_parameter_values

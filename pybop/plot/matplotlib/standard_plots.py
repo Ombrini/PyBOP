@@ -1,39 +1,12 @@
 import math
 import textwrap
+import warnings
 
 import numpy as np
 
-from pybop.plot.plotly_manager import PlotlyManager
+from matplotlib import pyplot as plt
 
-DEFAULT_LAYOUT_OPTIONS = dict(
-    title=None,
-    title_x=0.5,
-    xaxis=dict(
-        title=dict(font={"size": 14}),
-        showexponent="last",
-        exponentformat="e",
-        tickfont=dict(size=12),
-    ),
-    yaxis=dict(
-        title=dict(font={"size": 14}),
-        showexponent="last",
-        exponentformat="e",
-        tickfont=dict(size=12),
-    ),
-    legend=dict(x=1, y=1, xanchor="right", yanchor="top", font_size=12),
-    showlegend=True,
-    autosize=False,
-    width=600,
-    height=600,
-    margin=dict(l=10, r=10, b=10, t=75, pad=4),
-    plot_bgcolor="white",
-)
-DEFAULT_SUBPLOT_OPTIONS = dict(
-    start_cell="bottom-left",
-)
-DEFAULT_TRACE_OPTIONS = dict(line=dict(width=4), mode="lines")
-DEFAULT_SUBPLOT_TRACE_OPTIONS = dict(line=dict(width=2), mode="lines")
-
+DEFAULT_TRACE_OPTIONS = dict(linewidth=2.0)
 
 class StandardPlot:
     """
@@ -45,10 +18,6 @@ class StandardPlot:
         X-axis data points.
     y : list or np.ndarray, optional
         Primary Y-axis data points for simulated model output.
-    layout : Plotly layout, optional
-        A layout for the figure, overrides the layout options (default: None).
-    layout_options : dict, optional
-        Settings to modify the default layout (default: DEFAULT_LAYOUT_OPTIONS).
     trace_options : dict, optional
         Settings to modify the default trace type (default: DEFAULT_TRACE_OPTIONS).
     trace_names : str, optional
@@ -66,37 +35,44 @@ class StandardPlot:
         self,
         x=None,
         y=None,
-        layout=None,
-        layout_options=None,
         trace_options=None,
         trace_names=None,
-        trace_name_width=40,
+        trace_name_width=20,
+        figsize=(8, 6),
+        **kwargs,
     ):
+        # Warning if layout arguments ignored
+        if len(kwargs) > 0:
+            warnings.warn(
+                "The following layout argument keys are ignored for the current plotting backend (matplotlib): \n"
+                f"{list(kwargs.keys())}",
+                UserWarning,
+                stacklevel=2,
+            )
         self.traces = []
-        self.layout = layout
         self.trace_name_width = trace_name_width
-
-        # Set default layout options and update if provided
-        if self.layout is None:
-            self.layout_options = DEFAULT_LAYOUT_OPTIONS.copy()
-            if layout_options:
-                self.layout_options.update(layout_options)
 
         # Set default trace options and update if provided
         self.trace_options = DEFAULT_TRACE_OPTIONS.copy()
         if trace_options:
             self.trace_options.update(trace_options)
 
-        # Attempt to import plotly when an instance is created
-        self.go = PlotlyManager().go
 
-        # Create layout
-        if self.layout is None:
-            self.layout = self.go.Layout(**self.layout_options)
+        # Parse the data
+        x, y = self.parse_data(x, y)        
+        self.x = x
+        self.y = y
+        # Check and wrap trace names
+        if trace_names is not None:
+            if isinstance(trace_names, str):
+                trace_names = [trace_names]
+            for i, name in enumerate(trace_names):
+                trace_names[i] = self.wrap_text(name, width=self.trace_name_width)
+        self.trace_names = trace_names 
 
-        # Add traces
-        if x is not None and y is not None:
-            self.add_traces(x, y, trace_names)
+        self.fig = plt.figure(figsize=figsize, dpi=100)
+
+        
 
     def __call__(self, show=True):
         """
@@ -107,11 +83,19 @@ class StandardPlot:
         show : bool, optional
             If True, the figure is shown upon creation (default: True).
         """
-        fig = self.go.Figure(data=self.traces, layout=self.layout)
+        # Add traces
+        if self.x is not None and self.y is not None:
+            self.add_traces(self.x, self.y, self.trace_names)
+        self.default_layout()
         if show:
-            fig.show()
+            plt.show()
 
-        return fig
+        return self.fig
+
+    def default_layout(self):
+
+        plt.tick_params(axis='both', labelsize=12)
+        plt.ticklabel_format(axis='both', style='sci', scilimits=(-4, 4))
 
     def add_traces(self, x, y, trace_names=None, **trace_options):
         """
@@ -126,18 +110,9 @@ class StandardPlot:
         trace_names : str or list[str], optional
             Name(s) for the primary trace(s) (default: None).
         """
+
         options = self.trace_options.copy()
         options.update(trace_options)
-
-        # Check and wrap trace names
-        if trace_names is not None:
-            if isinstance(trace_names, str):
-                trace_names = [trace_names]
-            for i, name in enumerate(trace_names):
-                trace_names[i] = self.wrap_text(name, width=self.trace_name_width)
-
-        # Parse the data
-        x, y = self.parse_data(x, y)
 
         # Create a trace for each trajectory
         xi = x[0]
@@ -145,12 +120,16 @@ class StandardPlot:
             trace_options = options.copy()
             if len(x) > 1:
                 xi = x[i]
+
+            label = None
             if trace_names is not None:
-                trace_options["name"] = trace_names[i]
-            else:
-                trace_options["showlegend"] = False
-            trace = self.create_trace(xi, y[i], **trace_options)
-            self.traces.append(trace)
+              label = trace_names[i]
+
+            self.traces.append(self.create_trace(xi, y[i], label,  **trace_options))
+
+        if self.trace_names is not None:
+            plt.legend(**dict(loc="best", fontsize=12),)
+
 
     def parse_data(self, x, y):
         """
@@ -164,6 +143,8 @@ class StandardPlot:
         y : list or np.ndarray, optional
             Primary Y-axis data points for simulated model output.
         """
+        if x is None or y is None:
+            return None, None
         if isinstance(x, list):
             # If it's a list of numpy arrays, it's fine
             # If it's a list of lists, it's fine
@@ -191,7 +172,7 @@ class StandardPlot:
             )
         return x, y
 
-    def create_trace(self, x, y, **trace_options):
+    def create_trace(self, x, y, label, ax=None, **trace_options):
         """
         Create a trace for the Plotly figure.
 
@@ -201,11 +182,20 @@ class StandardPlot:
             A trace for a Plotly figure.
         """
 
-        return self.go.Scatter(
-            x=x,
-            y=y,
+        if ax is None:
+            ax = plt.gca()
+
+        line = ax.plot(
+            x, 
+            y,
+            label=label,
             **trace_options,
         )
+        if len(line) > 1:
+            return line
+        else:
+            return line[0]
+
 
     @staticmethod
     def wrap_text(text, width):
@@ -225,7 +215,7 @@ class StandardPlot:
             The wrapped text.
         """
         wrapped_text = textwrap.fill(text, width=width, break_long_words=False)
-        return wrapped_text.replace("\n", "<br>")
+        return wrapped_text
 
     @staticmethod
     def remove_brackets(s):
@@ -245,6 +235,7 @@ class StandardPlot:
         return s
 
 
+
 class StandardSubplot(StandardPlot):
     """
     A class for creating and displaying a set of interactive Plotly figures in a grid layout.
@@ -261,8 +252,6 @@ class StandardSubplot(StandardPlot):
         Number of columns of subplots, can be set automatically (default: None).
     layout : Plotly layout, optional
         A layout for the figure, overrides the layout options (default: None).
-    layout_options : dict, optional
-        Settings to modify the default layout (default: DEFAULT_LAYOUT_OPTIONS).
     trace_options : dict, optional
         Settings to modify the default trace type (default: DEFAULT_TRACE_OPTIONS).
     trace_names : str, optional
@@ -283,17 +272,15 @@ class StandardSubplot(StandardPlot):
         num_rows=None,
         num_cols=None,
         axis_titles=None,
-        layout=None,
-        layout_options=DEFAULT_LAYOUT_OPTIONS,
-        subplot_options=DEFAULT_SUBPLOT_OPTIONS,
-        trace_options=DEFAULT_SUBPLOT_TRACE_OPTIONS,
+        trace_options=DEFAULT_TRACE_OPTIONS,
         trace_names=None,
         trace_name_width=40,
+        figsize=(8, 6)
     ):
         super().__init__(
-            x, y, layout, layout_options, trace_options, trace_names, trace_name_width
+            x, y, trace_options, trace_names, trace_name_width, figsize
         )
-        self.num_traces = len(self.traces)
+        self.num_traces = len(self.y)
         self.num_rows = num_rows
         self.num_cols = num_cols
         if self.num_rows is None and self.num_cols is None:
@@ -305,13 +292,8 @@ class StandardSubplot(StandardPlot):
         elif self.num_cols is None:
             self.num_cols = int(math.ceil(self.num_traces / self.num_rows))
         self.axis_titles = axis_titles
-        self.subplot_options = subplot_options.copy()
-        if subplot_options is not None:
-            for arg, value in subplot_options.items():
-                self.subplot_options[arg] = value
 
-        # Attempt to import plotly when an instance is created
-        self.make_subplots = PlotlyManager().make_subplots
+        
 
     def __call__(self, show):
         """
@@ -322,38 +304,39 @@ class StandardSubplot(StandardPlot):
         show : bool, optional
             If True, the figure is shown upon creation (default: True).
         """
-        fig = self.make_subplots(
-            rows=self.num_rows,
-            cols=self.num_cols,
-            horizontal_spacing=0.1,
-            vertical_spacing=0.15,
-            **self.subplot_options,
-        )
-        fig.update_layout(self.layout_options)
 
-        for idx, trace in enumerate(self.traces):
-            row = (idx // self.num_cols) + 1
-            col = (idx % self.num_cols) + 1
-            fig.add_trace(trace, row=row, col=col)
+        color_cycle = plt.rcParams['axes.prop_cycle']()
 
+        xi = self.x[0]
+        lines = []
+        for idx, yi in enumerate(self.y):
+            ax = self.fig.add_subplot(self.num_rows, self.num_cols, idx+1)
             if self.axis_titles and idx < len(self.axis_titles):
                 x_title, y_title = self.axis_titles[idx]
-                fig.update_xaxes(title_text=x_title, row=row, col=col)
-                fig.update_yaxes(
-                    title_text=y_title,
-                    row=row,
-                    col=col,
-                    showexponent="last",
-                    exponentformat="e",
-                )
+                ax.set_xlabel(x_title)
+                ax.set_ylabel(y_title)
+            if len(self.x)>1:
+                xi = self.x[idx]
 
+            label = None
+            if self.trace_names is not None:
+                label = self.trace_names[idx]
+
+            lines.append(self.create_trace(xi, yi, label, ax = ax, **next(color_cycle)))
+
+
+        lines_labels = [ax.get_legend_handles_labels() for ax in self.fig.axes]
+        lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+        if self.trace_names is not None:
+            self.fig.legend(lines, labels, loc='upper right', ncol=len(lines), bbox_to_anchor=(0.99, 0.95))
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
         if show:
-            fig.show()
+            plt.show()
 
-        return fig
+        return self.fig
 
 
-def trajectories(x, y, trace_names=None, show=True, **layout_kwargs):
+def trajectories(x, y, trace_names=None, show=True, xaxis_title='', yaxis_title='', title='', **layout_kwargs):
     """
     Quickly plot one or more trajectories using Plotly.
 
@@ -366,6 +349,7 @@ def trajectories(x, y, trace_names=None, show=True, **layout_kwargs):
     trace_names : list or str, optional
         Name(s) for the trace(s) (default: None).
     **layout_kwargs : optional
+            This argument is ignored for the matplotlib backend.
             Valid Plotly layout keys and their values,
             e.g. `xaxis_title="Time / s"` or
             `xaxis={"title": "Time [s]", font={"size":14}}`
@@ -375,6 +359,14 @@ def trajectories(x, y, trace_names=None, show=True, **layout_kwargs):
     plotly.graph_objs.Figure
         The Plotly figure object for the scatter plot.
     """
+
+    if len(layout_kwargs) > 0:
+        warnings.warn(
+            "The following layout argument keys are ignored for the current plotting backend (matplotlib): \n"
+            f"{list(layout_kwargs.keys())}",
+            UserWarning,
+            stacklevel=2,
+        )
     # Create a plot dictionary
     plot_dict = StandardPlot(
         x=x,
@@ -384,8 +376,11 @@ def trajectories(x, y, trace_names=None, show=True, **layout_kwargs):
 
     # Generate the figure and update the layout
     fig = plot_dict(show=False)
-    fig.update_layout(**layout_kwargs)
+    plt.title(title)
+    plt.xlabel(xaxis_title, fontsize=12)
+    plt.ylabel(yaxis_title, fontsize=12)
+    plt.tight_layout()
     if show:
-        fig.show()
+        plt.show()
 
-    return fig
+    return  plot_dict

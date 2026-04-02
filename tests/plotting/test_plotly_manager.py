@@ -8,7 +8,7 @@ import pybamm
 import pytest
 
 import pybop
-from pybop.plot import PlotlyManager
+from pybop.plot.plotly import PlotlyManager
 
 # Find the Python executable
 python_executable = which("python")

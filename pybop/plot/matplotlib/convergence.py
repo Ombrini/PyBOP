@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING
 
-from pybop.plot.standard_plots import StandardPlot
+from pybop.plot.matplotlib.standard_plots import StandardPlot
+import matplotlib.pyplot as plt
 
 if TYPE_CHECKING:
     from pybop._result import Result
 
 
-def convergence(result: "Result", show=True, **layout_kwargs):
+def convergence(result: "Result", show=True):
     """
     Plot the convergence of the optimisation algorithm.
 
@@ -16,10 +17,6 @@ def convergence(result: "Result", show=True, **layout_kwargs):
         Optimisation result containing the history of parameter values and associated cost.
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    **layout_kwargs : optional
-        Valid Plotly layout keys and their values,
-        e.g. `xaxis_title="Time [s]"` or
-        `xaxis={"title": "Time [s]", font={"size":14}}`
 
     Returns
     ---------
@@ -37,18 +34,17 @@ def convergence(result: "Result", show=True, **layout_kwargs):
     plot_dict = StandardPlot(
         x=iteration_numbers,
         y=cost_log,
-        layout_options=dict(
-            xaxis_title="Evaluation",
-            yaxis_title="Cost",
-            title="Convergence",
-        ),
         trace_names=result.method_name,
     )
 
     # Generate and display the figure
     fig = plot_dict(show=False)
-    fig.update_layout(**layout_kwargs)
+    plt.xlabel("Evaluation")
+    plt.ylabel("Cost")
+    plt.title("Convergence")
+    plt.tight_layout()
+
     if show:
-        fig.show()
+        plt.show()
 
     return fig

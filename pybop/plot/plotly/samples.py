@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from pybop.plot import PlotlyManager
+from pybop.plot.plotly import PlotlyManager
 
 if TYPE_CHECKING:
     from pybop.samplers.base_pints_sampler import SamplingResult

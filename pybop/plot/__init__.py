@@ -1,13 +1,30 @@
+# Plotting backend default
+DEFAULT_BACKEND = 'matplotlib'
+backend=DEFAULT_BACKEND
+
+from .util import set_backend, call_plotting_function, get_class
+
 #
 # Import plots
 #
-from .plotly_manager import PlotlyManager
-from .standard_plots import StandardPlot, StandardSubplot, trajectories
-from .contour import contour
-from .dataset import dataset
-from .convergence import convergence
-from .parameters import parameters
-from .problem import problem
-from .nyquist import nyquist
-from .voronoi import surface
-from .samples import trace, chains, posterior, summary_table
+from .plots import (
+    chains,
+    contour,
+    convergence,
+    dataset,
+    nyquist,
+    parameters,
+    posterior,
+    problem,
+    summary_table,
+    surface,
+    trace,
+    trajectories
+    )
+
+from .voronoi import voronoi_data, _voronoi_regions
+from . import matplotlib
+from . import plotly
+
+StandardPlot = matplotlib.StandardPlot
+StandardSubplot = matplotlib.StandardSubplot

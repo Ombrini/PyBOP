@@ -3,17 +3,19 @@ import numpy as np
 from pybop.costs.design_cost import DesignCost
 from pybop.costs.error_measures import ErrorMeasure
 from pybop.parameters.parameter import Inputs
-from pybop.plot.standard_plots import StandardPlot
+from pybop.plot.matplotlib.standard_plots import StandardPlot
 from pybop.problems.meta_problem import MetaProblem
 from pybop.problems.problem import Problem
 from pybop.simulators.solution import Solution
+
+import matplotlib.pyplot as plt
 
 
 def problem(
     problem: Problem,
     inputs: Inputs = None,
     show: bool = True,
-    **layout_kwargs,
+    title = 'Scatter Plot',
 ):
     """
     Produce a quick plot of the target dataset against optimised model output.
@@ -29,10 +31,6 @@ def problem(
         Optimised (or example) parameter values.
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    **layout_kwargs : optional
-            Valid Plotly layout keys and their values,
-            e.g. `xaxis_title="Time / s"` or
-            `xaxis={"title": "Time [s]", font={"size":14}}`
 
     Returns
     -------
@@ -70,31 +68,23 @@ def problem(
     figure_list = []
     for var in problem.target:
         # Create a plot dictionary
-        plot_dict = StandardPlot(
-            layout_options=dict(
-                title="Scatter Plot",
-                xaxis_title="Time / s",
-                yaxis_title=StandardPlot.remove_brackets(var),
-            )
-        )
+        plot_dict = StandardPlot()
 
-        model_trace = plot_dict.create_trace(
-            x=model_domain,
-            y=model_output[var].data,
-            name="Optimised" if isinstance(problem.cost, DesignCost) else "Model",
-            mode="markers" if isinstance(problem, MetaProblem) else "lines",
-            showlegend=True,
-        )
-        plot_dict.traces.append(model_trace)
-
-        target_trace = plot_dict.create_trace(
+        plot_dict.create_trace(
             x=target_domain,
             y=target_output[var].data,
-            name="Reference",
-            mode="markers",
-            showlegend=True,
+            label="Reference",
+            marker=".",
+            linestyle="None"
         )
-        plot_dict.traces.append(target_trace)
+
+        plot_dict.create_trace(
+            x=model_domain,
+            y=model_output[var].data,
+            label="Optimised" if isinstance(problem.cost, DesignCost) else "Model",
+            marker="."  if isinstance(problem, MetaProblem) else None,
+            linestyle='None' if isinstance(problem, MetaProblem) else "-",
+        )
 
         if isinstance(problem.cost, ErrorMeasure) and len(
             model_output[var].data
@@ -107,25 +97,17 @@ def problem(
             y_upper = (model_output[var].data + plot_dict.sigma).tolist()
             y_lower = (model_output[var].data - plot_dict.sigma).tolist()
 
-            fill_trace = plot_dict.create_trace(
-                x=x + x[::-1],
-                y=y_upper + y_lower[::-1],
-                fill="toself",
-                fillcolor="rgba(255,229,204,0.8)",
-                line=dict(color="rgba(255,255,255,0)"),
-                hoverinfo="skip",
-                showlegend=False,
-            )
-            plot_dict.traces.append(fill_trace)
-
-        # Reverse the order of the traces to put the model on top
-        plot_dict.traces = plot_dict.traces[::-1]
+            plt.fill_between(x, y_upper, y_lower, color=[(1.0, 0.898, 0.800, 0.8)])
 
         # Generate the figure and update the layout
         fig = plot_dict(show=False)
-        fig.update_layout(**layout_kwargs)
+        plt.xlabel("Time / s")
+        plt.ylabel(StandardPlot.remove_brackets(var))
+        plt.title(title)
+        plt.legend()
+        plt.tight_layout()
         if show:
-            fig.show()
+            plt.show()
 
         figure_list.append(fig)
 

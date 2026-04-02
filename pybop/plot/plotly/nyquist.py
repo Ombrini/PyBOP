@@ -1,5 +1,5 @@
 from pybop.parameters.parameter import Inputs
-from pybop.plot.standard_plots import StandardPlot
+from pybop.plot.plotly.standard_plots import StandardPlot
 
 
 def nyquist(problem, inputs: Inputs = None, show=True, **layout_kwargs):
