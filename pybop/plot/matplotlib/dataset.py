@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+
 from pybop.plot.matplotlib.standard_plots import StandardPlot, trajectories
 
 

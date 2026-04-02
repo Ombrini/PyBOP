@@ -1,13 +1,12 @@
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.spatial import Voronoi, cKDTree
+from scipy.spatial import cKDTree
 
 if TYPE_CHECKING:
     from pybop._result import Result
-from pybop.plot.plotly.plotly_manager import PlotlyManager
 from pybop.plot import voronoi_data
-
+from pybop.plot.plotly.plotly_manager import PlotlyManager
 
 
 def assign_nearest_value(x, y, f, xi, yi):
@@ -85,13 +84,14 @@ def surface(
         bounds if bounds is not None else [param.bounds for param in parameters]
     )[:2]
 
-    x, y, f, regions, relative_sizes = voronoi_data(xlim, ylim, x_optim, y_optim, f, normalise)
+    x, y, f, regions, relative_sizes = voronoi_data(
+        xlim, ylim, x_optim, y_optim, f, normalise
+    )
 
     # Create a grid for plot
     xi = np.linspace(xlim[0], xlim[1], resolution)
     yi = np.linspace(ylim[0], ylim[1], resolution)
     xi, yi = np.meshgrid(xi, yi)
-
 
     if normalise:
         # Create a normalised grid

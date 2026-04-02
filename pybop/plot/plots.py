@@ -1,21 +1,22 @@
 from typing import TYPE_CHECKING
+
 import numpy as np
 
 if TYPE_CHECKING:
     from pybop._result import Result
     from pybop.samplers.base_pints_sampler import SamplingResult
- 
-from pybop.parameters.parameter import Inputs
-from pybop.problems.problem import Problem
-from pybop.plot.util import call_plotting_function, get_class
 
-    
+from pybop.parameters.parameter import Inputs
+from pybop.plot.util import call_plotting_function
+from pybop.problems.problem import Problem
+
 
 def chains(result: "SamplingResult", show=True, backend=None, **kwargs):
     """
     Plot posterior distributions for each chain.
     """
-    return call_plotting_function('chains', backend, result=result, **kwargs)
+    return call_plotting_function("chains", backend, result=result, **kwargs)
+
 
 def contour(
     call_object: "Problem | Result",
@@ -24,7 +25,7 @@ def contour(
     transformed: bool = False,
     steps: int = 10,
     show: bool = True,
-    backend = None,
+    backend=None,
     **layout_kwargs,
 ):
     """
@@ -65,7 +66,18 @@ def contour(
     ValueError
         If the cost function does not return a valid cost when called with a parameter list.
     """
-    return call_plotting_function('contour', backend, call_object=call_object, gradient=gradient, bounds=bounds, transformed=transformed, steps=steps, show=show, **layout_kwargs)
+    return call_plotting_function(
+        "contour",
+        backend,
+        call_object=call_object,
+        gradient=gradient,
+        bounds=bounds,
+        transformed=transformed,
+        steps=steps,
+        show=show,
+        **layout_kwargs,
+    )
+
 
 def convergence(result: "Result", show=True, backend=None, **layout_kwargs):
     """
@@ -87,9 +99,14 @@ def convergence(result: "Result", show=True, backend=None, **layout_kwargs):
     fig : plotly.graph_objs.Figure
         The Plotly figure object for the convergence plot.
     """
-    return call_plotting_function('convergence', backend, result = result, show=show, **layout_kwargs)
+    return call_plotting_function(
+        "convergence", backend, result=result, show=show, **layout_kwargs
+    )
 
-def dataset(dataset, signal=None, trace_names=None, show=True, backend=None, **layout_kwargs):
+
+def dataset(
+    dataset, signal=None, trace_names=None, show=True, backend=None, **layout_kwargs
+):
     """
     Quickly plot a PyBOP Dataset using Plotly.
 
@@ -113,7 +130,16 @@ def dataset(dataset, signal=None, trace_names=None, show=True, backend=None, **l
     plotly.graph_objs.Figure
         The Plotly figure object for the scatter plot.
     """
-    call_plotting_function('dataset', backend, dataset=dataset, signal=signal, trace_names=trace_names, show=show, **layout_kwargs)
+    call_plotting_function(
+        "dataset",
+        backend,
+        dataset=dataset,
+        signal=signal,
+        trace_names=trace_names,
+        show=show,
+        **layout_kwargs,
+    )
+
 
 def nyquist(problem, inputs: Inputs = None, show=True, backend=None, **layout_kwargs):
     """
@@ -152,7 +178,10 @@ def nyquist(problem, inputs: Inputs = None, show=True, backend=None, **layout_kw
     >>> nyquist_figures = nyquist(problem, show=True, title="Nyquist Plot", xaxis_title="Real(Z)", yaxis_title="Imag(Z)")
     >>> # The plots will be displayed and nyquist_figures will contain the list of figure objects.
     """
-    return call_plotting_function('nyquist', backend, problem=problem, inputs=inputs, show=show, **layout_kwargs)
+    return call_plotting_function(
+        "nyquist", backend, problem=problem, inputs=inputs, show=show, **layout_kwargs
+    )
+
 
 def parameters(result: "Result", show=True, backend=None, **layout_kwargs):
     """
@@ -174,13 +203,17 @@ def parameters(result: "Result", show=True, backend=None, **layout_kwargs):
     plotly.graph_objs.Figure
         A Plotly figure object showing the parameter evolution over iterations.
     """
-    return call_plotting_function('parameters', backend, result = result, show=show, **layout_kwargs)
+    return call_plotting_function(
+        "parameters", backend, result=result, show=show, **layout_kwargs
+    )
+
 
 def posterior(result: "SamplingResult", show=True, backend=None, **kwargs):
     """
     Plot the summed posterior distribution across chains.
     """
-    return call_plotting_function('posterior', backend, result=result, **kwargs)
+    return call_plotting_function("posterior", backend, result=result, **kwargs)
+
 
 def problem(
     problem: Problem,
@@ -213,14 +246,18 @@ def problem(
     plotly.graph_objs.Figure
         The Plotly figure object for the scatter plot.
     """
-    return call_plotting_function('problem', backend, problem=problem, inputs=inputs, show=show, **layout_kwargs)
+    return call_plotting_function(
+        "problem", backend, problem=problem, inputs=inputs, show=show, **layout_kwargs
+    )
+
 
 def summary_table(result: "SamplingResult", backend=None):
     """
     Display summary statistics in a table.
     """
 
-    return call_plotting_function('summary_table', backend, result=result)
+    return call_plotting_function("summary_table", backend, result=result)
+
 
 def surface(
     result: "Result",
@@ -253,13 +290,24 @@ def surface(
         e.g. `xaxis_title="Time [s]"` or
         `xaxis={"title": "Time [s]", font={"size":14}}`
     """
-    return call_plotting_function('surface', backend, result = result, bounds = bounds, normalise=normalise, resolution=resolution, show=show, **layout_kwargs)
+    return call_plotting_function(
+        "surface",
+        backend,
+        result=result,
+        bounds=bounds,
+        normalise=normalise,
+        resolution=resolution,
+        show=show,
+        **layout_kwargs,
+    )
+
 
 def trace(result: "SamplingResult", backend=None, **kwargs):
     """
     Plot trace plots for the posterior samples.
     """
-    return call_plotting_function('trace', backend, result=result, **kwargs)
+    return call_plotting_function("trace", backend, result=result, **kwargs)
+
 
 def trajectories(x, y, trace_names=None, show=True, backend=None, **layout_kwargs):
     """
@@ -284,4 +332,12 @@ def trajectories(x, y, trace_names=None, show=True, backend=None, **layout_kwarg
         The Plotly figure object for the scatter plot.
     """
 
-    return call_plotting_function('trajectories', backend, x=x, y=y, trace_names=trace_names, show=show, **layout_kwargs)
+    return call_plotting_function(
+        "trajectories",
+        backend,
+        x=x,
+        y=y,
+        trace_names=trace_names,
+        show=show,
+        **layout_kwargs,
+    )

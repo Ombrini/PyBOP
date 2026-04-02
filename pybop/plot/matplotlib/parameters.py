@@ -1,10 +1,10 @@
+import warnings
 from typing import TYPE_CHECKING
 
-import warnings
+import matplotlib.pyplot as plt
 
 from pybop.costs.log_likelihoods import GaussianLogLikelihood
 from pybop.plot.matplotlib.standard_plots import StandardSubplot
-import matplotlib.pyplot as plt
 
 if TYPE_CHECKING:
     from pybop._result import Result
@@ -50,7 +50,6 @@ def parameters(result: "Result", show=True, **layout_kwargs):
         axis_titles.append(("Evaluation", "Sigma"))
         trace_names.append("Sigma")
 
-
     # Create a plot dictionary
     plot_dict = StandardSubplot(
         x=x,
@@ -58,7 +57,7 @@ def parameters(result: "Result", show=True, **layout_kwargs):
         axis_titles=axis_titles,
         trace_names=trace_names,
         trace_name_width=50,
-        figsize= (18, 8),
+        figsize=(18, 8),
     )
 
     plt.suptitle("Parameter Convergence")

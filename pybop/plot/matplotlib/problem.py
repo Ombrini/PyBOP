@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 
 from pybop.costs.design_cost import DesignCost
@@ -8,14 +9,12 @@ from pybop.problems.meta_problem import MetaProblem
 from pybop.problems.problem import Problem
 from pybop.simulators.solution import Solution
 
-import matplotlib.pyplot as plt
-
 
 def problem(
     problem: Problem,
     inputs: Inputs = None,
     show: bool = True,
-    title = 'Scatter Plot',
+    title="Scatter Plot",
 ):
     """
     Produce a quick plot of the target dataset against optimised model output.
@@ -75,15 +74,15 @@ def problem(
             y=target_output[var].data,
             label="Reference",
             marker=".",
-            linestyle="None"
+            linestyle="None",
         )
 
         plot_dict.create_trace(
             x=model_domain,
             y=model_output[var].data,
             label="Optimised" if isinstance(problem.cost, DesignCost) else "Model",
-            marker="."  if isinstance(problem, MetaProblem) else None,
-            linestyle='None' if isinstance(problem, MetaProblem) else "-",
+            marker="." if isinstance(problem, MetaProblem) else None,
+            linestyle="None" if isinstance(problem, MetaProblem) else "-",
         )
 
         if isinstance(problem.cost, ErrorMeasure) and len(

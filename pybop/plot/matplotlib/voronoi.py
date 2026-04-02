@@ -1,23 +1,23 @@
+import warnings
 from typing import TYPE_CHECKING
 
-import numpy as np
-from scipy.spatial import cKDTree
-from matplotlib import pyplot as plt
 import matplotlib as mpl
-import warnings
+import numpy as np
+from matplotlib import pyplot as plt
 
 if TYPE_CHECKING:
     from pybop._result import Result
 
 from pybop.plot.voronoi import voronoi_data
 
+
 def surface(
     result: "Result",
     bounds=None,
     normalise=True,
-    title='Voronoi Cost Landscape',
+    title="Voronoi Cost Landscape",
     show=True,
-    **layout_kwargs
+    **layout_kwargs,
 ):
     """
     Plot a 2D representation of the Voronoi diagram with color-coded regions.
@@ -60,8 +60,9 @@ def surface(
         bounds if bounds is not None else [param.bounds for param in parameters]
     )[:2]
 
-    _, _, f, regions, relative_sizes = voronoi_data(xlim, ylim, x_optim, y_optim, f, normalise)
-
+    _, _, f, regions, relative_sizes = voronoi_data(
+        xlim, ylim, x_optim, y_optim, f, normalise
+    )
 
     # Construct figure
     plt.figure(figsize=(7, 6), dpi=100)
@@ -73,26 +74,25 @@ def surface(
     norm_f = norm(f, clip=True)
 
     # get colours
-    cmap = mpl.colormaps['viridis']
+    cmap = mpl.colormaps["viridis"]
     colors = cmap(norm_f)
 
-   # Add Voronoi edges and fill Voronoi regions
+    # Add Voronoi edges and fill Voronoi regions
     for j, (region, size) in enumerate(zip(regions, relative_sizes, strict=False)):
         x_region = region[:, 0].tolist() + [region[0, 0]]
         y_region = region[:, 1].tolist() + [region[0, 1]]
 
         plt.fill(x_region, y_region, color=colors[j])
-        plt.plot(x_region, y_region, color='w', linewidth=0.5 + size*0.1)
+        plt.plot(x_region, y_region, color="w", linewidth=0.5 + size * 0.1)
 
-    plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax = plt.gca())
- 
- 
+    plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=plt.gca())
+
     # Add original points
     plt.scatter(
         x_optim,
         y_optim,
         c=[i / len(x_optim) for i in range(len(x_optim))],
-        cmap='Grays',
+        cmap="Grays",
         zorder=2.5,
     )
 
@@ -102,12 +102,12 @@ def surface(
         plt.plot(
             [x0[0]],
             [x0[1]],
-            'X',
+            "X",
             markersize=14,
-            markerfacecolor='w',
-            markeredgecolor='k',
+            markerfacecolor="w",
+            markeredgecolor="k",
             label="Initial values",
-            linestyle='None',
+            linestyle="None",
             zorder=2.6,
         )
 
@@ -119,21 +119,20 @@ def surface(
             [x_best[1]],
             "P",
             markersize=14,
-            markerfacecolor='k',
-            markeredgecolor='w',
+            markerfacecolor="k",
+            markeredgecolor="w",
             label="Final values",
-            linestyle='None',
+            linestyle="None",
             zorder=2.6,
         )
 
-
-    # Layout 
+    # Layout
     names = result.problem.parameters.names
     plt.xlabel(names[0], labelpad=15)
-    plt.ticklabel_format(axis='both', **dict(style='sci',scilimits=(-4,4)))
+    plt.ticklabel_format(axis="both", **dict(style="sci", scilimits=(-4, 4)))
     plt.ylabel(names[1], labelpad=15)
     plt.title(title, pad=40)
-    plt.legend(ncols=2, loc='lower center', bbox_to_anchor=(0.5, 1.0))
+    plt.legend(ncols=2, loc="lower center", bbox_to_anchor=(0.5, 1.0))
     plt.xlim(xlim[0], xlim[1])
     plt.ylim(ylim[0], ylim[1])
     plt.tight_layout()

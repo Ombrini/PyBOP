@@ -1,6 +1,7 @@
+from matplotlib import pyplot as plt
+
 from pybop.parameters.parameter import Inputs
 from pybop.plot.matplotlib.standard_plots import StandardPlot
-from matplotlib import pyplot as plt
 
 
 def nyquist(problem, inputs: Inputs = None, show=True, **layout_kwargs):
@@ -58,7 +59,7 @@ def nyquist(problem, inputs: Inputs = None, show=True, **layout_kwargs):
         fig = plot_dict(show=False)
         plot_dict.traces[0].set_color("#00CC96")
         plot_dict.traces[0].set_linewidth(2)
-        plot_dict.traces[0].set_marker('.')
+        plot_dict.traces[0].set_marker(".")
         plot_dict.traces[0].set_markersize(8)
 
         target_trace = plot_dict.create_trace(
@@ -66,17 +67,17 @@ def nyquist(problem, inputs: Inputs = None, show=True, **layout_kwargs):
             y=-target_output[var].imag,
             label="Reference",
         )
-        target_trace.set_linestyle('None')
-        target_trace.set_marker('o')
-        target_trace.set_fillstyle('none')
+        target_trace.set_linestyle("None")
+        target_trace.set_marker("o")
+        target_trace.set_fillstyle("none")
         target_trace.set_markersize(8)
         target_trace.set_markeredgecolor("#636EFA")
 
-        # Layout 
-        plt.title('Nyquist Plot', fontsize=14, x=0.2)
+        # Layout
+        plt.title("Nyquist Plot", fontsize=14, x=0.2)
         plt.xlabel(r"$Z_{re} / \Omega$", fontsize=16)
         plt.ylabel(r"$-Z_{im} / \Omega$", fontsize=16)
-        plt.legend(loc='upper right', bbox_to_anchor=(1, 1.08), ncols=2)
+        plt.legend(loc="upper right", bbox_to_anchor=(1, 1.08), ncols=2)
 
         if show:
             plt.show()

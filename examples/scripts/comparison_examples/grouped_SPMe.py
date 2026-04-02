@@ -11,7 +11,7 @@ identification purposes.
 """
 
 # Prepare figure
-pybop.plot.set_backend('matplotlib')
+pybop.plot.set_backend("matplotlib")
 plot_dict = pybop.plot.StandardPlot()
 plt.xlabel("Time / s")
 plt.ylabel("Voltage / V")

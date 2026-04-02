@@ -3,10 +3,10 @@ import textwrap
 import warnings
 
 import numpy as np
-
 from matplotlib import pyplot as plt
 
 DEFAULT_TRACE_OPTIONS = dict(linewidth=2.0)
+
 
 class StandardPlot:
     """
@@ -57,9 +57,8 @@ class StandardPlot:
         if trace_options:
             self.trace_options.update(trace_options)
 
-
         # Parse the data
-        x, y = self.parse_data(x, y)        
+        x, y = self.parse_data(x, y)
         self.x = x
         self.y = y
         # Check and wrap trace names
@@ -68,11 +67,9 @@ class StandardPlot:
                 trace_names = [trace_names]
             for i, name in enumerate(trace_names):
                 trace_names[i] = self.wrap_text(name, width=self.trace_name_width)
-        self.trace_names = trace_names 
+        self.trace_names = trace_names
 
         self.fig = plt.figure(figsize=figsize, dpi=100)
-
-        
 
     def __call__(self, show=True):
         """
@@ -94,8 +91,8 @@ class StandardPlot:
 
     def default_layout(self):
 
-        plt.tick_params(axis='both', labelsize=12)
-        plt.ticklabel_format(axis='both', style='sci', scilimits=(-4, 4))
+        plt.tick_params(axis="both", labelsize=12)
+        plt.ticklabel_format(axis="both", style="sci", scilimits=(-4, 4))
 
     def add_traces(self, x, y, trace_names=None, **trace_options):
         """
@@ -123,13 +120,14 @@ class StandardPlot:
 
             label = None
             if trace_names is not None:
-              label = trace_names[i]
+                label = trace_names[i]
 
-            self.traces.append(self.create_trace(xi, y[i], label,  **trace_options))
+            self.traces.append(self.create_trace(xi, y[i], label, **trace_options))
 
         if self.trace_names is not None:
-            plt.legend(**dict(loc="best", fontsize=12),)
-
+            plt.legend(
+                **dict(loc="best", fontsize=12),
+            )
 
     def parse_data(self, x, y):
         """
@@ -186,7 +184,7 @@ class StandardPlot:
             ax = plt.gca()
 
         line = ax.plot(
-            x, 
+            x,
             y,
             label=label,
             **trace_options,
@@ -195,7 +193,6 @@ class StandardPlot:
             return line
         else:
             return line[0]
-
 
     @staticmethod
     def wrap_text(text, width):
@@ -233,7 +230,6 @@ class StandardPlot:
                 char_in_brackets = s[start + 1 : end]
                 return s[:start] + " / " + char_in_brackets + s[end + 1 :]
         return s
-
 
 
 class StandardSubplot(StandardPlot):
@@ -275,11 +271,9 @@ class StandardSubplot(StandardPlot):
         trace_options=DEFAULT_TRACE_OPTIONS,
         trace_names=None,
         trace_name_width=40,
-        figsize=(8, 6)
+        figsize=(8, 6),
     ):
-        super().__init__(
-            x, y, trace_options, trace_names, trace_name_width, figsize
-        )
+        super().__init__(x, y, trace_options, trace_names, trace_name_width, figsize)
         self.num_traces = len(self.y)
         self.num_rows = num_rows
         self.num_cols = num_cols
@@ -293,8 +287,6 @@ class StandardSubplot(StandardPlot):
             self.num_cols = int(math.ceil(self.num_traces / self.num_rows))
         self.axis_titles = axis_titles
 
-        
-
     def __call__(self, show):
         """
         Generate and show the set of figures.
@@ -305,30 +297,35 @@ class StandardSubplot(StandardPlot):
             If True, the figure is shown upon creation (default: True).
         """
 
-        color_cycle = plt.rcParams['axes.prop_cycle']()
+        color_cycle = plt.rcParams["axes.prop_cycle"]()
 
         xi = self.x[0]
         lines = []
         for idx, yi in enumerate(self.y):
-            ax = self.fig.add_subplot(self.num_rows, self.num_cols, idx+1)
+            ax = self.fig.add_subplot(self.num_rows, self.num_cols, idx + 1)
             if self.axis_titles and idx < len(self.axis_titles):
                 x_title, y_title = self.axis_titles[idx]
                 ax.set_xlabel(x_title)
                 ax.set_ylabel(y_title)
-            if len(self.x)>1:
+            if len(self.x) > 1:
                 xi = self.x[idx]
 
             label = None
             if self.trace_names is not None:
                 label = self.trace_names[idx]
 
-            lines.append(self.create_trace(xi, yi, label, ax = ax, **next(color_cycle)))
-
+            lines.append(self.create_trace(xi, yi, label, ax=ax, **next(color_cycle)))
 
         lines_labels = [ax.get_legend_handles_labels() for ax in self.fig.axes]
         lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
         if self.trace_names is not None:
-            self.fig.legend(lines, labels, loc='upper right', ncol=len(lines), bbox_to_anchor=(0.99, 0.95))
+            self.fig.legend(
+                lines,
+                labels,
+                loc="upper right",
+                ncol=len(lines),
+                bbox_to_anchor=(0.99, 0.95),
+            )
         plt.tight_layout(rect=[0, 0, 1, 0.95])
         if show:
             plt.show()
@@ -336,7 +333,16 @@ class StandardSubplot(StandardPlot):
         return self.fig
 
 
-def trajectories(x, y, trace_names=None, show=True, xaxis_title='', yaxis_title='', title='', **layout_kwargs):
+def trajectories(
+    x,
+    y,
+    trace_names=None,
+    show=True,
+    xaxis_title="",
+    yaxis_title="",
+    title="",
+    **layout_kwargs,
+):
     """
     Quickly plot one or more trajectories using Plotly.
 
@@ -383,4 +389,4 @@ def trajectories(x, y, trace_names=None, show=True, xaxis_title='', yaxis_title=
     if show:
         plt.show()
 
-    return  plot_dict
+    return plot_dict

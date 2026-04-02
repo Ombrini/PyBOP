@@ -1,8 +1,8 @@
 import math
 import textwrap
+import warnings
 
 import numpy as np
-import warnings
 
 from pybop.plot.plotly.plotly_manager import PlotlyManager
 

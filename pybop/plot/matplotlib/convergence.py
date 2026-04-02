@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING
 
-from pybop.plot.matplotlib.standard_plots import StandardPlot
 import matplotlib.pyplot as plt
+
+from pybop.plot.matplotlib.standard_plots import StandardPlot
 
 if TYPE_CHECKING:
     from pybop._result import Result

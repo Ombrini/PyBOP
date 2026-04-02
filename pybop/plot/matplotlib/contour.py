@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.interpolate import griddata
 
 from pybop.problems.problem import Problem
 
@@ -19,7 +18,7 @@ def contour(
     transformed: bool = False,
     steps: int = 10,
     show: bool = True,
-    title: str = 'Cost Landscape',
+    title: str = "Cost Landscape",
 ):
     """
     Plot a 2D visualisation of a cost landscape using Plotly.
@@ -146,17 +145,23 @@ def contour(
 
     # define levels
     exponent = np.floor(np.log10(np.abs(np.max(costs))))
-    levels = np.linspace(np.floor(np.min(costs)/(10**exponent))*(10**exponent), np.ceil(np.max(costs)/(10**exponent))*(10**exponent), 2 * steps - 1)
+    levels = np.linspace(
+        np.floor(np.min(costs) / (10**exponent)) * (10**exponent),
+        np.ceil(np.max(costs) / (10**exponent)) * (10**exponent),
+        2 * steps - 1,
+    )
 
     # Create contour plot and update the layout
     fig = plt.figure(figsize=(6, 6), dpi=100)
-    plt.contourf(x, y, costs, levels=levels, extend='both', cmap='viridis')
+    plt.contourf(x, y, costs, levels=levels, extend="both", cmap="viridis")
     plt.colorbar()
-    plt.contour(x, y, costs, levels=levels, colors=('k',), linestyles='solid', linewidths=0.1)
+    plt.contour(
+        x, y, costs, levels=levels, colors=("k",), linestyles="solid", linewidths=0.1
+    )
 
-    # Layout 
+    # Layout
     plt.xlabel("Transformed " + names[0] if transformed else names[0], labelpad=15)
-    plt.ticklabel_format(axis='both', **dict(style='sci',scilimits=(-4,4)))
+    plt.ticklabel_format(axis="both", **dict(style="sci", scilimits=(-4, 4)))
     plt.ylabel("Transformed " + names[1] if transformed else names[1], labelpad=15)
     plt.title(title, pad=40)
     plt.xlim(bounds[0])
@@ -171,9 +176,9 @@ def contour(
             transform_array_of_values(optim_trace[:, 0], parameters[names[0]]),
             transform_array_of_values(optim_trace[:, 1], parameters[names[1]]),
             c=[i / len(optim_trace) for i in range(len(optim_trace))],
-            cmap='Grays',
+            cmap="Grays",
             zorder=1,
-            )
+        )
 
         # Plot the initial guess
         if len(result.x_model) > 0:
@@ -181,12 +186,12 @@ def contour(
             plt.plot(
                 transform_array_of_values([x0[0]], parameters[names[0]]),
                 transform_array_of_values([x0[1]], parameters[names[1]]),
-                'X',
+                "X",
                 markersize=14,
-                markerfacecolor='w',
-                markeredgecolor='k',
+                markerfacecolor="w",
+                markeredgecolor="k",
                 label="Initial values",
-                linestyle='None',
+                linestyle="None",
             )
 
         # Plot optimised value
@@ -197,14 +202,14 @@ def contour(
                 transform_array_of_values([x_best[1]], parameters[names[1]]),
                 "P",
                 markersize=14,
-                markerfacecolor='k',
-                markeredgecolor='w',
+                markerfacecolor="k",
+                markeredgecolor="w",
                 label="Final values",
-                linestyle='None',
+                linestyle="None",
             )
 
-        plt.legend(ncols=2, loc='lower center', bbox_to_anchor=(0.5, 1.0))
-    
+        plt.legend(ncols=2, loc="lower center", bbox_to_anchor=(0.5, 1.0))
+
     plt.tight_layout()
 
     if show:
