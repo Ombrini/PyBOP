@@ -52,7 +52,7 @@ for model, param, linestyle in zip(
     strict=False,
 ):
     solution = pybamm.Simulation(
-        model, parameter_values=param, experiment=experiment
+        model, parameter_values=param, experiment=experiment, cache_esoh=False
     ).solve(initial_soc=init_soc)
     dataset = pybop.import_pybamm_solution(solution)
     plot_dict.create_trace(
