@@ -3,7 +3,9 @@ from itertools import cycle
 from multiprocessing import Pool
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pybamm
+import pybop
 import sober
 import torch
 from ep_bolfi.models.solversetup import simulation_setup, spectral_mesh_pts_and_method
@@ -22,92 +24,105 @@ period = 0.1
 noise_generator = norm(0, 1e-4)
 
 
-def simulator(parameters):
+class GITTSimulator(pybop.BaseSimulator):
     global model, rest_duration, rest_fraction_used, period, noise_generator
 
-    pulse_strength = parameters[0]
-    pulse_length = parameters[1]
-    model_parameters = model.default_parameter_values
+    def __init__(self, parameters):
+        super().__init__(parameters)
+        self.output_variables = ["Current function [A]", "Voltage [V]"]
 
-    procedure = [
-        "Discharge at "
-        + str(pulse_strength)
-        + " C for "
-        + str(pulse_length)
-        + " seconds ("
-        + str(period)
-        + " second period)",
-        "Rest for " + str(rest_duration) + " seconds (1 second period)",
-    ]
-    discretization = {
-        "order_s_n": 10,
-        "order_s_p": 10,
-        "order_e": 10,
-        "volumes_e_n": 1,
-        "volumes_e_s": 1,
-        "volumes_e_p": 1,
-        "halfcell": False,
-    }
-    solver, _ = simulation_setup(
-        deepcopy(model),
-        procedure,
-        model_parameters,
-        *spectral_mesh_pts_and_method(**discretization),
-        verbose=False,
-    )
-    solution = solver(calc_esoh=False)
-    pulse_end = int(pulse_length / period) + 1
-    relaxation_t = solution["Time [s]"].entries[
-        pulse_end : pulse_end + int(rest_fraction_used * rest_duration)
-    ]
-    relaxation_U = solution["Voltage [V]"].entries[
-        pulse_end : pulse_end + int(rest_fraction_used * rest_duration)
-    ]
-    relaxation_U += noise_generator.rvs(size=len(relaxation_U))
+    def gitt_simulator(self, parameters):
+        pulse_strength = parameters[0]
+        pulse_length = parameters[1]
+        model_parameters = model.default_parameter_values
 
-    return relaxation_t, relaxation_U, solution
+        procedure = [
+            "Discharge at "
+            + str(pulse_strength)
+            + " C for "
+            + str(pulse_length)
+            + " seconds ("
+            + str(period)
+            + " second period)",
+            "Rest for " + str(rest_duration) + " seconds (1 second period)",
+        ]
+        discretization = {
+            "order_s_n": 10,
+            "order_s_p": 10,
+            "order_e": 10,
+            "volumes_e_n": 1,
+            "volumes_e_s": 1,
+            "volumes_e_p": 1,
+            "halfcell": False,
+        }
+        solver, _ = simulation_setup(
+            deepcopy(model),
+            procedure,
+            model_parameters,
+            *spectral_mesh_pts_and_method(**discretization),
+            verbose=False,
+        )
+        solution = solver(calc_esoh=False)
+        pulse_end = int(pulse_length / period) + 1
+        relaxation_t = solution["Time [s]"].entries[
+            pulse_end : pulse_end + int(rest_fraction_used * rest_duration)
+        ]
+        relaxation_U = solution["Voltage [V]"].entries[
+            pulse_end : pulse_end + int(rest_fraction_used * rest_duration)
+        ]
+        relaxation_U += noise_generator.rvs(size=len(relaxation_U))
 
+        solution["Time [s]"] -= pulse_length
 
-def training_simulator(parameters):
-    parameters = parameters.detach().cpu().numpy()
-    relaxation_t, relaxation_U, _ = simulator(parameters)
-    sqrt_features = fit_sqrt(relaxation_t, relaxation_U)[2]
-    sqrt_features = torch.tensor(sqrt_features)
-    sqrt_features[1] = torch.log(sqrt_features[1])
-    return sqrt_features
+        return relaxation_t, relaxation_U, solution
+
+    def solve_batch(self, inputs, calculate_sensitivities=False):
+        sols = []
+        for entry in inputs:
+            _, _, solution = self.gitt_simulator(entry)
+            sols.append(solution)
+        return sols
+
+    def __call__(self, parameters):
+        return self.gitt_simulator(parameters)
 
 
 if __name__ == "__main__":
-    bounds = torch.tensor(
-        [
-            [0.02, 10.0],
-            [1.0, 600.0],
-        ]
+    pybop_prior = pybop.MultivariateParameters({
+        "Pulse strength [C]": pybop.Parameter(
+            initial_value=0.2, bounds=[0.02, 1.0], transformation=pybop.LogTransformation()
+        ),
+        "Pulse length [s]": pybop.Parameter(
+            initial_value=90.0, bounds=[10.0, 600.0], transformation=pybop.LogTransformation()
+        )
+    }, distribution=pybop.MultivariateUniform(np.asarray([[0.02, 1.0], [10.0, 600.0]])))
+    simulator = GITTSimulator(pybop_prior)
+    # Override the forced univariate Parameters
+    simulator.parameters = pybop_prior
+    # Use the "cost" functions as gain functions by setting the dataset to 0.
+    GITT_cost_offset = pybop.SquareRootFeatureDistance(
+        np.arange(900), np.zeros(900), feature="offset", time_start=0, time_end=30
     )
-    transforms = [
-        (lambda x: torch.log(x), lambda x: torch.exp(x)),
-        (lambda x: torch.log(x), lambda x: torch.exp(x)),
-    ]
-
-    inverse_modelling = InverseModel(
-        training_simulator,
+    GITT_cost_log_square_root = pybop.SquareRootFeatureDistance(
+        np.arange(900), np.zeros(900), feature="log_slope", time_start=0, time_end=30
+    )
+    problem = pybop.MetaProblem(
+        pybop.Problem(simulator, GITT_cost_offset),
+        pybop.Problem(simulator, GITT_cost_log_square_root)
+    )
+    # Copy the MultivariateParameters to the meta-problem
+    problem._parameters = simulator.parameters   # noqa: SL001
+    
+    options = pybop.SOBER_BASQ_GIS_Options(
         model_initial_samples=128,
-        bounds=bounds,
-        prior="Uniform",
-        transforms=transforms,
-        seed=seed,
-        disable_numpy_mode=True,
-        visualizations=False,
-        names=["Pulse strength [C]", "Pulse length [s]"],
-    )
-    inverse_modelling.optimize_inverse_model_with_SOBER(
         stopping_criterion_variance=1e-12,
         maximum_number_of_batches=3,
         model_samples_per_iteration=128,
         integration_nodes=100,
-        visualizations=False,
         verbose=True,
     )
+
+    inverse_modelling = pybop.SOBER_BASQ_GIS(problem, options=options)
 
     relaxation_t, relaxation_U, solution = simulator([0.06, 80.0])
     features = training_simulator(torch.tensor([0.06, 80.0]))
