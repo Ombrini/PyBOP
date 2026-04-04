@@ -50,6 +50,7 @@ from .transformation.transformations import (
 #
 from .parameters.parameter import Parameter, Parameters
 from .parameters.distributions import Distribution, Gaussian, Uniform, Exponential, JointDistribution
+from .parameters.multivariate_parameters import MultivariateParameters
 from .parameters.multivariate_distributions import MultivariateNonparametric, MultivariateUniform, MultivariateGaussian, MultivariateLogNormal, MarginalDistribution
 
 #
@@ -138,6 +139,7 @@ from .optimisers.pints_optimisers import (
     SimulatedAnnealing,
 )
 from .optimisers.ep_bolfi_optimiser import EP_BOLFI, EPBOLFIOptions
+from .optimisers.sober_basq_optimiser import SOBER_BASQ, SOBER_BASQ_Options, SOBER_BASQ_EPLFI, SOBER_BASQ_EPLFI_Options, SOBER_BASQ_GIS, SOBER_BASQ_GIS_Options
 
 #
 # Monte Carlo classes

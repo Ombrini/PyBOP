@@ -115,7 +115,7 @@ class SquareRootFeatureDistance(FeatureDistance):
     its slope between model predictions and target data.
     """
 
-    _supported_features = ["offset", "slope", "inverse_slope"]
+    _supported_features = ["offset", "slope", "inverse_slope", "log_slope"]
 
     def __init__(
         self,
@@ -159,6 +159,8 @@ class SquareRootFeatureDistance(FeatureDistance):
             return fit[1]
         elif self.feature == "inverse_slope":
             return 1 / fit[1]
+        elif self.feature == "log_slope":
+            return np.log(fit[1])
 
 
 class ExponentialFeatureDistance(FeatureDistance):

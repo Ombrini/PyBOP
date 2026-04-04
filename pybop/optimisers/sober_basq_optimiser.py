@@ -461,13 +461,30 @@ class SOBER_BASQ_EPLFI(SOBER_BASQ):
         )
 
 
-class SOBER_BASQ_GIS(SOBER_BASQ):
+@dataclass
+class SOBER_BASQ_GIS_Options(SOBER_BASQ_Options):
+    """
+    A class for the additional settings involved in training surrogate models
+    using SOBER and BASQ.
+    """
+
+    stopping_criterion_variance: float = 0.1
+    maximum_number_of_batches: int = 10
+
+    def validate(self):
+        super().validate()
+
+
+class SOBER_BASQ_GIS(SOBER_BASQ_EPLFI):
     """ "
     Uses SOBER to train a Global Inverse Surrogate (GIS) on a given
     parameterisation task. Requires a generator for (synthetic) data."
 
     Short version: given x -> simulator(x), calculates y -> simulator^(-1)(y).
     The prior becomes the domain on which this inversion is calculated.
+
+    To allow for additional preprocessing x -> features(simulator(x)),
+    the problem costs are used as the output to be inverted.
     """
 
     def _set_up_optimiser(self, **kwargs):
@@ -498,14 +515,8 @@ class SOBER_BASQ_GIS(SOBER_BASQ):
             for par in self.problem.parameters.values()
         ]
 
-        # ToDo: can only use one problem function for now, else multiprocessing breaks.
-        # if isinstance(self.problem.target_data, dict):
-        #     target_data = tensor(np.asarray(list(self.problem.target_data.values())[0]))
-        # else:
-        #     target_data = tensor(self.problem.target_data)
-
         self.optimiser = sober.InverseModel(
-            self.evaluate_problem,
+            self._collect_functions,
             self._options.model_initial_samples,
             self.mean,
             None if self.covariance is None else tensor(self.covariance),
@@ -530,13 +541,13 @@ class SOBER_BASQ_GIS(SOBER_BASQ):
             with redirect_stderr(verbose_err_target):
                 start = time.time()
                 self.optimiser.optimize_inverse_model_with_SOBER(
-                    stopping_criterion_variance=0.1,  # ToDo: add settings
-                    adaptive_batchsize_tolerance=0.1,  # not yet implemented
+                    stopping_criterion_variance=self._options.stopping_criterion_variance,
+                    adaptive_batchsize_tolerance=0.1,  # not yet implemented in SOBER
                     # may be increased for performance, but gives a more detailed convergence trajectory this way
-                    sober_iterations_per_convergence_check=1,
+                    vergence_check=1,
                     # may be increased for performance, but it suffices to tweak the batch size
                     sober_iterations_per_training_data_updates=1,
-                    maximum_number_of_batches=10,  # usually it makes more sense to adjust batch size rather than count
+                    maximum_number_of_batches=self._options.maximum_number_of_batches,
                     model_samples_per_iteration=self._options.model_samples_per_iteration,
                     integration_nodes=self._options.integration_nodes,
                     visualizations=False,
