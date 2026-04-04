@@ -5,13 +5,12 @@ from multiprocessing import Pool
 import matplotlib.pyplot as plt
 import numpy as np
 import pybamm
-import pybop
 import sober
 import torch
 from ep_bolfi.models.solversetup import simulation_setup, spectral_mesh_pts_and_method
-from ep_bolfi.utility.fitting_functions import fit_sqrt
 from scipy.stats import norm
-from sober import InverseModel
+
+import pybop
 
 torch.set_default_dtype(torch.float64)
 sober.setting_parameters(device=torch.device("cpu"))
@@ -88,14 +87,23 @@ class GITTSimulator(pybop.BaseSimulator):
 
 
 if __name__ == "__main__":
-    pybop_prior = pybop.MultivariateParameters({
-        "Pulse strength [C]": pybop.Parameter(
-            initial_value=0.2, bounds=[0.02, 1.0], transformation=pybop.LogTransformation()
+    pybop_prior = pybop.MultivariateParameters(
+        {
+            "Pulse strength [C]": pybop.Parameter(
+                initial_value=0.2,
+                bounds=[0.02, 1.0],
+                transformation=pybop.LogTransformation(),
+            ),
+            "Pulse length [s]": pybop.Parameter(
+                initial_value=90.0,
+                bounds=[10.0, 600.0],
+                transformation=pybop.LogTransformation(),
+            ),
+        },
+        distribution=pybop.MultivariateUniform(
+            np.asarray([[0.02, 1.0], [10.0, 600.0]])
         ),
-        "Pulse length [s]": pybop.Parameter(
-            initial_value=90.0, bounds=[10.0, 600.0], transformation=pybop.LogTransformation()
-        )
-    }, distribution=pybop.MultivariateUniform(np.asarray([[0.02, 1.0], [10.0, 600.0]])))
+    )
     simulator = GITTSimulator(pybop_prior)
     # Override the forced univariate Parameters
     simulator.parameters = pybop_prior
@@ -108,11 +116,11 @@ if __name__ == "__main__":
     )
     problem = pybop.MetaProblem(
         pybop.Problem(simulator, GITT_cost_offset),
-        pybop.Problem(simulator, GITT_cost_log_square_root)
+        pybop.Problem(simulator, GITT_cost_log_square_root),
     )
     # Copy the MultivariateParameters to the meta-problem
-    problem._parameters = simulator.parameters   # noqa: SL001
-    
+    problem._parameters = simulator.parameters  # noqa: SL001
+
     options = pybop.SOBER_BASQ_GIS_Options(
         model_initial_samples=128,
         stopping_criterion_variance=1e-12,
