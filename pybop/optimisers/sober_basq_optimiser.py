@@ -295,11 +295,9 @@ class SOBER_BASQ_EPLFI(SOBER_BASQ):
                 self.problem.parameters.keys(), inputs_array.T, strict=False
             )
         }
-        return np.array(
+        return np.asarray(
             [
-                problem.simulator.solve(inputs)[
-                    problem.simulator.output_variables[0]
-                ].data
+                problem.evaluate(inputs).values.item()
                 for problem in self.problem.problems
             ]
         ).T

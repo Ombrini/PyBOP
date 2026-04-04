@@ -3,8 +3,10 @@ import warnings
 import numpy as np
 from scipy.optimize import minimize
 
+from pybop import Solution
 from pybop.costs.base_cost import BaseCost
 from pybop.costs.evaluation import Evaluation
+from pybop.parameters.parameter import Inputs
 
 
 def indices_of(values, target):
@@ -29,6 +31,7 @@ class FeatureDistance(BaseCost):
         feature: str,
         time_start: float = None,
         time_end: float = None,
+        output_variable: str = "Voltage [V]",
     ):
         super().__init__()
         if feature not in self._supported_features:
@@ -49,6 +52,7 @@ class FeatureDistance(BaseCost):
         self.end_index = (
             indices_of(self.domain_data, self.time_end)[0] if self.time_end else None
         )
+        self.output_variable = output_variable
 
         with warnings.catch_warnings():
             # Suppress SciPy's UserWarning about delta_grad == 0.
@@ -81,6 +85,14 @@ class FeatureDistance(BaseCost):
                 method="trust-constr",
             ).x
         )
+
+    def evaluate(
+        self,
+        solution: Solution,
+        inputs: Inputs | None = None,
+        calculate_sensitivities: bool = False,
+    ) -> float | tuple[float, np.ndarray]:
+        return self(solution[self.output_variable].entries).values.item()
 
     def __call__(
         self,

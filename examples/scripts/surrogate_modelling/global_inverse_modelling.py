@@ -28,11 +28,11 @@ class GITTSimulator(pybop.BaseSimulator):
 
     def __init__(self, parameters):
         super().__init__(parameters)
-        self.output_variables = ["Current function [A]", "Voltage [V]"]
+        self.output_variables = ["Current [A]", "Voltage [V]"]
 
     def gitt_simulator(self, parameters):
-        pulse_strength = parameters[0]
-        pulse_length = parameters[1]
+        pulse_strength = parameters["Pulse strength [C]"]
+        pulse_length = parameters["Pulse length [s]"]
         model_parameters = model.default_parameter_values
 
         procedure = [
@@ -71,7 +71,7 @@ class GITTSimulator(pybop.BaseSimulator):
         ]
         relaxation_U += noise_generator.rvs(size=len(relaxation_U))
 
-        solution["Time [s]"] -= pulse_length
+        solution["Time [s]"]._entries_raw -= pulse_length  # noqa: SL001
 
         return relaxation_t, relaxation_U, solution
 
@@ -87,6 +87,7 @@ class GITTSimulator(pybop.BaseSimulator):
 
 
 if __name__ == "__main__":
+    distribution=pybop.MultivariateUniform(np.asarray([[0.02, 1.0], [10.0, 600.0]]))
     pybop_prior = pybop.MultivariateParameters(
         {
             "Pulse strength [C]": pybop.Parameter(
@@ -100,10 +101,10 @@ if __name__ == "__main__":
                 transformation=pybop.LogTransformation(),
             ),
         },
-        distribution=pybop.MultivariateUniform(
-            np.asarray([[0.02, 1.0], [10.0, 600.0]])
-        ),
+        distribution=distribution
     )
+    # Overwrite the forced JointDistribution
+    pybop_prior._distribution = distribution  # noqa: SL001
     simulator = GITTSimulator(pybop_prior)
     # Override the forced univariate Parameters
     simulator.parameters = pybop_prior
