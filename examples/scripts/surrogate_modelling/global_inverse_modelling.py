@@ -87,7 +87,7 @@ class GITTSimulator(pybop.BaseSimulator):
 
 
 if __name__ == "__main__":
-    distribution=pybop.MultivariateUniform(np.asarray([[0.02, 1.0], [10.0, 600.0]]))
+    distribution = pybop.MultivariateUniform(np.asarray([[0.02, 1.0], [10.0, 600.0]]))
     pybop_prior = pybop.MultivariateParameters(
         {
             "Pulse strength [C]": pybop.Parameter(
@@ -101,7 +101,7 @@ if __name__ == "__main__":
                 transformation=pybop.LogTransformation(),
             ),
         },
-        distribution=distribution
+        distribution=distribution,
     )
     # Overwrite the forced JointDistribution
     pybop_prior._distribution = distribution  # noqa: SL001
