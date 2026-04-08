@@ -2,9 +2,9 @@ import math
 import textwrap
 
 import numpy as np
-import warnings
 
 from pybop.plot.util import call_plotting_function
+
 
 class StandardPlot:
     def __init__(
@@ -14,10 +14,13 @@ class StandardPlot:
         trace_options=None,
         trace_names=None,
         trace_name_width=20,
-        backend = None,
-        **kwargs):
-        
-        self.plotter = call_plotting_function('Plotter', backend, trace_options=trace_options, **kwargs)
+        backend=None,
+        **kwargs,
+    ):
+
+        self.plotter = call_plotting_function(
+            "Plotter", backend, trace_options=trace_options, **kwargs
+        )
 
         self.trace_name_width = trace_name_width
 
@@ -31,7 +34,7 @@ class StandardPlot:
     @property
     def traces(self):
         return self.plotter.traces
-    
+
     @traces.setter
     def traces(self, value):
         self.plotter.traces = value
@@ -42,14 +45,15 @@ class StandardPlot:
             if isinstance(trace_names, str):
                 trace_names = [trace_names]
             for i, name in enumerate(trace_names):
-                trace_names[i] = self.wrap_text(name, width=self.trace_name_width, backend=self.plotter.backend)
+                trace_names[i] = self.wrap_text(
+                    name, width=self.trace_name_width, backend=self.plotter.backend
+                )
 
         # Parse the data
         x, y = self.parse_data(x, y)
 
         # Add traces
         self.plotter.add_traces(x, y, trace_names)
-
 
     def parse_data(self, x, y):
         """
@@ -89,12 +93,12 @@ class StandardPlot:
                 "Input x should have either one data series or the same number as y."
             )
         return x, y
-    
+
     def create_trace(self, x, y, **trace_options):
         return self.plotter.create_trace(x, y, **trace_options)
 
     @staticmethod
-    def wrap_text(text, width, backend='matplotlib'):
+    def wrap_text(text, width, backend="matplotlib"):
         """
         Wrap text to a specified width with HTML line breaks.
 
@@ -111,7 +115,7 @@ class StandardPlot:
             The wrapped text.
         """
         wrapped_text = textwrap.fill(text, width=width, break_long_words=False)
-        if backend == 'plotly':
+        if backend == "plotly":
             return wrapped_text.replace("\n", "<br>")
         else:
             return wrapped_text
@@ -132,7 +136,7 @@ class StandardPlot:
                 char_in_brackets = s[start + 1 : end]
                 return s[:start] + " / " + char_in_brackets + s[end + 1 :]
         return s
-    
+
 
 class StandardSubplot(StandardPlot):
     """
@@ -178,7 +182,13 @@ class StandardSubplot(StandardPlot):
         trace_name_width=40,
         **kwargs,
     ):
-        self.plotter = call_plotting_function('SubplotPlotter', backend, axis_titles=axis_titles, trace_options=trace_options, **kwargs)
+        self.plotter = call_plotting_function(
+            "SubplotPlotter",
+            backend,
+            axis_titles=axis_titles,
+            trace_options=trace_options,
+            **kwargs,
+        )
 
         self.trace_name_width = trace_name_width
 
@@ -201,7 +211,7 @@ class StandardSubplot(StandardPlot):
     def __call__(self, show=True):
         return self.plotter(show=show, num_rows=self.num_rows, num_cols=self.num_cols)
 
-        
+
 def trajectories(x, y, trace_names=None, show=True, backend=None, **layout_kwargs):
     """
     Quickly plot one or more trajectories using Plotly.
@@ -225,4 +235,12 @@ def trajectories(x, y, trace_names=None, show=True, backend=None, **layout_kwarg
         The Plotly figure object for the scatter plot.
     """
 
-    return call_plotting_function('trajectories', backend, x=x, y=y, trace_names=trace_names, show=show, **layout_kwargs)
+    return call_plotting_function(
+        "trajectories",
+        backend,
+        x=x,
+        y=y,
+        trace_names=trace_names,
+        show=show,
+        **layout_kwargs,
+    )

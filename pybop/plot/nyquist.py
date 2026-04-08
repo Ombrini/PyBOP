@@ -1,12 +1,8 @@
-import warnings
-
-from matplotlib import pyplot as plt
-
 from pybop.parameters.parameter import Inputs
-from pybop.plot.nyquist import _nyquist
+from pybop.plot.util import call_plotting_function
+from pybop.plot.standard_plots import StandardPlot
 
-
-def nyquist(problem, inputs: Inputs = None, show=True, **layout_kwargs):
+def nyquist(problem, inputs: Inputs = None, show=True, backend=None, **layout_kwargs):
     """
     Generates Nyquist plots for the given problem by evaluating the model's output and target values.
 
@@ -43,38 +39,36 @@ def nyquist(problem, inputs: Inputs = None, show=True, **layout_kwargs):
     >>> nyquist_figures = nyquist(problem, show=True, title="Nyquist Plot", xaxis_title="Real(Z)", yaxis_title="Imag(Z)")
     >>> # The plots will be displayed and nyquist_figures will contain the list of figure objects.
     """
+    return call_plotting_function(
+        "nyquist", backend, problem=problem, inputs=inputs, show=show, **layout_kwargs
+    )
 
-    if len(layout_kwargs) > 0:
-        warnings.warn(
-            "The following layout argument keys are ignored for the current plotting backend (matplotlib): \n"
-            f"{list(layout_kwargs.keys())}",
-            UserWarning,
-            stacklevel=2,
+def _nyquist(problem, trace_options_model: dict, trace_options_reference, inputs: Inputs = None):
+
+    if not isinstance(inputs, dict):
+        inputs = problem.parameters.to_dict(inputs)
+
+    model_output = problem.simulate(inputs)
+    domain_data = model_output["Impedance"].data.real
+    target_output = problem.target_data
+    figure_list = []
+    for var in problem.target:
+        plot_dict = StandardPlot(
+                x=domain_data,
+                y=-model_output[var].data.imag,
+                trace_names="Model",
         )
-    trace_options_model = dict(
-        label="Model", color="#00CC96", linewidth=2, marker=".", markersize=8
-    )
-    trace_options_reference = dict(
-        label="Reference",
-        linestyle="none",
-        marker="o",
-        fillstyle="none",
-        markersize=8,
-        markeredgecolor="#636EFA",
-    )
-    figure_list = _nyquist(
-        problem, trace_options_model, trace_options_reference, inputs=inputs
-    )
 
-    for fig in figure_list:
-        plt.sca(fig.gca())
-        # Layout
-        plt.title("Nyquist Plot", fontsize=14, x=0.2)
-        plt.xlabel(r"$Z_{re} / \Omega$", fontsize=16)
-        plt.ylabel(r"$-Z_{im} / \Omega$", fontsize=16)
-        plt.legend(loc="upper right", bbox_to_anchor=(1, 1.08), ncols=2)
+        plot_dict.traces[0].update(trace_options_model)
 
-        if show:
-            plt.show()
+        target_trace = plot_dict.create_trace(
+            x=target_output[var].real,
+            y=-target_output[var].imag,
+            **trace_options_reference,
+        )
+        plot_dict.traces.append(target_trace)
+
+        fig = plot_dict(show=False)
+        figure_list.append(fig)
 
     return figure_list

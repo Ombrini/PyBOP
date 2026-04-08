@@ -12,7 +12,6 @@ from .plots import (
     contour,
     convergence,
     dataset,
-    nyquist,
     parameters,
     posterior,
     problem,
@@ -22,6 +21,7 @@ from .plots import (
     )
 
 from .standard_plots import StandardPlot, StandardSubplot, trajectories
+from .nyquist import nyquist
 from .voronoi import voronoi_data, _voronoi_regions
 from . import matplotlib
 from . import plotly
