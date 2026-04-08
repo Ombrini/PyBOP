@@ -1,6 +1,7 @@
 from pybop.parameters.parameter import Inputs
-from pybop.plot.util import call_plotting_function
 from pybop.plot.standard_plots import StandardPlot
+from pybop.plot.util import call_plotting_function
+
 
 def nyquist(problem, inputs: Inputs = None, show=True, backend=None, **layout_kwargs):
     """
@@ -43,7 +44,10 @@ def nyquist(problem, inputs: Inputs = None, show=True, backend=None, **layout_kw
         "nyquist", backend, problem=problem, inputs=inputs, show=show, **layout_kwargs
     )
 
-def _nyquist(problem, trace_options_model: dict, trace_options_reference, inputs: Inputs = None):
+
+def _nyquist(
+    problem, trace_options_model: dict, trace_options_reference, inputs: Inputs = None
+):
 
     if not isinstance(inputs, dict):
         inputs = problem.parameters.to_dict(inputs)
@@ -54,9 +58,9 @@ def _nyquist(problem, trace_options_model: dict, trace_options_reference, inputs
     figure_list = []
     for var in problem.target:
         plot_dict = StandardPlot(
-                x=domain_data,
-                y=-model_output[var].data.imag,
-                trace_names="Model",
+            x=domain_data,
+            y=-model_output[var].data.imag,
+            trace_names="Model",
         )
 
         plot_dict.traces[0].update(trace_options_model)
