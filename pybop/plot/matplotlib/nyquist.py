@@ -56,23 +56,27 @@ def nyquist(problem, inputs: Inputs = None, show=True, **layout_kwargs):
             trace_names="Model",
         )
 
-        fig = plot_dict(show=False)
-        plot_dict.traces[0].set_color("#00CC96")
-        plot_dict.traces[0].set_linewidth(2)
-        plot_dict.traces[0].set_marker(".")
-        plot_dict.traces[0].set_markersize(8)
+        plotting_options = dict(color="#00CC96", linewidth=2, marker=".", markersize=8)
+        plot_dict.traces[0].update(plotting_options)
 
         target_trace = plot_dict.create_trace(
             x=target_output[var].real,
             y=-target_output[var].imag,
             label="Reference",
         )
-        target_trace.set_linestyle("None")
-        target_trace.set_marker("o")
-        target_trace.set_fillstyle("none")
-        target_trace.set_markersize(8)
-        target_trace.set_markeredgecolor("#636EFA")
 
+        plotting_options = dict(
+            linestyle="none",
+            marker="o",
+            fillstyle="none",
+            markersize=8,
+            markeredgecolor="#636EFA",
+        )
+        target_trace.update(plotting_options)
+
+        plot_dict.traces.append(target_trace)
+
+        fig = plot_dict(show=False)
         # Layout
         plt.title("Nyquist Plot", fontsize=14, x=0.2)
         plt.xlabel(r"$Z_{re} / \Omega$", fontsize=16)
@@ -80,7 +84,7 @@ def nyquist(problem, inputs: Inputs = None, show=True, **layout_kwargs):
         plt.legend(loc="upper right", bbox_to_anchor=(1, 1.08), ncols=2)
 
         if show:
-            plt.show()
+            fig.show()
 
         figure_list.append(fig)
 

@@ -1,9 +1,6 @@
-import math
-import textwrap
 import warnings
 
-import numpy as np
-
+from pybop.plot import StandardPlot
 from pybop.plot.plotly.plotly_manager import PlotlyManager
 
 DEFAULT_LAYOUT_OPTIONS = dict(
@@ -36,7 +33,7 @@ DEFAULT_TRACE_OPTIONS = dict(line=dict(width=4), mode="lines")
 DEFAULT_SUBPLOT_TRACE_OPTIONS = dict(line=dict(width=2), mode="lines")
 
 
-class StandardPlot:
+class Plotter:
     """
     A class for creating and displaying interactive Plotly figures.
 
@@ -65,13 +62,9 @@ class StandardPlot:
 
     def __init__(
         self,
-        x=None,
-        y=None,
         layout=None,
         layout_options=None,
         trace_options=None,
-        trace_names=None,
-        trace_name_width=40,
         **kwargs,
     ):
         # Warning if layout arguments ignored
@@ -82,9 +75,11 @@ class StandardPlot:
                 UserWarning,
                 stacklevel=2,
             )
+
+        self.backend = "plotly"
+
         self.traces = []
         self.layout = layout
-        self.trace_name_width = trace_name_width
 
         # Set default layout options and update if provided
         if self.layout is None:
@@ -103,10 +98,6 @@ class StandardPlot:
         # Create layout
         if self.layout is None:
             self.layout = self.go.Layout(**self.layout_options)
-
-        # Add traces
-        if x is not None and y is not None:
-            self.add_traces(x, y, trace_names)
 
     def __call__(self, show=True):
         """
@@ -139,16 +130,6 @@ class StandardPlot:
         options = self.trace_options.copy()
         options.update(trace_options)
 
-        # Check and wrap trace names
-        if trace_names is not None:
-            if isinstance(trace_names, str):
-                trace_names = [trace_names]
-            for i, name in enumerate(trace_names):
-                trace_names[i] = self.wrap_text(name, width=self.trace_name_width)
-
-        # Parse the data
-        x, y = self.parse_data(x, y)
-
         # Create a trace for each trajectory
         xi = x[0]
         for i in range(0, len(y)):
@@ -161,45 +142,6 @@ class StandardPlot:
                 trace_options["showlegend"] = False
             trace = self.create_trace(xi, y[i], **trace_options)
             self.traces.append(trace)
-
-    def parse_data(self, x, y):
-        """
-        Check the type and dimensions of the data and convert if necessary to a list
-        of 'things plotly can take', e.g. numpy arrays or lists of numbers.
-
-        Parameters
-        ----------
-        x : list or np.ndarray, optional
-            X-axis data points.
-        y : list or np.ndarray, optional
-            Primary Y-axis data points for simulated model output.
-        """
-        if isinstance(x, list):
-            # If it's a list of numpy arrays, it's fine
-            # If it's a list of lists, it's fine
-            # If it's neither, it's a list of numbers that we need to wrap
-            if not isinstance(x[0], np.ndarray) and not isinstance(x[0], list):
-                x = [x]
-        elif isinstance(x, np.ndarray):
-            x = np.squeeze(x)
-            if x.ndim == 1:
-                x = [x]
-            else:
-                x = x.tolist()
-        if isinstance(y, list):
-            if not isinstance(y[0], np.ndarray) and not isinstance(y[0], list):
-                y = [y]
-        if isinstance(y, np.ndarray):
-            y = np.squeeze(y)
-            if y.ndim == 1:
-                y = [y]
-            else:
-                y = y.tolist()
-        if len(x) > 1 and len(x) != len(y):
-            raise ValueError(
-                "Input x should have either one data series or the same number as y."
-            )
-        return x, y
 
     def create_trace(self, x, y, **trace_options):
         """
@@ -217,45 +159,8 @@ class StandardPlot:
             **trace_options,
         )
 
-    @staticmethod
-    def wrap_text(text, width):
-        """
-        Wrap text to a specified width with HTML line breaks.
 
-        Parameters
-        ----------
-        text : str
-            The text to wrap.
-        width : int
-            The width to wrap the text to.
-
-        Returns
-        -------
-        str
-            The wrapped text.
-        """
-        wrapped_text = textwrap.fill(text, width=width, break_long_words=False)
-        return wrapped_text.replace("\n", "<br>")
-
-    @staticmethod
-    def remove_brackets(s):
-        """
-        Remove square brackets from a string and replace with forward slashes
-        as per section 7.1 of the SI Handbook
-        """
-        # If s is an iterable (but not a string), apply the function recursively to each element
-        if hasattr(s, "__iter__") and not isinstance(s, str):
-            return type(s)(StandardPlot.remove_brackets(i) for i in s)
-        elif isinstance(s, str):
-            start = s.find("[")
-            end = s.find("]")
-            if start != -1 and end != -1:
-                char_in_brackets = s[start + 1 : end]
-                return s[:start] + " / " + char_in_brackets + s[end + 1 :]
-        return s
-
-
-class StandardSubplot(StandardPlot):
+class SubplotPlotter(Plotter):
     """
     A class for creating and displaying a set of interactive Plotly figures in a grid layout.
 
@@ -288,33 +193,14 @@ class StandardSubplot(StandardPlot):
 
     def __init__(
         self,
-        x,
-        y,
-        num_rows=None,
-        num_cols=None,
         axis_titles=None,
         layout=None,
         layout_options=DEFAULT_LAYOUT_OPTIONS,
         subplot_options=DEFAULT_SUBPLOT_OPTIONS,
         trace_options=DEFAULT_SUBPLOT_TRACE_OPTIONS,
-        trace_names=None,
-        trace_name_width=40,
+        **kwargs,
     ):
-        super().__init__(
-            x, y, layout, layout_options, trace_options, trace_names, trace_name_width
-        )
-        self.num_traces = len(self.traces)
-        self.num_rows = num_rows
-        self.num_cols = num_cols
-        if self.num_rows is None and self.num_cols is None:
-            # Work out the number of subplots
-            self.num_cols = int(math.ceil(math.sqrt(self.num_traces)))
-            self.num_rows = int(math.ceil(self.num_traces / self.num_cols))
-        elif self.num_rows is None:
-            self.num_rows = int(math.ceil(self.num_traces / self.num_cols))
-        elif self.num_cols is None:
-            self.num_cols = int(math.ceil(self.num_traces / self.num_rows))
-        self.axis_titles = axis_titles
+        super().__init__(layout, layout_options, trace_options, **kwargs)
         self.subplot_options = subplot_options.copy()
         if subplot_options is not None:
             for arg, value in subplot_options.items():
@@ -323,7 +209,9 @@ class StandardSubplot(StandardPlot):
         # Attempt to import plotly when an instance is created
         self.make_subplots = PlotlyManager().make_subplots
 
-    def __call__(self, show):
+        self.axis_titles = axis_titles
+
+    def __call__(self, show=True, num_rows=1, num_cols=1):
         """
         Generate and show the set of figures.
 
@@ -333,8 +221,8 @@ class StandardSubplot(StandardPlot):
             If True, the figure is shown upon creation (default: True).
         """
         fig = self.make_subplots(
-            rows=self.num_rows,
-            cols=self.num_cols,
+            rows=num_rows,
+            cols=num_cols,
             horizontal_spacing=0.1,
             vertical_spacing=0.15,
             **self.subplot_options,
@@ -342,8 +230,8 @@ class StandardSubplot(StandardPlot):
         fig.update_layout(self.layout_options)
 
         for idx, trace in enumerate(self.traces):
-            row = (idx // self.num_cols) + 1
-            col = (idx % self.num_cols) + 1
+            row = (idx // num_cols) + 1
+            col = (idx % num_cols) + 1
             fig.add_trace(trace, row=row, col=col)
 
             if self.axis_titles and idx < len(self.axis_titles):
@@ -386,11 +274,7 @@ def trajectories(x, y, trace_names=None, show=True, **layout_kwargs):
         The Plotly figure object for the scatter plot.
     """
     # Create a plot dictionary
-    plot_dict = StandardPlot(
-        x=x,
-        y=y,
-        trace_names=trace_names,
-    )
+    plot_dict = StandardPlot(x=x, y=y, trace_names=trace_names, backend="plotly")
 
     # Generate the figure and update the layout
     fig = plot_dict(show=False)

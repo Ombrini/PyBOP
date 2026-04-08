@@ -1,5 +1,5 @@
 from .plotly_manager import PlotlyManager
-from .standard_plots import StandardPlot, StandardSubplot, trajectories
+from .standard_plots import Plotter, SubplotPlotter, trajectories
 from .contour import contour
 from .dataset import dataset
 from .convergence import convergence

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 
 from pybop.costs.log_likelihoods import GaussianLogLikelihood
-from pybop.plot.matplotlib.standard_plots import StandardSubplot
+from pybop.plot.standard_plots import StandardSubplot
 
 if TYPE_CHECKING:
     from pybop._result import Result
@@ -58,6 +58,7 @@ def parameters(result: "Result", show=True, **layout_kwargs):
         trace_names=trace_names,
         trace_name_width=50,
         figsize=(18, 8),
+        backend="matplotlib",
     )
 
     plt.suptitle("Parameter Convergence")

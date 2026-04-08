@@ -1,4 +1,4 @@
-from .standard_plots import StandardPlot, StandardSubplot, trajectories
+from .standard_plots import Plotter, SubplotPlotter, trajectories
 from .dataset import dataset
 from .convergence import convergence
 from .parameters import parameters

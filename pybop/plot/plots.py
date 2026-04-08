@@ -307,37 +307,3 @@ def trace(result: "SamplingResult", backend=None, **kwargs):
     Plot trace plots for the posterior samples.
     """
     return call_plotting_function("trace", backend, result=result, **kwargs)
-
-
-def trajectories(x, y, trace_names=None, show=True, backend=None, **layout_kwargs):
-    """
-    Quickly plot one or more trajectories using Plotly.
-
-    Parameters
-    ----------
-    x : list or np.ndarray
-        X-axis data points.
-    y : list or np.ndarray
-        Y-axis data points for each trajectory.
-    trace_names : list or str, optional
-        Name(s) for the trace(s) (default: None).
-    **layout_kwargs : optional
-            Valid Plotly layout keys and their values,
-            e.g. `xaxis_title="Time / s"` or
-            `xaxis={"title": "Time [s]", font={"size":14}}`
-
-    Returns
-    -------
-    plotly.graph_objs.Figure
-        The Plotly figure object for the scatter plot.
-    """
-
-    return call_plotting_function(
-        "trajectories",
-        backend,
-        x=x,
-        y=y,
-        trace_names=trace_names,
-        show=show,
-        **layout_kwargs,
-    )

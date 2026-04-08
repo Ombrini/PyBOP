@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from pybop.costs.log_likelihoods import GaussianLogLikelihood
-from pybop.plot.plotly.standard_plots import StandardSubplot
+from pybop.plot.standard_plots import StandardSubplot
 
 if TYPE_CHECKING:
     from pybop._result import Result
@@ -59,6 +59,7 @@ def parameters(result: "Result", show=True, **layout_kwargs):
         layout_options=layout_options,
         trace_names=trace_names,
         trace_name_width=50,
+        backend="plotly",
     )
 
     # Generate the figure and update the layout

@@ -128,6 +128,9 @@ def dataset(plotly_installed):
 
 @pytest.mark.unit
 def test_standard_plot(dataset, plotly_installed):
+    # Set plotting backend
+    pybop.plot.set_backend("plotly")
+
     # Check the StandardPlot class
     pybop.plot.StandardPlot(dataset["Time [s]"], dataset["Voltage [V]"])
 
@@ -167,6 +170,9 @@ def test_standard_plot(dataset, plotly_installed):
 
 @pytest.mark.unit
 def test_plot_dataset(dataset, plotly_installed):
+    # Set plotting backend
+    pybop.plot.set_backend("plotly")
+
     # Test plot of a dataset
     pybop.plot.dataset(dataset, signal=["Voltage [V]"])
     pybop.plot.dataset(dataset, signal=["Voltage [V]", "Current [A]"])
