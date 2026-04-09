@@ -158,6 +158,17 @@ class Plotter:
             y=y,
             **trace_options,
         )
+    
+    def create_fill_trace(self, x, y_upper, y_lower, **options):
+        return self.create_trace(
+                x=x + x[::-1],
+                y=y_upper + y_lower[::-1],
+                fill="toself",
+                line=dict(color="rgba(255,255,255,0)"),
+                hoverinfo="skip",
+                showlegend=False,
+                **options
+            )
 
 
 class SubplotPlotter(Plotter):

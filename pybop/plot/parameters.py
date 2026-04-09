@@ -2,12 +2,13 @@ from typing import TYPE_CHECKING
 
 from pybop.costs.log_likelihoods import GaussianLogLikelihood
 from pybop.plot.standard_plots import StandardSubplot
+from pybop.plot.util import get_default_options, update_and_show
 
 if TYPE_CHECKING:
     from pybop._result import Result
 
 
-def parameters(result: "Result", show=True, **layout_kwargs):
+def parameters(result: "Result", show=True, backend=None, **layout_kwargs):
     """
     Plot the evolution of parameters during the optimisation process using Plotly.
 
@@ -44,28 +45,21 @@ def parameters(result: "Result", show=True, **layout_kwargs):
         trace_names.append("Sigma")
 
     # Set subplot layout options
-    layout_options = dict(
-        title="Parameter Convergence",
-        width=1024,
-        height=576,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    )
+    plot_options = get_default_options('paramters', backend)
 
     # Create a plot dictionary
     plot_dict = StandardSubplot(
         x=x,
         y=y,
         axis_titles=axis_titles,
-        layout_options=layout_options,
         trace_names=trace_names,
         trace_name_width=50,
-        backend="plotly",
+        backend=backend,
+        **plot_options,
     )
 
     # Generate the figure and update the layout
     fig = plot_dict(show=False)
-    fig.update_layout(**layout_kwargs)
-    if show:
-        fig.show()
+    fig = update_and_show(fig, backend, **layout_kwargs)
 
     return fig

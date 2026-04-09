@@ -103,110 +103,11 @@ def convergence(result: "Result", show=True, backend=None, **layout_kwargs):
         "convergence", backend, result=result, show=show, **layout_kwargs
     )
 
-
-def dataset(
-    dataset, signal=None, trace_names=None, show=True, backend=None, **layout_kwargs
-):
-    """
-    Quickly plot a PyBOP Dataset using Plotly.
-
-    Parameters
-    ----------
-    dataset : object
-        A PyBOP dataset.
-    signal : list or str, optional
-        The name of the time series to plot (default: "Voltage [V]").
-    trace_names : list or str, optional
-        Name(s) for the trace(s) (default: "Data").
-    show : bool, optional
-        If True, the figure is shown upon creation (default: True).
-    **layout_kwargs : optional
-        Valid Plotly layout keys and their values,
-        e.g. `xaxis_title="Time / s"` or
-        `xaxis={"title": "Time [s]", font={"size":14}}`
-
-    Returns
-    -------
-    plotly.graph_objs.Figure
-        The Plotly figure object for the scatter plot.
-    """
-    call_plotting_function(
-        "dataset",
-        backend,
-        dataset=dataset,
-        signal=signal,
-        trace_names=trace_names,
-        show=show,
-        **layout_kwargs,
-    )
-
-
-def parameters(result: "Result", show=True, backend=None, **layout_kwargs):
-    """
-    Plot the evolution of parameters during the optimisation process using Plotly.
-
-    Parameters
-    ----------
-    result : pybop.Result
-        Optimisation result containing the history of parameter values and associated cost.
-    show : bool, optional
-        If True, the figure is shown upon creation (default: True).
-    **layout_kwargs : optional
-        Valid Plotly layout keys and their values,
-        e.g. `xaxis_title="Time [s]"` or
-        `xaxis={"title": "Time [s]", font={"size":14}}`
-
-    Returns
-    -------
-    plotly.graph_objs.Figure
-        A Plotly figure object showing the parameter evolution over iterations.
-    """
-    return call_plotting_function(
-        "parameters", backend, result=result, show=show, **layout_kwargs
-    )
-
-
 def posterior(result: "SamplingResult", show=True, backend=None, **kwargs):
     """
     Plot the summed posterior distribution across chains.
     """
     return call_plotting_function("posterior", backend, result=result, **kwargs)
-
-
-def problem(
-    problem: Problem,
-    inputs: Inputs = None,
-    show: bool = True,
-    backend=None,
-    **layout_kwargs,
-):
-    """
-    Produce a quick plot of the target dataset against optimised model output.
-
-    Generates an interactive plot comparing the simulated model output with
-    an optional target dataset and visualises uncertainty.
-
-    Parameters
-    ----------
-    problem : pybop.Problem
-        Problem object with dataset and targets attributes.
-    inputs : Inputs
-        Optimised (or example) parameter values.
-    show : bool, optional
-        If True, the figure is shown upon creation (default: True).
-    **layout_kwargs : optional
-            Valid Plotly layout keys and their values,
-            e.g. `xaxis_title="Time / s"` or
-            `xaxis={"title": "Time [s]", font={"size":14}}`
-
-    Returns
-    -------
-    plotly.graph_objs.Figure
-        The Plotly figure object for the scatter plot.
-    """
-    return call_plotting_function(
-        "problem", backend, problem=problem, inputs=inputs, show=show, **layout_kwargs
-    )
 
 
 def summary_table(result: "SamplingResult", backend=None):

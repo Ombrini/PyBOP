@@ -96,6 +96,9 @@ class StandardPlot:
 
     def create_trace(self, x, y, **trace_options):
         return self.plotter.create_trace(x, y, **trace_options)
+    
+    def create_fill_trace(self, x, y_upper, y_lower, **options):
+        return self.plotter.create_fill_trace(x, y_upper, y_lower, **options)
 
     @staticmethod
     def wrap_text(text, width, backend="matplotlib"):

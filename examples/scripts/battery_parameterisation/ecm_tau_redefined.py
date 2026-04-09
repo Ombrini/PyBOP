@@ -138,6 +138,7 @@ print("True parameters:", true_values)
 print("Identified parameters:", result.x.tolist() + [result.x[2] / result.x[1]])
 
 # Plot the timeseries output
+pybop.plot.problem(problem, inputs=result.best_inputs, title="Optimised Comparison", backend='plotly')
 pybop.plot.problem(problem, inputs=result.best_inputs, title="Optimised Comparison")
 
 # Plot the optimisation result

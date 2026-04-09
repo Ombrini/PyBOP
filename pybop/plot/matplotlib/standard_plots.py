@@ -34,9 +34,11 @@ class Plotter:
         self,
         trace_options=None,
         figsize=(8, 6),
+        title=None,
         **kwargs,
     ):
         self.backend = "matplotlib"
+        self.title = title
         # Warning if layout arguments ignored
         if len(kwargs) > 0:
             warnings.warn(
@@ -81,6 +83,9 @@ class Plotter:
                 **dict(loc="best", fontsize=12),
             )
 
+        if self.title is not None:
+            plt.suptitle(self.title)
+
         if show:
             plt.show()
         else:
@@ -116,7 +121,7 @@ class Plotter:
 
             self.traces.append(self.create_trace(xi, y[i], label, **trace_options))
 
-    def create_trace(self, x, y, label, ax=None, **trace_options):
+    def create_trace(self, x, y, label=None, ax=None, **trace_options):
         """
         Add line to plot.
 
@@ -129,17 +134,27 @@ class Plotter:
         trace = dict(x=x[:size], y=y[:size], label=label, ax=ax)
         trace.update(trace_options)
         return trace
+    
+    def create_fill_trace(self, x, y_upper, y_lower, **options):
+        trace = dict(x=x, y=y_upper, plot_type='fill', y_lower=y_lower)
+        trace.update(options)
+        return trace
 
-    def _plot_trace(self, x, y, label, ax=None, **trace_options):
+    def _plot_trace(self, x, y, label=None, ax=None, plot_type='plot', **trace_options):
         if ax is None:
             ax = plt.gca()
 
-        line = ax.plot(
-            x,
-            y,
-            label=label,
-            **trace_options,
-        )
+        if plot_type=='plot':
+            line = ax.plot(
+                x,
+                y,
+                label=label,
+                **trace_options,
+            )
+        elif plot_type=='fill':
+            line = ax.fill_between(x, y, **trace_options)
+        else:
+            raise ValueError('Plot type not recognised')
 
         if len(line) > 1:
             return line
@@ -223,6 +238,10 @@ class SubplotPlotter(Plotter):
                 bbox_to_anchor=(0.99, 0.95),
             )
         plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+        if self.title is not None:
+            plt.suptitle(self.title)
+            
         if show:
             plt.show()
 
