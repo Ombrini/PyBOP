@@ -2,7 +2,9 @@ from pybop.plot.standard_plots import StandardPlot, trajectories
 from pybop.plot.util import update_and_show
 
 
-def dataset(dataset, signal=None, trace_names=None, show=True, backend=None, **layout_kwargs):
+def dataset(
+    dataset, signal=None, trace_names=None, show=True, backend=None, **layout_kwargs
+):
     """
     Quickly plot a PyBOP Dataset using Plotly.
 
@@ -51,9 +53,9 @@ def dataset(dataset, signal=None, trace_names=None, show=True, backend=None, **l
         show=False,
         xaxis_title=StandardPlot.remove_brackets(dataset.domain),
         yaxis_title=yaxis_title,
-        backend = backend,
+        backend=backend,
     )
 
-    fig = update_and_show(fig, backend = backend,  show=show, **layout_kwargs)
+    fig = update_and_show(fig, backend=backend, show=show, **layout_kwargs)
 
     return fig

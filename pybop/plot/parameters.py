@@ -45,7 +45,7 @@ def parameters(result: "Result", show=True, backend=None, **layout_kwargs):
         trace_names.append("Sigma")
 
     # Set subplot layout options
-    plot_options = get_default_options('paramters', backend)
+    plot_options = get_default_options("paramters", backend)
 
     # Create a plot dictionary
     plot_dict = StandardSubplot(

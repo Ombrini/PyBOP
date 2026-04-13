@@ -3,7 +3,7 @@ import numpy as np
 from pybop.costs.design_cost import DesignCost
 from pybop.costs.error_measures import ErrorMeasure
 from pybop.parameters.parameter import Inputs
-from pybop.plot.matplotlib.standard_plots import StandardPlot
+from pybop.plot.standard_plots import StandardPlot
 from pybop.plot.util import get_default_options, update_and_show
 from pybop.problems.meta_problem import MetaProblem
 from pybop.problems.problem import Problem
@@ -15,7 +15,7 @@ def problem(
     inputs: Inputs = None,
     show: bool = True,
     title="Scatter Plot",
-    backend = None,
+    backend=None,
 ):
     """
     Produce a quick plot of the target dataset against optimised model output.
@@ -65,12 +65,12 @@ def problem(
         model_domain = target_domain[: len(model_output[target].data)]
 
     # Retrieve default layout options
-    plot_options = get_default_options('problem', backend)
-    trace_options = plot_options.get('default_trace_options') or {}
-    design_cost_options = plot_options.get('design_cost_options') or {}
-    meta_problem_options = plot_options.get('meta_problem_options') or {}
-    reference_options = plot_options.get('reference_options') or {}
-    fill_options = plot_options.get('fill_options') or {}
+    plot_options = get_default_options("problem", backend)
+    trace_options = plot_options.get("default_trace_options") or {}
+    design_cost_options = plot_options.get("design_cost_options") or {}
+    meta_problem_options = plot_options.get("meta_problem_options") or {}
+    reference_options = plot_options.get("reference_options") or {}
+    fill_options = plot_options.get("fill_options") or {}
 
     # Create a plot for each output
     figure_list = []
@@ -81,22 +81,21 @@ def problem(
         if isinstance(problem.cost, DesignCost):
             options.update(design_cost_options)
 
-        print(isinstance(problem, MetaProblem), isinstance(problem.cost, DesignCost), options)
-
         # Create a plot dictionary
-        plot_dict = StandardPlot(backend=backend)
+        plot_dict = StandardPlot(
+            title=title,
+            xaxis_title=StandardPlot.remove_brackets(domain),
+            yaxis_title=StandardPlot.remove_brackets(var),
+            backend=backend,
+        )
 
         model_trace = plot_dict.create_trace(
-            x=model_domain,
-            y=model_output[var].data,
-            **options
+            x=model_domain, y=model_output[var].data, **options
         )
         plot_dict.traces.append(model_trace)
 
-        target_trace =plot_dict.create_trace(
-            x=target_domain,
-            y=target_output[var].data,
-            **reference_options
+        target_trace = plot_dict.create_trace(
+            x=target_domain, y=target_output[var].data, **reference_options
         )
         plot_dict.traces.append(target_trace)
 
@@ -111,15 +110,16 @@ def problem(
             y_upper = (model_output[var].data + plot_dict.sigma).tolist()
             y_lower = (model_output[var].data - plot_dict.sigma).tolist()
 
-            fill_trace = plot_dict.create_fill_trace(x, y_upper, y_lower, **fill_options)
+            fill_trace = plot_dict.create_fill_trace(
+                x, y_upper, y_lower, **fill_options
+            )
+            plot_dict.traces.append(fill_trace)
+
+        # Reverse the order of the traces to put the model on top
         plot_dict.traces = plot_dict.traces[::-1]
+
         # Generate the figure and update the layout
         fig = plot_dict(show=False)
-        # plt.xlabel("Time / s")
-        # plt.ylabel(StandardPlot.remove_brackets(var))
-        # plt.title(title)
-        # plt.legend()
-        # plt.tight_layout()
         fig = update_and_show(fig, backend=backend)
 
         figure_list.append(fig)

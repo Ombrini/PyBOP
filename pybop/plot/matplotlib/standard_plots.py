@@ -35,6 +35,10 @@ class Plotter:
         trace_options=None,
         figsize=(8, 6),
         title=None,
+        xaxis_title=None,
+        yaxis_title=None,
+        grid=None,
+        axis_bg_color=None,
         **kwargs,
     ):
         self.backend = "matplotlib"
@@ -54,6 +58,19 @@ class Plotter:
             self.trace_options.update(trace_options)
 
         self.fig = plt.figure(figsize=figsize, dpi=100)
+        if title is not None:
+            plt.suptitle(self.title)
+        if xaxis_title is not None:
+            plt.xlabel(xaxis_title)
+        if yaxis_title is not None:
+            plt.ylabel(yaxis_title)
+        if grid is not None:
+            plt.grid(**grid)
+        if axis_bg_color is not None:
+            ax = plt.gca()
+            ax.set_facecolor(axis_bg_color)
+            ax.set_axisbelow(True)
+
         self.traces = []
 
     def __call__(self, show=True):
@@ -82,9 +99,6 @@ class Plotter:
             plt.legend(
                 **dict(loc="best", fontsize=12),
             )
-
-        if self.title is not None:
-            plt.suptitle(self.title)
 
         if show:
             plt.show()
@@ -121,7 +135,7 @@ class Plotter:
 
             self.traces.append(self.create_trace(xi, y[i], label, **trace_options))
 
-    def create_trace(self, x, y, label=None, ax=None, **trace_options):
+    def create_trace(self, x=None, y=None, label=None, ax=None, **trace_options):
         """
         Add line to plot.
 
@@ -130,36 +144,62 @@ class Plotter:
         plotly.graph_objs.Scatter
             A trace for a Plotly figure.
         """
-        size = min(len(x), len(y))
-        trace = dict(x=x[:size], y=y[:size], label=label, ax=ax)
+        if x is not None and y is not None:
+            size = min(len(x), len(y))
+            trace = dict(x=x[:size], y=y[:size], label=label, ax=ax)
+        elif y is not None:
+            trace = dict(y=y, label=label, ax=ax)
+
         trace.update(trace_options)
         return trace
-    
+
     def create_fill_trace(self, x, y_upper, y_lower, **options):
-        trace = dict(x=x, y=y_upper, plot_type='fill', y_lower=y_lower)
+        trace = dict(x=x, y=y_upper, plot_type="fill", y_lower=y_lower)
         trace.update(options)
         return trace
 
-    def _plot_trace(self, x, y, label=None, ax=None, plot_type='plot', **trace_options):
+    def create_histogram(self, x, name, **trace_options):
+        trace = dict(x=x, label=name, plot_type="hist")
+        trace.update(trace_options)
+        return trace
+
+    def create_vline(self, fig, x, **trace_options):
+        fig.gca()
+        plt.axvline(x, **trace_options)
+
+    def _plot_trace(
+        self, x=None, y=None, label=None, ax=None, plot_type="plot", **trace_options
+    ):
         if ax is None:
             ax = plt.gca()
 
-        if plot_type=='plot':
-            line = ax.plot(
-                x,
-                y,
-                label=label,
-                **trace_options,
-            )
-        elif plot_type=='fill':
-            line = ax.fill_between(x, y, **trace_options)
+        if plot_type == "plot":
+            if x is not None:
+                line = ax.plot(
+                    x,
+                    y,
+                    label=label,
+                    **trace_options,
+                )
+            else:
+                line = ax.plot(
+                    y,
+                    label=label,
+                    **trace_options,
+                )
+            if len(line) > 1:
+                return line
+            else:
+                return line[0]
+        elif plot_type == "fill":
+            y_upper = y
+            y_lower = trace_options["y_lower"]
+            del trace_options["y_lower"]
+            return ax.fill_between(x, y_upper, y_lower, **trace_options)
+        elif plot_type == "hist":
+            return ax.hist(x=x, label=label, **trace_options)
         else:
-            raise ValueError('Plot type not recognised')
-
-        if len(line) > 1:
-            return line
-        else:
-            return line[0]
+            raise ValueError("Plot type not recognised")
 
 
 class SubplotPlotter(Plotter):
@@ -241,7 +281,7 @@ class SubplotPlotter(Plotter):
 
         if self.title is not None:
             plt.suptitle(self.title)
-            
+
         if show:
             plt.show()
 
@@ -301,3 +341,27 @@ def trajectories(
         fig.show()
 
     return fig
+
+
+def show_table(header, values, title):
+    """
+    Display data in a table.
+    """
+    for i, val in enumerate(values):
+        values[i] = [val[0], ", ".join(val[1].astype(str))]
+
+    fig, ax = plt.subplots(figsize=(6, 2), dpi=100)
+
+    # hide axes
+    ax.axis("off")
+    ax.axis("tight")
+    ax.table(
+        cellText=values,
+        colLabels=header,
+        loc="center",
+        cellLoc="center",
+        colColours=["lightsteelblue", "lightsteelblue"],
+    )
+    ax.set_title(title)
+    fig.tight_layout()
+    plt.show()

@@ -11,6 +11,9 @@ class StandardPlot:
         self,
         x=None,
         y=None,
+        title=None,
+        xaxis_title=None,
+        yaxis_title=None,
         trace_options=None,
         trace_names=None,
         trace_name_width=20,
@@ -19,7 +22,13 @@ class StandardPlot:
     ):
 
         self.plotter = call_plotting_function(
-            "Plotter", backend, trace_options=trace_options, **kwargs
+            "Plotter",
+            backend,
+            title=title,
+            xaxis_title=xaxis_title,
+            yaxis_title=yaxis_title,
+            trace_options=trace_options,
+            **kwargs,
         )
 
         self.trace_name_width = trace_name_width
@@ -94,11 +103,17 @@ class StandardPlot:
             )
         return x, y
 
-    def create_trace(self, x, y, **trace_options):
-        return self.plotter.create_trace(x, y, **trace_options)
-    
+    def create_trace(self, x=None, y=None, label=None, **trace_options):
+        return self.plotter.create_trace(x, y, label, **trace_options)
+
     def create_fill_trace(self, x, y_upper, y_lower, **options):
         return self.plotter.create_fill_trace(x, y_upper, y_lower, **options)
+
+    def create_histogram(self, x, name, **trace_options):
+        return self.plotter.create_histogram(x, name, **trace_options)
+
+    def create_vline(self, fig, x, **trace_options):
+        return self.plotter.create_vline(fig, x, **trace_options)
 
     @staticmethod
     def wrap_text(text, width, backend="matplotlib"):

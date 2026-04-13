@@ -37,16 +37,16 @@ def call_plotting_function(function_name, backend, **kwargs):
 
 
 def update_and_show(fig, backend=None, **kwargs):
-    return call_plotting_function("update_and_show", backend, fig=fig,  **kwargs)
+    return call_plotting_function("update_and_show", backend, fig=fig, **kwargs)
 
 
 def get_default_options(plot_type, backend):
     if backend is None:
         backend = pybop.plot.backend
 
-    if backend == 'plotly':
+    if backend == "plotly":
         opts = pybop.plot.plotly.DEFAULT_PLOT_OPTIONS
-    elif backend == 'matplotlib':
+    elif backend == "matplotlib":
         opts = pybop.plot.matplotlib.DEFAULT_PLOT_OPTIONS
     else:
         opts = {}

@@ -4,18 +4,9 @@ import numpy as np
 
 if TYPE_CHECKING:
     from pybop._result import Result
-    from pybop.samplers.base_pints_sampler import SamplingResult
 
-from pybop.parameters.parameter import Inputs
 from pybop.plot.util import call_plotting_function
 from pybop.problems.problem import Problem
-
-
-def chains(result: "SamplingResult", show=True, backend=None, **kwargs):
-    """
-    Plot posterior distributions for each chain.
-    """
-    return call_plotting_function("chains", backend, result=result, **kwargs)
 
 
 def contour(
@@ -103,20 +94,6 @@ def convergence(result: "Result", show=True, backend=None, **layout_kwargs):
         "convergence", backend, result=result, show=show, **layout_kwargs
     )
 
-def posterior(result: "SamplingResult", show=True, backend=None, **kwargs):
-    """
-    Plot the summed posterior distribution across chains.
-    """
-    return call_plotting_function("posterior", backend, result=result, **kwargs)
-
-
-def summary_table(result: "SamplingResult", backend=None):
-    """
-    Display summary statistics in a table.
-    """
-
-    return call_plotting_function("summary_table", backend, result=result)
-
 
 def surface(
     result: "Result",
@@ -159,10 +136,3 @@ def surface(
         show=show,
         **layout_kwargs,
     )
-
-
-def trace(result: "SamplingResult", backend=None, **kwargs):
-    """
-    Plot trace plots for the posterior samples.
-    """
-    return call_plotting_function("trace", backend, result=result, **kwargs)

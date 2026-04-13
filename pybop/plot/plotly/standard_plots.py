@@ -1,5 +1,3 @@
-import warnings
-
 from pybop.plot import StandardPlot
 from pybop.plot.plotly.plotly_manager import PlotlyManager
 
@@ -62,20 +60,13 @@ class Plotter:
 
     def __init__(
         self,
+        title=None,
+        xaxis_title=None,
+        yaxis_title=None,
         layout=None,
         layout_options=None,
         trace_options=None,
-        **kwargs,
     ):
-        # Warning if layout arguments ignored
-        if len(kwargs) > 0:
-            warnings.warn(
-                "The following layout argument keys are ignored for the current plotting backend (plotly): \n"
-                f"{list(kwargs.keys())}",
-                UserWarning,
-                stacklevel=2,
-            )
-
         self.backend = "plotly"
 
         self.traces = []
@@ -98,6 +89,16 @@ class Plotter:
         # Create layout
         if self.layout is None:
             self.layout = self.go.Layout(**self.layout_options)
+
+        title_options = {}
+        if title is not None:
+            title_options.update({"title": title})
+        if title is not None:
+            title_options.update({"xaxis_title": xaxis_title})
+        if title is not None:
+            title_options.update({"yaxis_title": yaxis_title})
+
+        self.layout.update(**title_options)
 
     def __call__(self, show=True):
         """
@@ -143,7 +144,7 @@ class Plotter:
             trace = self.create_trace(xi, y[i], **trace_options)
             self.traces.append(trace)
 
-    def create_trace(self, x, y, **trace_options):
+    def create_trace(self, x=None, y=None, label=None, **trace_options):
         """
         Create a trace for the Plotly figure.
 
@@ -152,23 +153,36 @@ class Plotter:
         plotly.graph_objs.Scatter
             A trace for a Plotly figure.
         """
+        if label is not None:
+            trace_options.update({"name": label})
+        if x is not None and y is not None:
+            return self.go.Scatter(
+                x=x,
+                y=y,
+                **trace_options,
+            )
+        if x is None and y is not None:
+            return self.go.Scatter(
+                y=y,
+                **trace_options,
+            )
 
-        return self.go.Scatter(
-            x=x,
-            y=y,
-            **trace_options,
-        )
-    
     def create_fill_trace(self, x, y_upper, y_lower, **options):
         return self.create_trace(
-                x=x + x[::-1],
-                y=y_upper + y_lower[::-1],
-                fill="toself",
-                line=dict(color="rgba(255,255,255,0)"),
-                hoverinfo="skip",
-                showlegend=False,
-                **options
-            )
+            x=x + x[::-1],
+            y=y_upper + y_lower[::-1],
+            fill="toself",
+            line=dict(color="rgba(255,255,255,0)"),
+            hoverinfo="skip",
+            showlegend=False,
+            **options,
+        )
+
+    def create_histogram(self, x, name, **trace_options):
+        return self.go.Histogram(x=x, name=name, **trace_options)
+
+    def create_vline(self, fig, x, **trace_options):
+        fig.add_vline(x=x, **trace_options)
 
 
 class SubplotPlotter(Plotter):
@@ -294,3 +308,24 @@ def trajectories(x, y, trace_names=None, show=True, **layout_kwargs):
         fig.show()
 
     return fig
+
+
+def show_table(header, values, title):
+    """
+    Display data in a table.
+    """
+    # Import plotly only when needed
+    go = PlotlyManager().go
+    fig = go.Figure(
+        data=[
+            go.Table(
+                header=dict(values=header),
+                cells=dict(
+                    values=[[row[0] for row in values], [row[1] for row in values]]
+                ),
+            )
+        ]
+    )
+
+    fig.update_layout(title=title)
+    fig.show()
