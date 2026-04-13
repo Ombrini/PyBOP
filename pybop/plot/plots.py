@@ -70,31 +70,6 @@ def contour(
     )
 
 
-def convergence(result: "Result", show=True, backend=None, **layout_kwargs):
-    """
-    Plot the convergence of the optimisation algorithm.
-
-    Parameters
-    -----------
-    result : pybop.Result
-        Optimisation result containing the history of parameter values and associated cost.
-    show : bool, optional
-        If True, the figure is shown upon creation (default: True).
-    **layout_kwargs : optional
-        Valid Plotly layout keys and their values,
-        e.g. `xaxis_title="Time [s]"` or
-        `xaxis={"title": "Time [s]", font={"size":14}}`
-
-    Returns
-    ---------
-    fig : plotly.graph_objs.Figure
-        The Plotly figure object for the convergence plot.
-    """
-    return call_plotting_function(
-        "convergence", backend, result=result, show=show, **layout_kwargs
-    )
-
-
 def surface(
     result: "Result",
     bounds=None,

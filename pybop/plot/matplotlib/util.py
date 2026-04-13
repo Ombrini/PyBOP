@@ -19,6 +19,42 @@ def update_and_show(fig, show=True, **layout_kwargs):
 
 
 DEFAULT_PLOT_OPTIONS = {
+    "contour": {
+        "plot_options": dict(title="Cost Landscape"),
+        "trace_options_contour": dict(extend="both", cmap="viridis"),
+        "trace_options_initial": dict(
+            marker="X",
+            markersize=14,
+            markerfacecolor="w",
+            markeredgecolor="k",
+            label="Initial values",
+            linestyle="None",
+        ),
+        "trace_options_optim": dict(
+            marker="P",
+            markersize=14,
+            markerfacecolor="k",
+            markeredgecolor="w",
+            label="Final values",
+            linestyle="None",
+        ),
+    },
+    "nyquist": {
+        "plot_options": dict(
+            xaxis_title=r"$Z_{re} / \Omega$", yaxis_title=r"$-Z_{im} / \Omega$"
+        ),
+        "trace_options_model": dict(
+            label="Model", color="#00CC96", linewidth=2, marker=".", markersize=8
+        ),
+        "trace_options_reference": dict(
+            label="Reference",
+            linestyle="none",
+            marker="o",
+            fillstyle="none",
+            markersize=8,
+            markeredgecolor="#636EFA",
+        ),
+    },
     "parameters": dict(figsize=(18, 8), title="Parameter Convergence"),
     "problem": {
         "default_trace_options": dict(label="Model", marker=None, linestyle="-"),

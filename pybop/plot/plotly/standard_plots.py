@@ -63,6 +63,8 @@ class Plotter:
         title=None,
         xaxis_title=None,
         yaxis_title=None,
+        xaxis_range=None,
+        yaxis_range=None,
         layout=None,
         layout_options=None,
         trace_options=None,
@@ -77,6 +79,16 @@ class Plotter:
             self.layout_options = DEFAULT_LAYOUT_OPTIONS.copy()
             if layout_options:
                 self.layout_options.update(layout_options)
+            if title is not None:
+                self.layout_options.update({"title": title})
+            if xaxis_title is not None:
+                self.layout_options.update({"xaxis_title": xaxis_title})
+            if yaxis_title is not None:
+                self.layout_options.update({"yaxis_title": yaxis_title})
+            if xaxis_range is not None:
+                self.layout_options["xaxis"].update({"range": xaxis_range})
+            if yaxis_range is not None:
+                self.layout_options["yaxis"].update({"range": yaxis_range})
 
         # Set default trace options and update if provided
         self.trace_options = DEFAULT_TRACE_OPTIONS.copy()
@@ -89,16 +101,6 @@ class Plotter:
         # Create layout
         if self.layout is None:
             self.layout = self.go.Layout(**self.layout_options)
-
-        title_options = {}
-        if title is not None:
-            title_options.update({"title": title})
-        if title is not None:
-            title_options.update({"xaxis_title": xaxis_title})
-        if title is not None:
-            title_options.update({"yaxis_title": yaxis_title})
-
-        self.layout.update(**title_options)
 
     def __call__(self, show=True):
         """
@@ -184,6 +186,9 @@ class Plotter:
     def create_vline(self, fig, x, **trace_options):
         fig.add_vline(x=x, **trace_options)
 
+    def create_contour(self, x, y, z, **trace_options):
+        self.traces.append(self.go.Contour(x=x, y=y, z=z, **trace_options))
+
 
 class SubplotPlotter(Plotter):
     """
@@ -223,9 +228,10 @@ class SubplotPlotter(Plotter):
         layout_options=DEFAULT_LAYOUT_OPTIONS,
         subplot_options=DEFAULT_SUBPLOT_OPTIONS,
         trace_options=DEFAULT_SUBPLOT_TRACE_OPTIONS,
-        **kwargs,
     ):
-        super().__init__(layout, layout_options, trace_options, **kwargs)
+        super().__init__(
+            layout, layout_options=layout_options, trace_options=trace_options
+        )
         self.subplot_options = subplot_options.copy()
         if subplot_options is not None:
             for arg, value in subplot_options.items():
@@ -329,3 +335,20 @@ def show_table(header, values, title):
 
     fig.update_layout(title=title)
     fig.show()
+
+
+def plot_optimisation_path(plot_dict: StandardPlot, x, y):
+    plot_dict.traces.append(
+        plot_dict.create_trace(
+            x,
+            y,
+            mode="markers",
+            marker=dict(
+                color=[i / len(x) for i in range(len(x))],
+                colorscale="Greys",
+                size=8,
+                showscale=False,
+            ),
+            showlegend=False,
+        )
+    )

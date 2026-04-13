@@ -115,6 +115,9 @@ class StandardPlot:
     def create_vline(self, fig, x, **trace_options):
         return self.plotter.create_vline(fig, x, **trace_options)
 
+    def create_contour(self, x, y, z, **trace_options):
+        return self.plotter.create_contour(x, y, z, **trace_options)
+
     @staticmethod
     def wrap_text(text, width, backend="matplotlib"):
         """

@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pybop.plot.plotly.plotly_manager import PlotlyManager
+from pybop.plot.standard_plots import StandardPlot
+from pybop.plot.util import call_plotting_function, get_default_options, update_and_show
 from pybop.problems.problem import Problem
 
 if TYPE_CHECKING:
@@ -18,7 +19,7 @@ def contour(
     transformed: bool = False,
     steps: int = 10,
     show: bool = True,
-    **layout_kwargs,
+    backend=None,
 ):
     """
     Plot a 2D visualisation of a cost landscape using Plotly.
@@ -143,121 +144,80 @@ def contour(
     bounds[0] = transform_array_of_values(bounds[0], parameters[names[0]])
     bounds[1] = transform_array_of_values(bounds[1], parameters[names[1]])
 
-    # Import plotly only when needed
-    go = PlotlyManager().go
-
-    # Set default layout properties
-    layout_options = dict(
-        title="Cost Landscape",
-        title_x=0.5,
-        title_y=0.905,
-        width=600,
-        height=600,
-        xaxis=dict(range=bounds[0], showexponent="last", exponentformat="e"),
-        yaxis=dict(range=bounds[1], showexponent="last", exponentformat="e"),
-        legend=dict(orientation="h", yanchor="bottom", y=1, xanchor="right", x=1),
-    )
-    layout_options["xaxis_title"] = (
-        "Transformed " + names[0] if transformed else names[0]
-    )
-    layout_options["yaxis_title"] = (
-        "Transformed " + names[1] if transformed else names[1]
-    )
-    layout = go.Layout(layout_options)
+    # Get options
+    options = get_default_options("contour", backend)
+    plot_options = options.get("plot_options") or {}
+    trace_options_initial = options.get("trace_options_initial") or {}
+    trace_options_optim = options.get("trace_options_optim") or {}
+    trace_options_contour = options.get("trace_options_contour") or {}
+    
+    plot_dict = StandardPlot(
+            xaxis_title="Transformed " + names[0] if transformed else names[0],
+            yaxis_title="Transformed " + names[1] if transformed else names[1],
+            xaxis_range=bounds[0],
+            yaxis_range=bounds[1],
+            backend=backend,
+            **plot_options
+        )
 
     # Create contour plot and update the layout
-    fig = go.Figure(
-        data=[go.Contour(x=x, y=y, z=costs, colorscale="Viridis", connectgaps=True)],
-        layout=layout,
-    )
+    plot_dict.create_contour(x=x, y=y, z=costs, **trace_options_contour)
 
     if plot_optim:
         # Plot the optimisation trace
         optim_trace = np.asarray([item[:2] for item in result.x_model])
         optim_trace = optim_trace.reshape(-1, 2)
-
-        fig.add_trace(
-            go.Scatter(
-                x=transform_array_of_values(optim_trace[:, 0], parameters[names[0]]),
-                y=transform_array_of_values(optim_trace[:, 1], parameters[names[1]]),
-                mode="markers",
-                marker=dict(
-                    color=[i / len(optim_trace) for i in range(len(optim_trace))],
-                    colorscale="Greys",
-                    size=8,
-                    showscale=False,
-                ),
-                showlegend=False,
-            )
+        call_plotting_function('plot_optimisation_path', backend=backend, 
+            plot_dict=plot_dict,
+            x=transform_array_of_values(optim_trace[:, 0], parameters[names[0]]),
+            y=transform_array_of_values(optim_trace[:, 1], parameters[names[1]]),
         )
 
         # Plot the initial guess
         if len(result.x_model) > 0:
             x0 = result.x_model[0]
-            fig.add_trace(
-                go.Scatter(
-                    x=transform_array_of_values([x0[0]], parameters[names[0]]),
-                    y=transform_array_of_values([x0[1]], parameters[names[1]]),
-                    mode="markers",
-                    marker_symbol="x",
-                    marker=dict(
-                        color="white",
-                        line_color="black",
-                        line_width=1,
-                        size=14,
-                        showscale=False,
-                    ),
-                    name="Initial values",
-                )
-            )
+            plot_dict.traces.append(plot_dict.create_trace(
+                x=transform_array_of_values([x0[0]], parameters[names[0]]),
+                y=transform_array_of_values([x0[1]], parameters[names[1]]),
+                **trace_options_initial
+            ))
 
         # Plot optimised value
         if result.x is not None:
             x_best = result.x
-            fig.add_trace(
-                go.Scatter(
-                    x=transform_array_of_values([x_best[0]], parameters[names[0]]),
-                    y=transform_array_of_values([x_best[1]], parameters[names[1]]),
-                    mode="markers",
-                    marker_symbol="cross",
-                    marker=dict(
-                        color="black",
-                        line_color="white",
-                        line_width=1,
-                        size=14,
-                        showscale=False,
-                    ),
-                    name="Final values",
-                )
-            )
+            plot_dict.traces.append(plot_dict.create_trace(
+                x=transform_array_of_values([x_best[0]], parameters[names[0]]),
+                y=transform_array_of_values([x_best[1]], parameters[names[1]]),
+                **trace_options_optim
+            ))
 
     # Update the layout and display the figure
-    fig.update_layout(**layout_kwargs)
+    fig = plot_dict(show=False)
     if show:
-        fig.show()
+        update_and_show(fig)
 
-    if gradient:
-        grad_figs = []
-        for i, grad_costs in enumerate(grad_parameter_costs):
-            # Update title for gradient plots
-            updated_layout_options = layout_options.copy()
-            updated_layout_options["title"] = f"Gradient for Parameter: {i + 1}"
+    # if gradient:
+    #     grad_figs = []
+    #     for i, grad_costs in enumerate(grad_parameter_costs):
+    #         # Update title for gradient plots
+    #         updated_layout_options = layout_options.copy()
+    #         updated_layout_options["title"] = f"Gradient for Parameter: {i + 1}"
 
-            # Create contour plot with updated layout options
-            grad_layout = go.Layout(updated_layout_options)
+    #         # Create contour plot with updated layout options
+    #         grad_layout = go.Layout(updated_layout_options)
 
-            # Create fig
-            grad_fig = go.Figure(
-                data=[go.Contour(x=x, y=y, z=grad_costs)], layout=grad_layout
-            )
-            grad_fig.update_layout(**layout_kwargs)
+    #         # Create fig
+    #         grad_fig = go.Figure(
+    #             data=[go.Contour(x=x, y=y, z=grad_costs)], layout=grad_layout
+    #         )
+    #         grad_fig.update_layout(**layout_kwargs)
 
-            if show:
-                grad_fig.show()
+    #         if show:
+    #             grad_fig.show()
 
-            # append grad_fig to list
-            grad_figs.append(grad_fig)
+    #         # append grad_fig to list
+    #         grad_figs.append(grad_fig)
 
-        return fig, grad_figs
+    #     return fig, grad_figs
 
     return fig

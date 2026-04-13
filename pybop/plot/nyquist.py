@@ -1,9 +1,11 @@
 from pybop.parameters.parameter import Inputs
 from pybop.plot.standard_plots import StandardPlot
-from pybop.plot.util import call_plotting_function
+from pybop.plot.util import get_default_options, update_and_show
 
 
-def nyquist(problem, inputs: Inputs = None, show=True, backend=None, **layout_kwargs):
+def nyquist(
+    problem, inputs: Inputs = None, show=True, title="Nyquist Plot", backend=None
+):
     """
     Generates Nyquist plots for the given problem by evaluating the model's output and target values.
 
@@ -40,14 +42,11 @@ def nyquist(problem, inputs: Inputs = None, show=True, backend=None, **layout_kw
     >>> nyquist_figures = nyquist(problem, show=True, title="Nyquist Plot", xaxis_title="Real(Z)", yaxis_title="Imag(Z)")
     >>> # The plots will be displayed and nyquist_figures will contain the list of figure objects.
     """
-    return call_plotting_function(
-        "nyquist", backend, problem=problem, inputs=inputs, show=show, **layout_kwargs
-    )
 
-
-def _nyquist(
-    problem, trace_options_model: dict, trace_options_reference, inputs: Inputs = None
-):
+    options = get_default_options("nyquist", backend)
+    plot_options = options.get("plot_options") or {}
+    trace_options_model = options.get("trace_options_model") or {}
+    trace_options_reference = options.get("trace_options_reference") or {}
 
     if not isinstance(inputs, dict):
         inputs = problem.parameters.to_dict(inputs)
@@ -61,6 +60,8 @@ def _nyquist(
             x=domain_data,
             y=-model_output[var].data.imag,
             trace_names="Model",
+            title=title,
+            **plot_options,
         )
 
         plot_dict.traces[0].update(trace_options_model)
@@ -74,5 +75,8 @@ def _nyquist(
 
         fig = plot_dict(show=False)
         figure_list.append(fig)
+
+    if show:
+        update_and_show(figure_list)
 
     return figure_list

@@ -37,6 +37,8 @@ class Plotter:
         title=None,
         xaxis_title=None,
         yaxis_title=None,
+        xaxis_range=None,
+        yaxis_range=None,
         grid=None,
         axis_bg_color=None,
         **kwargs,
@@ -70,7 +72,10 @@ class Plotter:
             ax = plt.gca()
             ax.set_facecolor(axis_bg_color)
             ax.set_axisbelow(True)
-
+        if xaxis_range is not None:
+            plt.xlim(xaxis_range)
+        if yaxis_range is not None:
+            plt.ylim(yaxis_range)
         self.traces = []
 
     def __call__(self, show=True):
@@ -146,20 +151,20 @@ class Plotter:
         """
         if x is not None and y is not None:
             size = min(len(x), len(y))
-            trace = dict(x=x[:size], y=y[:size], label=label, ax=ax)
+            trace = dict(positional_args=[x[:size], y[:size]], label=label, ax=ax)
         elif y is not None:
-            trace = dict(y=y, label=label, ax=ax)
+            trace = dict(positional_args=[y], label=label, ax=ax)
 
         trace.update(trace_options)
         return trace
 
     def create_fill_trace(self, x, y_upper, y_lower, **options):
-        trace = dict(x=x, y=y_upper, plot_type="fill", y_lower=y_lower)
+        trace = dict(positional_args=(x, y_upper, y_lower), plot_type="fill_between")
         trace.update(options)
         return trace
 
     def create_histogram(self, x, name, **trace_options):
-        trace = dict(x=x, label=name, plot_type="hist")
+        trace = dict(positional_args=[x], label=name, plot_type="hist")
         trace.update(trace_options)
         return trace
 
@@ -167,39 +172,42 @@ class Plotter:
         fig.gca()
         plt.axvline(x, **trace_options)
 
+    def create_contour(self, x, y, z, **trace_options):
+        contour = dict(positional_args=[x, y, z], plot_type="contourf")
+        contour.update(**trace_options)
+        self.traces.append(contour)
+        self.traces.append(
+            dict(
+                positional_args=[x, y, z],
+                colors=("k"),
+                linestyles="solid",
+                linewidths=0.2,
+                plot_type="contour",
+            )
+        )
+
+    def create_scatter(self, x, y, **trace_options):
+        scatter = dict(positional_args=[x, y], plot_type="scatter")
+        scatter.update(**trace_options)
+        self.traces.append(scatter)
+
     def _plot_trace(
-        self, x=None, y=None, label=None, ax=None, plot_type="plot", **trace_options
+        self, ax=None, plot_type="plot", positional_args=None, **trace_options
     ):
+        if positional_args is None:
+            positional_args = []
         if ax is None:
             ax = plt.gca()
+        try:
+            plot_function = getattr(ax, plot_type)
+        except ValueError:
+            print("Plot type not recognised")
 
-        if plot_type == "plot":
-            if x is not None:
-                line = ax.plot(
-                    x,
-                    y,
-                    label=label,
-                    **trace_options,
-                )
-            else:
-                line = ax.plot(
-                    y,
-                    label=label,
-                    **trace_options,
-                )
-            if len(line) > 1:
-                return line
-            else:
-                return line[0]
-        elif plot_type == "fill":
-            y_upper = y
-            y_lower = trace_options["y_lower"]
-            del trace_options["y_lower"]
-            return ax.fill_between(x, y_upper, y_lower, **trace_options)
-        elif plot_type == "hist":
-            return ax.hist(x=x, label=label, **trace_options)
-        else:
-            raise ValueError("Plot type not recognised")
+        obj = plot_function(*positional_args, **trace_options)
+        if plot_type == "contourf":
+            plt.colorbar(obj)
+
+        return obj
 
 
 class SubplotPlotter(Plotter):
@@ -365,3 +373,13 @@ def show_table(header, values, title):
     ax.set_title(title)
     fig.tight_layout()
     plt.show()
+
+
+def plot_optimisation_path(plot_dict: StandardPlot, x, y):
+    plot_dict.plotter.create_scatter(
+        x,
+        y,
+        c=[i / len(x) for i in range(len(x))],
+        cmap="Grays",
+        zorder=1,
+    )

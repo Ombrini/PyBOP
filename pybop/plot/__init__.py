@@ -8,12 +8,12 @@ from .util import set_backend, call_plotting_function, get_default_options
 # Import plots
 #
 from .plots import (
-    contour,
-    convergence,
     surface
     )
 
 from .standard_plots import StandardPlot, StandardSubplot, trajectories
+from .contour import contour
+from .convergence import convergence
 from .dataset import dataset
 from .nyquist import nyquist
 from .parameters import parameters
