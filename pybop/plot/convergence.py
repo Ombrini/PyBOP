@@ -42,7 +42,7 @@ def convergence(result: "Result", show=True, backend=None):
         yaxis_title="Cost",
         title="Convergence",
         trace_names=result.method_name,
-        backend=backend
+        backend=backend,
     )
 
     # Generate and display the figure
