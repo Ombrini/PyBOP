@@ -1,4 +1,3 @@
-import numpy as np
 import pybamm
 
 import pybop
@@ -33,12 +32,10 @@ dataset = pybop.Dataset(
 parameter_values.update(
     {
         "Negative electrode active material volume fraction": pybop.Parameter(
-            distribution=pybop.LogNormal(np.log(0.68), 0.02),
-            transformation=pybop.LogTransformation(),
+            distribution=pybop.Gaussian(0.68, 0.02)
         ),
         "Positive electrode active material volume fraction": pybop.Parameter(
-            distribution=pybop.LogNormal(np.log(0.65), 0.02),
-            transformation=pybop.LogTransformation(),
+            distribution=pybop.Gaussian(0.65, 0.02)
         ),
     }
 )
@@ -72,3 +69,5 @@ result.plot_posterior()
 result.plot_chains()
 result.effective_sample_size()
 print(f"rhat: {result.rhat()}")
+
+result.plot_predictive()
