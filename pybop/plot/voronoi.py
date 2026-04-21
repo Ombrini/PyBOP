@@ -3,8 +3,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.spatial import Voronoi
 
+from pybop.plot.util import get_default_options, import_backend
+
 if TYPE_CHECKING:
-    pass
+    from pybop._result import Result
 
 
 def _voronoi_regions(x, y, f, xlim, ylim):
@@ -194,7 +196,49 @@ def interpolate_point(p, q, axis, boundary_val):
     return np.array([boundary_val, s]) if axis == 0 else np.array([s, boundary_val])
 
 
-def voronoi_data(xlim, ylim, pts_x, pts_y, f, normalise=True):
+def surface(
+    result: "Result",
+    bounds=None,
+    normalise=True,
+    title="Voronoi Cost Landscape",
+    show=True,
+    backend=None,
+    **layout_kwargs,
+):
+    """
+    Plot a 2D representation of the Voronoi diagram with color-coded regions.
+
+    Parameters:
+    -----------
+    result : pybop.Result
+        Optimisation result containing the history of parameter values and associated cost.
+    bounds : numpy.ndarray, optional
+        A 2x2 array specifying the [min, max] bounds for each parameter. If None, uses
+        `cost.parameters.get_bounds_for_plotly`.
+    normalise : bool, optional
+        If True, the voronoi regions are computed using the Euclidean distance between
+        points normalised with respect to the bounds (default: True).
+    show : bool, optional
+        If True, the figure is shown upon creation (default: True).
+    **layout_kwargs : optional
+        Valid Plotly layout keys and their values,
+        e.g. `xaxis_title="Time [s]"` or
+        `xaxis={"title": "Time [s]", font={"size":14}}`
+    """
+    backend = import_backend(backend)
+    points = result.x_model
+    parameters = result.problem.parameters
+
+    if points[0].shape[0] != 2:
+        raise ValueError("This plot method requires two parameters.")
+
+    x_optim, y_optim = map(list, zip(*points, strict=False))
+    f = result.cost
+
+    # Translate bounds, taking only the first two elements
+    xlim, ylim = (
+        bounds if bounds is not None else [param.bounds for param in parameters]
+    )[:2]
 
     if normalise:
         if xlim[1] <= xlim[0] or ylim[1] <= ylim[0]:
@@ -203,11 +247,11 @@ def voronoi_data(xlim, ylim, pts_x, pts_y, f, normalise=True):
         # Normalise the region
         x_range = xlim[1] - xlim[0]
         y_range = ylim[1] - ylim[0]
-        norm_x_optim = (np.asarray(pts_x) - xlim[0]) / x_range
-        norm_y_optim = (np.asarray(pts_y) - ylim[0]) / y_range
+        norm_x_optim = (np.asarray(x_optim) - xlim[0]) / x_range
+        norm_y_optim = (np.asarray(y_optim) - ylim[0]) / y_range
 
         # Compute regions
-        x, y, f, norm_regions = _voronoi_regions(
+        norm_x, norm_y, f, norm_regions = _voronoi_regions(
             norm_x_optim, norm_y_optim, f, (0, 1), (0, 1)
         )
 
@@ -221,12 +265,73 @@ def voronoi_data(xlim, ylim, pts_x, pts_y, f, normalise=True):
 
     else:
         # Compute regions
-        x, y, f, regions = _voronoi_regions(pts_x, pts_y, f, xlim, ylim)
+        x, y, f, regions = _voronoi_regions(x_optim, y_optim, f, xlim, ylim)
 
-    # Calculate the size of each Voronoi region
-    region_sizes = np.array([len(region) for region in regions])
-    relative_sizes = (region_sizes - region_sizes.min()) / (
-        region_sizes.max() - region_sizes.min()
+    # Get plotting options
+    opts = get_default_options("voronoi", backend.name)
+    outline_opts = opts.get("outline_opts") or {}
+    layout_options = opts.get("layout_options") or {}
+    optimised_opts = opts.get("optimised_opts") or {}
+    inital_opts = opts.get("initial_opts") or {}
+    scatter_opts = opts.get("scatter_opts") or {}
+    layout_options.update(layout_kwargs)
+    names = parameters.names
+    layout_options.update(
+        {
+            "title": title,
+            "xaxis_range": xlim,
+            "yaxis_range": ylim,
+            "xaxis_title": names[0],
+            "yaxis_title": names[1],
+        }
     )
 
-    return x, y, f, regions, relative_sizes
+    # Construct figure
+    fig = backend.create_figure([])
+
+    # Add Voronoi edges and fill Voronoi regions
+    print(f)
+    colors = backend.sample_color_scale(f)
+    for j, region in enumerate(regions):
+        x_region = region[:, 0].tolist() + [region[0, 0]]
+        y_region = region[:, 1].tolist() + [region[0, 1]]
+
+        backend.plot_trace(
+            backend.fill_plot(
+                x_region, y_region, color=colors[j], label=f"f={f[j]:.2f}"
+            ),
+            fig,
+        )
+
+        backend.plot_trace(backend.line_plot(x_region, y_region, **outline_opts), fig)
+
+    backend.colorbar(fig, f)
+
+    # Add original points
+    backend.plot_trace(
+        backend.scatter_plot(
+            x=x_optim,
+            y=y_optim,
+            colors=[i / len(x_optim) for i in range(len(x_optim))],
+            labels=[f"f={val:.2f}" for val in f],
+            **scatter_opts,
+        ),
+        fig,
+    )
+
+    # Plot the initial guess
+    if len(result.x_model) > 0:
+        x0 = result.x_model[0]
+        backend.plot_trace(backend.line_plot(x=[x0[0]], y=[x0[1]], **inital_opts), fig)
+
+        # Plot optimised value
+        if result.x is not None:
+            x_best = result.x
+            backend.plot_trace(
+                backend.line_plot(x=[x_best[0]], y=[x_best[1]], **optimised_opts), fig
+            )
+
+    backend.update_layout(fig, **layout_options)
+
+    if show:
+        backend.update_and_show(fig)

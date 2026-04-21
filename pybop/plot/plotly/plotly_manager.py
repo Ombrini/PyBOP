@@ -43,12 +43,14 @@ class PlotlyManager:
         Check if Plotly is installed and import necessary modules; prompt for installation if missing.
         """
         try:
+            import plotly.express as px
             import plotly.graph_objs as go
             import plotly.io as pio
             from plotly.subplots import make_subplots
 
             self.go = go
             self.pio = pio
+            self.px = px
             self.make_subplots = make_subplots
         except ImportError:
             self.prompt_for_plotly_installation()

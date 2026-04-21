@@ -122,7 +122,7 @@ class StandardPlot:
         return self.backend.line_plot(x=x, y=y, label=label, **trace_options)
 
     def create_fill_trace(self, x, y_upper, y_lower, **options):
-        return self.backend.fill_plot(x, y_upper, y_lower, **options)
+        return self.backend.fill_between_plot(x, y_upper, y_lower, **options)
 
     def create_histogram(self, x, name, **trace_options):
         return self.backend.histogram_plot(x, name, **trace_options)

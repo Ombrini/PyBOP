@@ -1,6 +1,8 @@
 import warnings
 from copy import deepcopy
 
+import matplotlib as mpl
+import numpy as np
 from matplotlib import pyplot as plt
 
 from pybop.plot import StandardPlot
@@ -43,7 +45,7 @@ def plot_trace(trace: dict, fig, ax=None, color_cycle=None):
 
     # retrieve remaining arguments
     trace_options = deepcopy(trace)
-    for key in ["plot_type", "ax", "positional_args", "xaxis_title", "yaxis_title"]:
+    for key in ["plot_type", "positional_args", "xaxis_title", "yaxis_title"]:
         if key in trace_options.keys():
             del trace_options[key]
 
@@ -64,15 +66,27 @@ def plot_trace(trace: dict, fig, ax=None, color_cycle=None):
     return obj
 
 
-def line_plot(x=None, y=None, label=None, ax=None, **kwargs):
+def line_plot(x=None, y=None, label=None, **kwargs):
     if x is not None and y is not None:
         size = min(len(x), len(y))
-        trace = dict(positional_args=[x[:size], y[:size]], label=label, ax=ax)
+        trace = dict(positional_args=[x[:size], y[:size]], label=label)
     elif y is not None:
-        trace = dict(positional_args=[y], label=label, ax=ax)
+        trace = dict(positional_args=[y], label=label)
 
     trace.update(kwargs)
     return trace
+
+
+def colorbar(fig, data, colorscale="viridis"):
+    # normalise cost
+    f_min = np.nanmin(data[np.isfinite(data)])
+    f_max = np.nanmax(data[np.isfinite(data)])
+    norm = mpl.colors.Normalize(vmin=f_min, vmax=f_max, clip=True)
+
+    # get colours
+    cmap = mpl.colormaps["viridis"]
+
+    plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=fig.gca())
 
 
 def contour_plot(x, y, z, **kwargs):
@@ -88,16 +102,22 @@ def contour_plot(x, y, z, **kwargs):
     return contour, contour_lines
 
 
-def scatter_plot(x, y, **trace_options):
+def scatter_plot(x, y, colors=None, labels=None, **trace_options):
     scatter = dict(positional_args=[x, y], plot_type="scatter")
     scatter.update(**trace_options)
+    if colors is not None:
+        scatter["c"] = colors
     return scatter
 
 
-def fill_plot(x, y_upper, y_lower, **options):
+def fill_between_plot(x, y_upper, y_lower, **options):
     trace = dict(positional_args=(x, y_upper, y_lower), plot_type="fill_between")
     trace.update(options)
     return trace
+
+
+def fill_plot(x, y, color=None, label=None):
+    return dict(positional_args=(x, y), plot_type="fill", color=color)
 
 
 def histogram_plot(x, name, **trace_options):
@@ -109,6 +129,18 @@ def histogram_plot(x, name, **trace_options):
 def add_vline(fig, x, **trace_options):
     fig.gca()
     plt.axvline(x, **trace_options)
+
+
+def sample_color_scale(data, scale="viridis"):
+    # normalise and clip data
+    d_min = np.nanmin(data[np.isfinite(data)])
+    d_max = np.nanmax(data[np.isfinite(data)])
+    norm = mpl.colors.Normalize(vmin=d_min, vmax=d_max, clip=True)
+    norm_d = norm(data, clip=True)
+
+    # get colours
+    cmap = mpl.colormaps[scale]
+    return cmap(norm_d)
 
 
 def show_table(header, values, title):

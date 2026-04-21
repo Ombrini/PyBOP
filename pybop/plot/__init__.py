@@ -7,18 +7,17 @@ from .util import set_backend, get_default_options, import_backend, _AxisData
 #
 # Import plots
 #
-from .plots import (
-    surface
-    )
-
 from .standard_plots import StandardPlot, StandardSubplot, trajectories
 from .contour import contour
-from .convergence import convergence
 from .dataset import dataset
-from .nyquist import nyquist
+from .convergence import convergence
 from .parameters import parameters
 from .problem import problem
-from .samples import chains, posterior, summary_table, trace
-from .voronoi import voronoi_data, _voronoi_regions
+from .nyquist import nyquist
+from .voronoi import surface
+from .samples import trace, chains, posterior, summary_table
+
+
+# Import backend specific plotting functions
 from . import matplotlib
 from . import plotly

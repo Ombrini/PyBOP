@@ -1,7 +1,20 @@
 from copy import deepcopy
 
+import numpy as np
+
 from pybop.plot import StandardPlot
 from pybop.plot.plotly.plotly_manager import PlotlyManager
+
+
+def sample_color_scale(data, scale="viridis"):
+    px = PlotlyManager().px
+    # normalise and clip data
+    d_min = np.nanmin(data[np.isfinite(data)])
+    d_max = np.nanmax(data[np.isfinite(data)])
+
+    d = (data - d_min) / (d_max - d_min)
+    d = np.clip(np.asarray(data), 0, 1.0)
+    return px.colors.sample_colorscale("viridis", list(d))
 
 
 def plot_trace(trace, fig, ax=None):
@@ -50,7 +63,29 @@ def contour_plot(x, y, z, **kwargs):
     return go.Contour(x=x, y=y, z=z, **kwargs)
 
 
-def fill_plot(x, y_upper, y_lower, **options):
+def colorbar(fig, data, colorscale="viridis"):
+    go = PlotlyManager().go
+    d_min = np.nanmin(data[np.isfinite(data)])
+    d_max = np.nanmax(data[np.isfinite(data)])
+    fig.add_trace(
+        go.Scatter(
+            x=[None],
+            y=[None],
+            mode="markers",
+            marker=dict(
+                colorscale=colorscale,
+                showscale=True,
+                cmin=d_min,
+                cmax=d_max,
+                colorbar=dict(thickness=25, outlinewidth=0),
+            ),
+            showlegend=False,
+            hoverinfo="none",
+        )
+    )
+
+
+def fill_between_plot(x, y_upper, y_lower, **options):
     return line_plot(
         x=x + x[::-1],
         y=y_upper + y_lower[::-1],
@@ -62,6 +97,16 @@ def fill_plot(x, y_upper, y_lower, **options):
     )
 
 
+def fill_plot(x, y, color=None, label=None):
+    opts = {}
+    if color is not None:
+        opts["fillcolor"] = color
+    if label is not None:
+        opts["name"] = label
+    go = PlotlyManager().go
+    return go.Scatter(x=x, y=y, fill="toself", mode="text", showlegend=False, **opts)
+
+
 def histogram_plot(x, name, **trace_options):
     go = PlotlyManager().go
     return go.Histogram(x=x, name=name, **trace_options)
@@ -69,6 +114,23 @@ def histogram_plot(x, name, **trace_options):
 
 def add_vline(fig, x, **trace_options):
     fig.add_vline(x=x, **trace_options)
+
+
+def scatter_plot(x, y, colors, labels=None, colorscale="Greys"):
+    go = PlotlyManager().go
+    opts = dict(
+        mode="markers",
+        marker=dict(
+            color=colors,
+            colorscale=colorscale,
+            size=8,
+            showscale=False,
+        ),
+        showlegend=False,
+    )
+    if labels is not None:
+        opts.update({"text": labels, "hoverinfo": "text"})
+    return go.Scatter(x=x, y=y, **opts)
 
 
 def trajectories(x, y, trace_names=None, show=True, **layout_kwargs):

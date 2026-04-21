@@ -20,7 +20,7 @@ def create_figure(traces, **layout_options):
 
 def update_layout(fig, axes=None, **layout_options):
     if axes is None:
-        axes = [plt.gca()]
+        axes = [fig.gca()]
     if "title" in layout_options:
         plt.suptitle(layout_options.get("title"))
     if "xaxis_title" in layout_options:
@@ -48,7 +48,7 @@ def update_layout(fig, axes=None, **layout_options):
             not ax.get_legend_handles_labels() == ([], [])
             and "fig_legend" not in layout_options
         ):
-            ax.legend(layout_options.get("legend") or {})
+            ax.legend(**layout_options.get("legend") or {})
 
     if "fig_legend" in layout_options:
         labels_in_fig = False

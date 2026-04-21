@@ -101,4 +101,29 @@ DEFAULT_PLOT_OPTIONS = {
             ),
         },
     },
+    "voronoi": {
+        "layout_options": dict(
+            legend=dict(ncols=2, loc="lower center", bbox_to_anchor=(0.5, 1.0))
+        ),
+        "outline_opts": dict(color="w", linewidth=0.5),
+        "scatter_opts": dict(cmap="Grays", zorder=2.5),
+        "optimised_opts": dict(
+            marker="P",
+            markersize=14,
+            markerfacecolor="k",
+            markeredgecolor="w",
+            label="Final values",
+            linestyle="None",
+            zorder=2.6,
+        ),
+        "initial_opts": dict(
+            marker="X",
+            markersize=14,
+            markerfacecolor="w",
+            markeredgecolor="k",
+            label="Initial values",
+            linestyle="None",
+            zorder=2.6,
+        ),
+    },
 }

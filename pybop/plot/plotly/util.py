@@ -167,4 +167,44 @@ DEFAULT_PLOT_OPTIONS = {
         ),
         "trace_options": dict(mode="lines"),
     },
+    "voronoi": {
+        "layout_options": dict(
+            title_x=0.5,
+            title_y=0.905,
+            width=600,
+            height=600,
+            xaxis=dict(showexponent="last", exponentformat="e"),
+            yaxis=dict(showexponent="last", exponentformat="e"),
+            legend=dict(orientation="h", yanchor="bottom", y=1, xanchor="right", x=1),
+        ),
+        "outline_opts": dict(
+            mode="lines",
+            line=dict(color="white", width=0.5),
+            showlegend=False,
+        ),
+        "optimised_opts": dict(
+            mode="markers",
+            marker_symbol="cross",
+            marker=dict(
+                color="black",
+                line_color="white",
+                line_width=1,
+                size=14,
+                showscale=False,
+            ),
+            name="Final values",
+        ),
+        "initial_opts": dict(
+            mode="markers",
+            marker_symbol="x",
+            marker=dict(
+                color="white",
+                line_color="black",
+                line_width=1,
+                size=14,
+                showscale=False,
+            ),
+            name="Initial values",
+        ),
+    },
 }
