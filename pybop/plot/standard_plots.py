@@ -1,9 +1,15 @@
 import math
 import textwrap
+from copy import deepcopy
 
 import numpy as np
 
-from pybop.plot.util import call_plotting_function
+from pybop.plot.util import (
+    create_axis,
+    get_default_options,
+    import_backend,
+    update_and_show,
+)
 
 
 class StandardPlot:
@@ -11,58 +17,67 @@ class StandardPlot:
         self,
         x=None,
         y=None,
-        title=None,
-        xaxis_title=None,
-        yaxis_title=None,
         trace_options=None,
         trace_names=None,
         trace_name_width=20,
         backend=None,
-        **kwargs,
+        **layout_options,
     ):
 
-        self.plotter = call_plotting_function(
-            "Plotter",
-            backend,
-            title=title,
-            xaxis_title=xaxis_title,
-            yaxis_title=yaxis_title,
-            trace_options=trace_options,
-            **kwargs,
-        )
-
+        self.traces = []
         self.trace_name_width = trace_name_width
+
+        self.backend = import_backend(backend)
+
+        # Set default options and update if provided
+        opts = deepcopy(get_default_options("standard_plot", backend))
+        self.layout_options = opts.get("default_layout_options") or {}
+        if layout_options:
+            self.layout_options.update(layout_options)
+        self.trace_options = opts.get("default_trace_options") or {}
+        if trace_options:
+            self.trace_options.update(trace_options)
 
         # Add traces
         if x is not None and y is not None:
             self.add_traces(x, y, trace_names)
 
     def __call__(self, show=True):
-        return self.plotter(show=show)
+        fig = self.backend.create_figure(self.traces, **self.layout_options)
+        if show:
+            update_and_show(fig, backend=self.backend.name)
+        return fig
 
-    @property
-    def traces(self):
-        return self.plotter.traces
+    def add_traces(self, x, y, trace_names, **trace_options):
+        """
+        Add a set of traces to the plot dictionary.
 
-    @traces.setter
-    def traces(self, value):
-        self.plotter.traces = value
+        Parameters
+        ----------
+        x : list or np.ndarray
+            X-axis data points.
+        y : list or np.ndarray
+            Primary Y-axis data points for simulated model output.
+        trace_names : str or list[str], optional
+            Name(s) for the primary trace(s) (default: None).
+        """
+        options = deepcopy(self.trace_options)
+        options.update(trace_options)
 
-    def add_traces(self, x, y, trace_names):
         # Check and wrap trace names
         if trace_names is not None:
             if isinstance(trace_names, str):
                 trace_names = [trace_names]
             for i, name in enumerate(trace_names):
                 trace_names[i] = self.wrap_text(
-                    name, width=self.trace_name_width, backend=self.plotter.backend
+                    name, width=self.trace_name_width, backend=self.backend.name
                 )
 
         # Parse the data
         x, y = self.parse_data(x, y)
 
-        # Add traces
-        self.plotter.add_traces(x, y, trace_names)
+        # Create a trace for each trajectory
+        self.traces.extend(self.backend.add_traces(x, y, trace_names, **options))
 
     def parse_data(self, x, y):
         """
@@ -104,19 +119,24 @@ class StandardPlot:
         return x, y
 
     def create_trace(self, x=None, y=None, label=None, **trace_options):
-        return self.plotter.create_trace(x, y, label, **trace_options)
+        return self.backend.line_plot(x=x, y=y, label=label, **trace_options)
 
     def create_fill_trace(self, x, y_upper, y_lower, **options):
-        return self.plotter.create_fill_trace(x, y_upper, y_lower, **options)
+        return self.backend.fill_plot(x, y_upper, y_lower, **options)
 
     def create_histogram(self, x, name, **trace_options):
-        return self.plotter.create_histogram(x, name, **trace_options)
+        return self.backend.histogram_plot(x, name, **trace_options)
 
     def create_vline(self, fig, x, **trace_options):
-        return self.plotter.create_vline(fig, x, **trace_options)
+        return self.backend.add_vline(fig, x, **trace_options)
 
     def create_contour(self, x, y, z, **trace_options):
-        return self.plotter.create_contour(x, y, z, **trace_options)
+        ct = self.backend.contour_plot(x, y, z, **trace_options)
+        if hasattr(ct, "__len__"):
+            for t in ct:
+                self.traces.append(t)
+        else:
+            self.traces.append(ct)
 
     @staticmethod
     def wrap_text(text, width, backend="matplotlib"):
@@ -198,26 +218,26 @@ class StandardSubplot(StandardPlot):
         num_rows=None,
         num_cols=None,
         axis_titles=None,
+        layout_options=None,
+        subplot_options=None,
         trace_options=None,
         trace_names=None,
         trace_name_width=40,
         **kwargs,
     ):
-        self.plotter = call_plotting_function(
-            "SubplotPlotter",
-            backend,
-            axis_titles=axis_titles,
+        if layout_options is None:
+            layout_options = {}
+
+        super().__init__(
+            x,
+            y,
             trace_options=trace_options,
-            **kwargs,
+            trace_names=trace_names,
+            trace_name_width=trace_name_width,
+            backend=backend,
+            **layout_options,
         )
-
-        self.trace_name_width = trace_name_width
-
-        # Add traces
-        if x is not None and y is not None:
-            self.add_traces(x, y, trace_names)
-
-        self.num_traces = len(self.plotter.traces)
+        self.num_traces = len(self.traces)
         self.num_rows = num_rows
         self.num_cols = num_cols
         if self.num_rows is None and self.num_cols is None:
@@ -229,8 +249,43 @@ class StandardSubplot(StandardPlot):
         elif self.num_cols is None:
             self.num_cols = int(math.ceil(self.num_traces / self.num_rows))
 
+        self.axis_titles = axis_titles
+        self.subplot_options = {}
+        if subplot_options is not None:
+            for arg, value in subplot_options.items():
+                self.subplot_options[arg] = value
+
     def __call__(self, show=True):
-        return self.plotter(show=show, num_rows=self.num_rows, num_cols=self.num_cols)
+        axes = [
+            create_axis(row + 1, col + 1)
+            for row in range(self.num_rows)
+            for col in range(self.num_cols)
+        ]
+
+        fig = self.backend.make_subplots(axes, subplot_options=self.subplot_options)
+
+        for idx, trace in enumerate(self.traces):
+            if self.axis_titles and idx < len(self.axis_titles):
+                x_title, y_title = self.axis_titles[idx]
+                axes[idx].set_xlabel(x_title)
+                axes[idx].set_ylabel(y_title)
+                # trace.update({'yaxis_title' : y_title, 'xaxis_title' : x_title})
+            #     fig.update_xaxes(title_text=x_title, row=row, col=col)
+            #     fig.update_yaxes(
+            #         title_text=y_title,
+            #         row=row,
+            #         col=col,
+            #         showexponent="last",
+            #         exponentformat="e",
+            #     )
+            self.backend.plot_trace(trace, fig, ax=axes[idx])
+
+        self.backend.update_layout(fig, axes=axes, **self.layout_options)
+
+        if show:
+            self.backend.update_and_show(fig)
+        else:
+            return fig
 
 
 def trajectories(x, y, trace_names=None, show=True, backend=None, **layout_kwargs):
@@ -256,9 +311,8 @@ def trajectories(x, y, trace_names=None, show=True, backend=None, **layout_kwarg
         The Plotly figure object for the scatter plot.
     """
 
-    return call_plotting_function(
-        "trajectories",
-        backend,
+    backend = import_backend(backend)
+    return backend.trajectories(
         x=x,
         y=y,
         trace_names=trace_names,

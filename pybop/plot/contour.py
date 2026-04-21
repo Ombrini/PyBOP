@@ -20,6 +20,7 @@ def contour(
     steps: int = 10,
     show: bool = True,
     backend=None,
+    **layout_options,
 ):
     """
     Plot a 2D visualisation of a cost landscape using Plotly.
@@ -150,15 +151,17 @@ def contour(
     trace_options_initial = options.get("trace_options_initial") or {}
     trace_options_optim = options.get("trace_options_optim") or {}
     trace_options_contour = options.get("trace_options_contour") or {}
-    
+
+    plot_options.update(layout_options)
+
     plot_dict = StandardPlot(
-            xaxis_title="Transformed " + names[0] if transformed else names[0],
-            yaxis_title="Transformed " + names[1] if transformed else names[1],
-            xaxis_range=bounds[0],
-            yaxis_range=bounds[1],
-            backend=backend,
-            **plot_options
-        )
+        xaxis_title="Transformed " + names[0] if transformed else names[0],
+        yaxis_title="Transformed " + names[1] if transformed else names[1],
+        xaxis_range=bounds[0],
+        yaxis_range=bounds[1],
+        backend=backend,
+        **plot_options,
+    )
 
     # Create contour plot and update the layout
     plot_dict.create_contour(x=x, y=y, z=costs, **trace_options_contour)
@@ -167,7 +170,9 @@ def contour(
         # Plot the optimisation trace
         optim_trace = np.asarray([item[:2] for item in result.x_model])
         optim_trace = optim_trace.reshape(-1, 2)
-        call_plotting_function('plot_optimisation_path', backend=backend, 
+        call_plotting_function(
+            "plot_optimisation_path",
+            backend=backend,
             plot_dict=plot_dict,
             x=transform_array_of_values(optim_trace[:, 0], parameters[names[0]]),
             y=transform_array_of_values(optim_trace[:, 1], parameters[names[1]]),
@@ -176,20 +181,24 @@ def contour(
         # Plot the initial guess
         if len(result.x_model) > 0:
             x0 = result.x_model[0]
-            plot_dict.traces.append(plot_dict.create_trace(
-                x=transform_array_of_values([x0[0]], parameters[names[0]]),
-                y=transform_array_of_values([x0[1]], parameters[names[1]]),
-                **trace_options_initial
-            ))
+            plot_dict.traces.append(
+                plot_dict.create_trace(
+                    x=transform_array_of_values([x0[0]], parameters[names[0]]),
+                    y=transform_array_of_values([x0[1]], parameters[names[1]]),
+                    **trace_options_initial,
+                )
+            )
 
         # Plot optimised value
         if result.x is not None:
             x_best = result.x
-            plot_dict.traces.append(plot_dict.create_trace(
-                x=transform_array_of_values([x_best[0]], parameters[names[0]]),
-                y=transform_array_of_values([x_best[1]], parameters[names[1]]),
-                **trace_options_optim
-            ))
+            plot_dict.traces.append(
+                plot_dict.create_trace(
+                    x=transform_array_of_values([x_best[0]], parameters[names[0]]),
+                    y=transform_array_of_values([x_best[1]], parameters[names[1]]),
+                    **trace_options_optim,
+                )
+            )
 
     # Update the layout and display the figure
     fig = plot_dict(show=False)

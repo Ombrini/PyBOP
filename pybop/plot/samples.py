@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from pybop.plot import StandardPlot
-from pybop.plot.util import call_plotting_function, get_default_options, update_and_show
+from pybop.plot.util import get_default_options, import_backend, update_and_show
 
 if TYPE_CHECKING:
     from pybop.samplers.base_pints_sampler import SamplingResult
@@ -114,9 +114,8 @@ def summary_table(result: "SamplingResult", backend=None):
         ["95% CI Upper", summary_stats["ci_upper"]],
     ]
 
-    call_plotting_function(
-        "show_table",
-        backend=backend,
+    backend = import_backend(backend)
+    backend.show_table(
         header=header,
         values=values,
         title="Summary Statistics",

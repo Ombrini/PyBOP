@@ -1,6 +1,28 @@
 import importlib.util
+from copy import deepcopy
+from dataclasses import dataclass
 
 import pybop.plot
+
+
+@dataclass
+class _AxisData:
+    row: int = 1
+    col: int = 1
+    row_span: int = 1
+    col_span: int = 1
+    xlabel: str | None = None
+    ylabel: str | None = None
+
+    def set_xlabel(self, xlabel: str):
+        self.xlabel = xlabel
+
+    def set_ylabel(self, ylabel: str):
+        self.ylabel = ylabel
+
+
+def create_axis(row, col, row_span=1, col_span=1):
+    return _AxisData(row, col, row_span, col_span)
 
 
 def set_backend(backend):
@@ -36,6 +58,19 @@ def call_plotting_function(function_name, backend, **kwargs):
         raise ModuleNotFoundError(err_msg) from error
 
 
+def import_backend(backend):
+    if backend is None:
+        backend = pybop.plot.backend
+    err_msg = f"Plotting backend {backend} is not available."
+    try:
+        module = importlib.import_module("pybop.plot." + backend)
+    except ModuleNotFoundError as error:
+        # Raise an ModuleNotFoundError if the module or attribute is not available
+        raise ModuleNotFoundError(err_msg) from error
+
+    return module
+
+
 def update_and_show(fig, backend=None, **kwargs):
     return call_plotting_function("update_and_show", backend, fig=fig, **kwargs)
 
@@ -52,6 +87,6 @@ def get_default_options(plot_type, backend):
         opts = {}
 
     if plot_type in opts.keys():
-        return opts[plot_type]
+        return deepcopy(opts[plot_type])
     else:
         return {}

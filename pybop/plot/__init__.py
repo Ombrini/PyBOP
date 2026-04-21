@@ -2,7 +2,7 @@
 DEFAULT_BACKEND = 'matplotlib'
 backend=DEFAULT_BACKEND
 
-from .util import set_backend, call_plotting_function, get_default_options
+from .util import set_backend, get_default_options, import_backend, _AxisData
 
 #
 # Import plots

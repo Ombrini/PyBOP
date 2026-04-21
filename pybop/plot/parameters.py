@@ -45,17 +45,22 @@ def parameters(result: "Result", show=True, backend=None, **layout_kwargs):
         trace_names.append("Sigma")
 
     # Set subplot layout options
-    plot_options = get_default_options("paramters", backend)
+    opts = get_default_options("parameters", backend)
+    layout_options = opts.get("layout_options") or {}
+    subplot_options = opts.get("subplot_options") or {}
+    trace_options = opts.get("trace_options") or {}
 
     # Create a plot dictionary
     plot_dict = StandardSubplot(
         x=x,
         y=y,
         axis_titles=axis_titles,
+        trace_options=trace_options,
         trace_names=trace_names,
         trace_name_width=50,
         backend=backend,
-        **plot_options,
+        layout_options=layout_options,
+        subplot_options=subplot_options,
     )
 
     # Generate the figure and update the layout

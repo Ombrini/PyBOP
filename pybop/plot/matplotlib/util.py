@@ -19,6 +19,7 @@ def update_and_show(fig, show=True, **layout_kwargs):
 
 
 DEFAULT_PLOT_OPTIONS = {
+    "standard_plot": {"default_trace_options": dict(linewidth=2.0)},
     "contour": {
         "plot_options": dict(title="Cost Landscape"),
         "trace_options_contour": dict(extend="both", cmap="viridis"),
@@ -55,7 +56,18 @@ DEFAULT_PLOT_OPTIONS = {
             markeredgecolor="#636EFA",
         ),
     },
-    "parameters": dict(figsize=(18, 8), title="Parameter Convergence"),
+    "parameters": dict(
+        layout_options=dict(
+            figsize=(18, 8),
+            title="Parameter Convergence",
+            fig_legend=dict(
+                loc="lower right", bbox_to_anchor=(0.98, 0.90), horizontal=True
+            ),
+            tight_layout=dict(rect=[0, 0, 1, 0.95]),
+        ),
+        subplot_options=dict(wspace=0.3, hspace=0.3),
+        trace_options=dict(use_color_cycle=True),
+    ),
     "problem": {
         "default_trace_options": dict(label="Model", marker=None, linestyle="-"),
         "design_cost_options": dict(label="Optimised"),

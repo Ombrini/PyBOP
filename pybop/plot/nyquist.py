@@ -48,6 +48,8 @@ def nyquist(
     trace_options_model = options.get("trace_options_model") or {}
     trace_options_reference = options.get("trace_options_reference") or {}
 
+    plot_options.update({"title": title})
+
     if not isinstance(inputs, dict):
         inputs = problem.parameters.to_dict(inputs)
 
@@ -60,7 +62,6 @@ def nyquist(
             x=domain_data,
             y=-model_output[var].data.imag,
             trace_names="Model",
-            title=title,
             **plot_options,
         )
 

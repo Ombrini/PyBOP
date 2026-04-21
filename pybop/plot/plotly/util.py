@@ -12,23 +12,45 @@ def update_and_show(fig, show=True, **layout_kwargs):
 
 
 DEFAULT_PLOT_OPTIONS = {
+    "standard_plot": {
+        "default_layout_options": dict(
+            title=None,
+            title_x=0.5,
+            xaxis=dict(
+                title=dict(font={"size": 14}),
+                showexponent="last",
+                exponentformat="e",
+                tickfont=dict(size=12),
+            ),
+            yaxis=dict(
+                title=dict(font={"size": 14}),
+                showexponent="last",
+                exponentformat="e",
+                tickfont=dict(size=12),
+            ),
+            legend=dict(x=1, y=1, xanchor="right", yanchor="top", font_size=12),
+            showlegend=True,
+            autosize=False,
+            width=600,
+            height=600,
+            margin=dict(l=10, r=10, b=10, t=75, pad=4),
+            plot_bgcolor="white",
+        ),
+        "default_trace_options": dict(line=dict(width=4), mode="lines"),
+    },
     "contour": {
         "plot_options": dict(
-            layout_options=dict(
-                title="Cost Landscape",
-                title_x=0.5,
-                title_y=0.905,
-                width=600,
-                height=600,
-                xaxis=dict(showexponent="last", exponentformat="e"),
-                yaxis=dict(showexponent="last", exponentformat="e"),
-                legend=dict(
-                    orientation="h", yanchor="bottom", y=1, xanchor="right", x=1
-                ),
-                autosize=None,
-                showlegend=None,
-                margin=None,
-            )
+            title="Cost Landscape",
+            title_x=0.5,
+            title_y=0.905,
+            width=600,
+            height=600,
+            xaxis=dict(showexponent="last", exponentformat="e"),
+            yaxis=dict(showexponent="last", exponentformat="e"),
+            legend=dict(orientation="h", yanchor="bottom", y=1, xanchor="right", x=1),
+            autosize=None,
+            showlegend=None,
+            margin=None,
         ),
         "trace_options_contour": dict(colorscale="Viridis", connectgaps=True),
         "trace_options_initial": dict(
@@ -58,41 +80,39 @@ DEFAULT_PLOT_OPTIONS = {
     },
     "nyquist": {
         "plot_options": dict(
-            layout_options=dict(
-                title="Nyquist Plot",
-                font=dict(family="Arial", size=14),
-                plot_bgcolor="white",
-                paper_bgcolor="white",
-                xaxis=dict(
-                    title=dict(font=dict(size=16), standoff=15),
-                    showline=True,
-                    linewidth=2,
-                    linecolor="black",
-                    mirror=True,
-                    ticks="outside",
-                    tickwidth=2,
-                    tickcolor="black",
-                    ticklen=5,
-                ),
-                yaxis=dict(
-                    title=dict(font=dict(size=16), standoff=15),
-                    showline=True,
-                    linewidth=2,
-                    linecolor="black",
-                    mirror=True,
-                    ticks="outside",
-                    tickwidth=2,
-                    tickcolor="black",
-                    ticklen=5,
-                    scaleanchor="x",
-                    scaleratio=1,
-                ),
-                legend=dict(
-                    orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
-                ),
-                width=600,
-                height=600,
+            title="Nyquist Plot",
+            font=dict(family="Arial", size=14),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            xaxis=dict(
+                title=dict(font=dict(size=16), standoff=15),
+                showline=True,
+                linewidth=2,
+                linecolor="black",
+                mirror=True,
+                ticks="outside",
+                tickwidth=2,
+                tickcolor="black",
+                ticklen=5,
             ),
+            yaxis=dict(
+                title=dict(font=dict(size=16), standoff=15),
+                showline=True,
+                linewidth=2,
+                linecolor="black",
+                mirror=True,
+                ticks="outside",
+                tickwidth=2,
+                tickcolor="black",
+                ticklen=5,
+                scaleanchor="x",
+                scaleratio=1,
+            ),
+            legend=dict(
+                orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+            ),
+            width=600,
+            height=600,
             xaxis_title="Z<sub>re</sub> / Ω",
             yaxis_title="-Z<sub>im</sub> / Ω",
         ),
@@ -116,19 +136,21 @@ DEFAULT_PLOT_OPTIONS = {
             legend=dict(
                 orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
             ),
-        )
+        ),
+        subplot_options=dict(
+            horizontal_spacing=0.1,
+            vertical_spacing=0.15,
+        ),
     ),
     "posterior": {
-        "plot_options": {
-            "layout_options": dict(
-                barmode="overlay",
-                width=None,
-                height=None,
-                plot_bgcolor=None,
-                autosize=None,
-                legend=None,
-            )
-        },
+        "plot_options": dict(
+            barmode="overlay",
+            width=None,
+            height=None,
+            plot_bgcolor=None,
+            autosize=None,
+            legend=None,
+        ),
         "trace_options": dict(opacity=0.75),
         "trace_options_vline": dict(line_width=3, line_dash="dash", line_color="black"),
     },
@@ -140,11 +162,9 @@ DEFAULT_PLOT_OPTIONS = {
         "fill_options": dict(fillcolor="rgba(255,229,204,0.8)"),
     },
     "trace": {
-        "plot_options": {
-            "layout_options": dict(
-                width=None, height=None, plot_bgcolor=None, autosize=None, legend=None
-            )
-        },
+        "plot_options": dict(
+            width=None, height=None, plot_bgcolor=None, autosize=None, legend=None
+        ),
         "trace_options": dict(mode="lines"),
     },
 }
