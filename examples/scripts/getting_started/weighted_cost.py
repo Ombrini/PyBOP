@@ -1,4 +1,3 @@
-import numpy as np
 import pybamm
 
 import pybop
@@ -27,17 +26,11 @@ experiment = pybamm.Experiment(
 solution = pybamm.Simulation(
     model, parameter_values=parameter_values, experiment=experiment
 ).solve()
-
-
-def noisy(data, sigma):
-    return data + np.random.normal(0, sigma, len(data))
-
-
 dataset = pybop.Dataset(
     {
         "Time [s]": solution.t,
         "Current [A]": solution["Current [A]"].data,
-        "Voltage [V]": noisy(solution["Voltage [V]"].data, sigma),
+        "Voltage [V]": pybop.add_noise(solution["Voltage [V]"].data, sigma),
     }
 )
 
@@ -57,11 +50,7 @@ parameter_values.update(
             distribution=pybop.Gaussian(0.68, 0.05, truncated_at=[0.5, 0.8])
         ),
         "Positive electrode active material volume fraction": pybop.Parameter(
-            distribution=pybop.Gaussian(
-                0.58,
-                0.05,
-                truncated_at=[0.4, 0.7],
-            )
+            distribution=pybop.Gaussian(0.58, 0.05, truncated_at=[0.4, 0.7])
         ),
     }
 )

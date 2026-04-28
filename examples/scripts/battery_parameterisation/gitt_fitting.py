@@ -21,21 +21,18 @@ experiment = pybamm.Experiment(
 solution = pybamm.Simulation(
     model, parameter_values=parameter_values, experiment=experiment
 ).solve()
-corrupt_values = solution["Voltage [V]"].data + np.random.normal(
-    0, sigma, len(solution.t)
-)
 dataset = pybop.Dataset(
     {
         "Time [s]": solution.t,
         "Current [A]": solution["Current [A]"].data,
         "Discharge capacity [A.h]": solution["Discharge capacity [A.h]"].data,
-        "Voltage [V]": corrupt_values,
+        "Voltage [V]": pybop.add_noise(solution["Voltage [V]"].data, sigma),
     }
 )
 
 # Determine the indices corresponding to each pulse in the dataset
 nonzero_index = np.concatenate(
-    ([-1], np.flatnonzero(dataset["Current [A]"]), [len(dataset["Current [A]"]) + 1])
+    ([-1], np.flatnonzero(dataset["Current [A]"]), [len(dataset) + 1])
 )
 pulse_starts = np.extract(
     nonzero_index[1:] - nonzero_index[:-1] != 1,  # check if there is a gap

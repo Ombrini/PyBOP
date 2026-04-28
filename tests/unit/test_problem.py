@@ -22,18 +22,10 @@ class TestProblem:
     def parameters(self):
         return {
             "Negative particle radius [m]": pybop.Parameter(
-                distribution=pybop.Gaussian(
-                    2e-05,
-                    0.1e-5,
-                    truncated_at=[1e-6, 5e-5],
-                )
+                distribution=pybop.Gaussian(2e-05, 0.1e-5, truncated_at=[1e-6, 5e-5])
             ),
             "Positive particle radius [m]": pybop.Parameter(
-                distribution=pybop.Gaussian(
-                    0.5e-05,
-                    0.1e-5,
-                    truncated_at=[1e-6, 5e-5],
-                )
+                distribution=pybop.Gaussian(0.5e-05, 0.1e-5, truncated_at=[1e-6, 5e-5])
             ),
         }
 
@@ -106,8 +98,8 @@ class TestProblem:
         assert_array_equal(target_data, dataset["Voltage [V]"])
 
         # Test set target
-        dataset["Voltage [V]"] += np.random.normal(0, 0.05, len(dataset["Voltage [V]"]))
-        cost.set_target(dataset)
+        dataset["Voltage [V]"] += np.random.normal(0, 0.05, len(dataset))
+        cost.set_target("Voltage [V]", dataset)
         problem = pybop.Problem(simulator, cost)
 
         # Assert

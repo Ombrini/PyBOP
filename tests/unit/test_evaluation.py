@@ -1,7 +1,6 @@
 import numpy as np
 import pybamm
 import pytest
-from scipy import stats
 
 import pybop
 
@@ -36,7 +35,7 @@ class TestEvaluation:
                 ),
             ),
             "Positive electrode Bruggeman coefficient (electrode)": pybop.Parameter(
-                distribution=stats.norm(loc=1.5, scale=0.1),
+                distribution=pybop.LogNormal(mean_log_x=1.5, sigma=0.1),
                 transformation=pybop.LogTransformation(),
             ),
         }
@@ -69,7 +68,6 @@ class TestEvaluation:
             pybop.SumSquaredError,
             pybop.Minkowski,
             pybop.SumOfPower,
-            pybop.LogPosterior,
             pybop.GaussianLogLikelihood,
             pybop.GaussianLogLikelihoodKnownSigma,
         ]
@@ -78,10 +76,6 @@ class TestEvaluation:
         cost_class = request.param
         if cost_class is pybop.GaussianLogLikelihoodKnownSigma:
             cost = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=0.002)
-        elif cost_class is pybop.LogPosterior:
-            cost = cost_class(
-                pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=0.002)
-            )
         else:
             cost = cost_class(dataset)
         return pybop.Problem(simulator, cost)

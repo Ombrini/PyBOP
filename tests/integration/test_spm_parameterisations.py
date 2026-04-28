@@ -1,7 +1,6 @@
 import numpy as np
 import pybamm
 import pytest
-from scipy import stats
 
 import pybop
 
@@ -17,9 +16,7 @@ class Test_SPM_Parameterisation:
     def setup(self):
         self.sigma = 0.002
         self.ground_truth = np.clip(
-            np.asarray([0.55, 0.55]) + np.random.normal(loc=0.0, scale=0.05, size=2),
-            a_min=0.425,
-            a_max=0.75,
+            pybop.add_noise(np.asarray([0.55, 0.55]), 0.05), a_min=0.425, a_max=0.75
         )
 
     @pytest.fixture
@@ -44,25 +41,10 @@ class Test_SPM_Parameterisation:
     def parameters(self):
         return {
             "Negative electrode active material volume fraction": pybop.Parameter(
-                stats.uniform(0.3, 0.9 - 0.3),
-                initial_value=stats.uniform(0.4, 0.75 - 0.4).rvs(),
+                distribution=pybop.Uniform(0.3, 0.9)
             ),
             "Positive electrode active material volume fraction": pybop.Parameter(
-                stats.uniform(0.3, 0.9 - 0.3),
-                initial_value=stats.uniform(0.4, 0.75 - 0.4).rvs(),
-            ),
-        }
-
-    @pytest.fixture
-    def priors(self):
-        return {
-            "Negative electrode active material volume fraction": pybop.Parameter(
-                pybop.Uniform(0.3, 0.9),
-                initial_value=stats.uniform(0.4, 0.75 - 0.4).rvs(),
-            ),
-            "Positive electrode active material volume fraction": pybop.Parameter(
-                pybop.Uniform(0.3, 0.9),
-                initial_value=stats.uniform(0.4, 0.75 - 0.4).rvs(),
+                distribution=pybop.Uniform(0.3, 0.9)
             ),
         }
 
@@ -76,14 +58,10 @@ class Test_SPM_Parameterisation:
             pybop.SumSquaredError,
             pybop.SumOfPower,
             pybop.Minkowski,
-            pybop.LogPosterior,
         ]
     )
     def cost_class(self, request):
         return request.param
-
-    def noisy(self, data, sigma):
-        return data + np.random.normal(0, sigma, len(data))
 
     @pytest.fixture(
         params=[
@@ -97,18 +75,13 @@ class Test_SPM_Parameterisation:
         return request.param
 
     @pytest.fixture
-    def optim(
-        self, optimiser, model_and_parameter_values, parameters, priors, cost_class
-    ):
+    def optim(self, optimiser, model_and_parameter_values, parameters, cost_class):
         model, parameter_values = model_and_parameter_values
         parameter_values.set_initial_state(0.6)
         dataset = self.get_data(model, parameter_values)
 
         # Define the problem
-        if cost_class is pybop.LogPosterior:
-            parameter_values.update(priors)
-        else:
-            parameter_values.update(parameters)
+        parameter_values.update(parameters)
         simulator = pybop.pybamm.Simulator(
             model, parameter_values=parameter_values, protocol=dataset
         )
@@ -118,12 +91,6 @@ class Test_SPM_Parameterisation:
             cost = cost_class(dataset, sigma=self.sigma)
         elif cost_class is pybop.GaussianLogLikelihood:
             cost = cost_class(dataset, sigma=self.sigma * 4)  # Initial sigma guess
-        elif cost_class is pybop.LogPosterior:
-            cost = cost_class(
-                log_likelihood=pybop.GaussianLogLikelihoodKnownSigma(
-                    dataset, sigma=self.sigma
-                )
-            )
         elif cost_class in [pybop.SumOfPower, pybop.Minkowski]:
             cost = cost_class(dataset, p=2.5)
         else:
@@ -159,18 +126,12 @@ class Test_SPM_Parameterisation:
                 )
             problem.parameters["Negative electrode active material volume fraction"] = (
                 pybop.Parameter(
-                    stats.uniform(
-                        bounds["lower"][0], bounds["upper"][0] - bounds["lower"][0]
-                    ),
-                    initial_value=stats.uniform(0.4, 0.75 - 0.4).rvs(),
+                    distribution=pybop.Uniform(bounds["lower"][0], bounds["upper"][0])
                 )
             )
             problem.parameters["Positive electrode active material volume fraction"] = (
                 pybop.Parameter(
-                    stats.uniform(
-                        bounds["lower"][1], bounds["upper"][1] - bounds["lower"][1]
-                    ),
-                    initial_value=stats.uniform(0.4, 0.75 - 0.4).rvs(),
+                    distribution=pybop.Uniform(bounds["lower"][1], bounds["upper"][1])
                 )
             )
 
@@ -232,12 +193,6 @@ class Test_SPM_Parameterisation:
             cost = cost_class(
                 dataset, target=target, sigma=self.sigma * 4
             )  # Initial sigma guess
-        elif cost_class is pybop.LogPosterior:
-            cost = cost_class(
-                log_likelihood=pybop.GaussianLogLikelihoodKnownSigma(
-                    dataset, target=target, sigma=self.sigma
-                )
-            )
         elif cost_class in [pybop.SumOfPower, pybop.Minkowski]:
             cost = cost_class(dataset, target=target, p=2.5)
         else:
@@ -281,18 +236,12 @@ class Test_SPM_Parameterisation:
             two_signal_problem.parameters[
                 "Negative electrode active material volume fraction"
             ] = pybop.Parameter(
-                stats.uniform(
-                    bounds["lower"][0], bounds["upper"][0] - bounds["lower"][0]
-                ),
-                initial_value=stats.uniform(0.4, 0.75 - 0.4).rvs(),
+                distribution=pybop.Uniform(bounds["lower"][0], bounds["upper"][0])
             )
             two_signal_problem.parameters[
                 "Positive electrode active material volume fraction"
             ] = pybop.Parameter(
-                stats.uniform(
-                    bounds["lower"][1], bounds["upper"][1] - bounds["lower"][1]
-                ),
-                initial_value=stats.uniform(0.4, 0.75 - 0.4).rvs(),
+                distribution=pybop.Uniform(bounds["lower"][1], bounds["upper"][1])
             )
 
         # Test each optimiser
@@ -372,15 +321,19 @@ class Test_SPM_Parameterisation:
                 {
                     "Time [s]": solution["Time [s]"].data,
                     "Current [A]": solution["Current [A]"].data,
-                    "Voltage [V]": self.noisy(solution["Voltage [V]"].data, self.sigma),
+                    "Voltage [V]": pybop.add_noise(
+                        solution["Voltage [V]"].data, self.sigma
+                    ),
                 }
             )
         return pybop.Dataset(
             {
                 "Time [s]": solution["Time [s]"].data,
                 "Current [A]": solution["Current [A]"].data,
-                "Voltage [V]": self.noisy(solution["Voltage [V]"].data, self.sigma),
-                "Bulk open-circuit voltage [V]": self.noisy(
+                "Voltage [V]": pybop.add_noise(
+                    solution["Voltage [V]"].data, self.sigma
+                ),
+                "Bulk open-circuit voltage [V]": pybop.add_noise(
                     solution["Bulk open-circuit voltage [V]"].data, self.sigma
                 ),
             }

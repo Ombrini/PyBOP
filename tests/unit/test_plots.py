@@ -33,21 +33,13 @@ class TestPlots:
     def parameters(self):
         return {
             "Negative electrode active material volume fraction": pybop.Parameter(
-                distribution=pybop.Gaussian(
-                    0.68,
-                    0.05,
-                    truncated_at=[0.5, 0.8],
-                ),
+                distribution=pybop.Gaussian(0.68, 0.05, truncated_at=[0.5, 0.8]),
                 transformation=pybop.ScaledTransformation(
                     coefficient=1 / 0.3, intercept=-0.5
                 ),
             ),
             "Positive electrode active material volume fraction": pybop.Parameter(
-                distribution=pybop.Gaussian(
-                    0.58,
-                    0.05,
-                    truncated_at=[0.4, 0.7],
-                ),
+                distribution=pybop.Gaussian(0.58, 0.05, truncated_at=[0.4, 0.7]),
                 transformation=pybop.ScaledTransformation(
                     coefficient=1 / 0.3, intercept=-0.4
                 ),
@@ -187,11 +179,10 @@ class TestPlots:
         simulator = pybop.pybamm.Simulator(
             model, parameter_values=parameter_values, protocol=dataset
         )
-        likelihood = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=2e-3)
-        posterior = pybop.LogPosterior(likelihood)
-        problem = pybop.Problem(simulator, posterior)
-        options = pybop.PintsSamplerOptions(n_chains=1, max_iterations=1)
-        sampler = pybop.SliceStepoutMCMC(problem, options=options)
+        log_likelihood = pybop.GaussianLogLikelihoodKnownSigma(dataset, sigma=2e-3)
+        log_pdf = pybop.LogPosterior(simulator, log_likelihood)
+        options = pybop.PintsSamplerOptions(n_chains=1, max_iterations=2)
+        sampler = pybop.SliceStepoutMCMC(log_pdf, options=options)
         return sampler.run()
 
     def test_posterior_plots(self, sampling_result):
@@ -208,6 +199,14 @@ class TestPlots:
 
         # Plot summary table
         sampling_result.summary_table()
+
+        # Plot posterior predictions
+        sampling_result.plot_predictive()
+
+        # Plot the prior and posterior distributions
+        pybop.plot.distribution(
+            sampling_result.problem.parameters, sampling_result.posterior
+        )
 
     def test_with_ipykernel(self, dataset, fitting_problem, result):
         import ipykernel
@@ -226,11 +225,7 @@ class TestPlots:
         parameter_values.update(
             {
                 "Negative electrode active material volume fraction": pybop.Parameter(
-                    distribution=pybop.Gaussian(
-                        0.68,
-                        0.05,
-                        truncated_at=[0.5, 0.8],
-                    ),
+                    distribution=pybop.Gaussian(0.68, 0.05, truncated_at=[0.5, 0.8]),
                 )
             }
         )
@@ -248,18 +243,12 @@ class TestPlots:
         parameter_values.update(
             {
                 "Positive electrode active material volume fraction": pybop.Parameter(
-                    pybop.Gaussian(
-                        0.58,
-                        0.05,
-                        truncated_at=[0.4, 0.7],
-                    ),
+                    pybop.Gaussian(0.58, 0.05, truncated_at=[0.4, 0.7])
                 ),
                 "Positive particle radius [m]": pybop.Parameter(
                     distribution=pybop.Gaussian(
-                        4.8e-06,
-                        0.05e-06,
-                        truncated_at=[4e-06, 6e-06],
-                    ),
+                        4.8e-06, 0.05e-06, truncated_at=[4e-06, 6e-06]
+                    )
                 ),
             }
         )
@@ -280,10 +269,8 @@ class TestPlots:
             {
                 "Positive electrode thickness [m]": pybop.Parameter(
                     distribution=pybop.Gaussian(
-                        60e-6,
-                        1e-6,
-                        truncated_at=[10e-6, 80e-6],
-                    ),
+                        60e-6, 1e-6, truncated_at=[10e-6, 80e-6]
+                    )
                 ),
             }
         )

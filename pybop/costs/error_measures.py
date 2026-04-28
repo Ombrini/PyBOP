@@ -1,7 +1,7 @@
 import numpy as np
-import pybamm
 
 from pybop.costs.base_cost import BaseCost
+from pybop.costs.evaluation import Evaluation
 from pybop.parameters.parameter import Inputs
 from pybop.processing.dataset import Dataset
 from pybop.simulators.failed_solution import FailedSolution
@@ -21,7 +21,7 @@ class ErrorMeasure(BaseCost):
     ----------
     dataset : pybop.Dataset
         Dataset object containing the target data.
-    target : list[str]
+    target : str | list[str], optional
         The name(s) of the target variable(s).
     weighting : Union[str, np.ndarray], optional
         The type of weighting to use when taking the sum or mean of the error
@@ -35,7 +35,7 @@ class ErrorMeasure(BaseCost):
         The name of the domain (default: "Time [s]").
     domain_data : np.ndarray
         The domain points in the dataset.
-    n_domain_data : int
+    n_data : int
         The number of domain points.
     target_data : np.ndarray
         The target values of the output variables.
@@ -48,27 +48,8 @@ class ErrorMeasure(BaseCost):
         weighting: float | str | np.ndarray = None,
     ):
         super().__init__()
-        self.target = [target] if isinstance(target, str) else target or ["Voltage [V]"]
-        self.set_target(dataset)
+        self.set_target(target, dataset)
         self.set_weighting(weighting)
-
-    def set_target(self, dataset: Dataset):
-        """Set the target data from a pybop.Dataset."""
-        if not isinstance(dataset, Dataset):
-            raise ValueError("Dataset must be a pybop.Dataset object.")
-        self.domain = dataset.domain
-
-        # Check that the dataset contains necessary variables
-        dataset.check(domain=self.domain, signal=self.target)
-        self._dataset = dataset.data
-
-        # Unpack domain and target data
-        self._domain_data = self._dataset[self.domain]
-        self.n_data = len(self._domain_data)
-
-        self._domain_data = dataset[self.domain]
-        self._target_data = {var: dataset[var] for var in self.target}
-        self.n_outputs = len(self.target)
 
     def set_weighting(self, weighting: float | str | np.ndarray):
         if weighting == "equal" or weighting is None:
@@ -89,52 +70,59 @@ class ErrorMeasure(BaseCost):
         else:
             self.weighting = np.asarray(weighting)
 
-    def evaluate(
+    def evaluate_batch(
         self,
-        solution: Solution | pybamm.Solution | FailedSolution,
-        inputs: Inputs | None = None,
+        solution: list[Solution],
+        inputs: list[Inputs],
         calculate_sensitivities: bool = False,
-    ) -> float | tuple[float, np.ndarray]:
+    ) -> Evaluation:
         """
         Computes the cost function for the given predictions.
 
         Parameters
         ----------
-        solution : pybop.Solution | pybamm.Solution
-            The simulation result.
-        inputs : Inputs, optional
-            Input parameters (default: None).
+        Parameters
+        ----------
+        solution : list[Solution]
+            A list of simulation results.
+        inputs : list[Inputs]
+            The corresponding list of input parameters.
         calculate_sensitivities : bool
             Whether to also return the sensitivities (default: False).
-
-        Returns
-        -------
-        np.float64 or tuple[np.float64, np.ndarray[np.float64]]
-            If the solution has sensitivities, returns a tuple containing the cost (float) and the
-            gradient with dimension (len(parameters)), otherwise returns only the cost.
         """
-        # Return failure cost if the solution failed
-        if isinstance(solution, FailedSolution):
-            return self.failure(self.parameters.names, calculate_sensitivities)
-
-        if not isinstance(solution, (Solution, pybamm.Solution)):
-            raise ValueError(
-                f"solution must be a pybop.Solution object, got type {type(solution)} with value {solution}."
-            )
-
-        # Early return if the prediction is not verified
-        if not self.verify_prediction(solution):
-            return self.failure(self.parameters.names, calculate_sensitivities)
-
-        # Compute the residual for all output variables
-        r = np.asarray(
-            [solution[var].data - self._target_data[var] for var in self.target]
+        e = np.empty(len(solution))
+        de = (
+            {key: np.zeros(len(solution)) for key in inputs[0].keys()}
+            if calculate_sensitivities
+            else None
         )
 
-        # Extract the sensitivities for all output variables and parameters
-        dy = self.stack_sensitivities(solution) if calculate_sensitivities else None
+        for i, (sol, x) in enumerate(zip(solution, inputs, strict=False)):
+            # Return failure cost if the solution failed
+            if isinstance(sol, FailedSolution) or not self.verify_prediction(sol):
+                if calculate_sensitivities:
+                    e[i], de_i = self.failure(x.keys(), calculate_sensitivities)
+                else:
+                    e[i] = self.failure(x.keys(), calculate_sensitivities)
 
-        return self.__call__(r=r, dy=dy, inputs=inputs)
+            else:
+                # Compute the residual for all output variables
+                r = np.asarray(
+                    [sol[var].data - self._target_data[var] for var in self.target]
+                )
+
+                if calculate_sensitivities:
+                    # Extract the sensitivities for all output variables and parameters
+                    dy = self.stack_sensitivities(sol)
+                    e[i], de_i = self.__call__(r=r, dy=dy, inputs=x)
+                else:
+                    e[i] = self.__call__(r=r, inputs=x)
+
+            if calculate_sensitivities:
+                for key in x.keys():
+                    de[key][i] = de_i[key]
+
+        return Evaluation(values=e, sensitivities=de)
 
     def verify_prediction(self, solution: Solution):
         """
@@ -184,22 +172,6 @@ class ErrorMeasure(BaseCost):
             gradient with dimension (len(parameters)), otherwise returns only the cost.
         """
         raise NotImplementedError
-
-    @property
-    def target_data(self):
-        return self._target_data
-
-    @property
-    def domain_data(self):
-        return self._domain_data
-
-    @domain_data.setter
-    def domain_data(self, domain_data):
-        self._domain_data = domain_data
-
-    @property
-    def dataset(self):
-        return self._dataset
 
 
 class MeanSquaredError(ErrorMeasure):

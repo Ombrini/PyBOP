@@ -31,8 +31,7 @@ dataset = pybop.Dataset(
     {
         "Time [s]": t_eval,
         "Current [A]": solution["Current [A]"](t_eval),
-        "Voltage [V]": solution["Voltage [V]"](t_eval)
-        + np.random.normal(0, sigma, len(t_eval)),
+        "Voltage [V]": pybop.add_noise(solution["Voltage [V]"](t_eval), sigma),
     }
 )
 
@@ -42,12 +41,10 @@ parameter_values.update(
         "Negative electrode active material volume fraction": pybop.Parameter(
             distribution=pybop.Uniform(0.3, 0.8),
             initial_value=0.653,
-            transformation=pybop.LogTransformation(),
         ),
         "Positive electrode active material volume fraction": pybop.Parameter(
             distribution=pybop.Uniform(0.3, 0.8),
             initial_value=0.657,
-            transformation=pybop.LogTransformation(),
         ),
     }
 )
@@ -56,9 +53,8 @@ parameter_values.update(
 simulator = pybop.pybamm.Simulator(
     model, parameter_values=parameter_values, protocol=dataset
 )
-likelihood = pybop.GaussianLogLikelihood(dataset)
-posterior = pybop.LogPosterior(likelihood)
-problem = pybop.Problem(simulator, posterior)
+cost = pybop.GaussianLogLikelihood(dataset)
+log_pdf = pybop.LogPosterior(simulator, cost)
 
 # Set up the optimiser
 options = pybop.PintsOptions(
@@ -67,13 +63,13 @@ options = pybop.PintsOptions(
     min_iterations=20,
     max_iterations=50,
 )
-optim = pybop.XNES(problem, options=options)
+optim = pybop.XNES(log_pdf, options=options)
 
 # Run the optimisation
 result = optim.run()
 
 # Plot the timeseries output
-pybop.plot.problem(problem, inputs=result.best_inputs, title="Optimised Comparison")
+pybop.plot.problem(log_pdf, inputs=result.best_inputs, title="Optimised Comparison")
 
 # Plot the optimisation result
 result.plot_convergence()
