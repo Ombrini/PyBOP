@@ -16,7 +16,8 @@ from .problem import problem
 from .nyquist import nyquist
 from .voronoi import surface
 from .samples import trace, chains, posterior, summary_table
-
+from .predictive import predictive
+from .distribution import distribution
 
 # Import backend specific plotting functions
 from . import matplotlib

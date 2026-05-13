@@ -48,7 +48,7 @@ class StandardPlot:
             update_and_show(fig, backend=self.backend.name)
         return fig
 
-    def add_traces(self, x, y, trace_names, **trace_options):
+    def add_traces(self, x, y, trace_names=None, **trace_options):
         """
         Add a set of traces to the plot dictionary.
 
