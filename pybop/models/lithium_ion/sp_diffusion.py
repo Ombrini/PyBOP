@@ -129,20 +129,11 @@ class SPDiffusion(BaseGroupedModel):
 
     def U(self, sto):
         """
-        Dimensional open-circuit potential [V], calculated as U(x) = U_ref(x).
+        Dimensional open-circuit potential [V].
         Credit: PyBaMM
         """
-        # bound stoichiometry between tol and 1-tol. Adding 1/sto + 1/(sto-1) later
-        # will ensure that ocp goes to +- infinity if sto goes into that region
-        # anyway
-        tol = pybamm.settings.tolerances["U__c_s"]
-        sto = pybamm.maximum(pybamm.minimum(sto, 1 - tol), tol)
         inputs = {"Particle surface stoichiometry": sto}
-        u_ref = FunctionParameter("Electrode OCP [V]", inputs)
-
-        # add a term to ensure that the OCP goes to infinity at 0 and -infinity at 1
-        # this will not affect the OCP for most values of sto
-        out = u_ref + 1e-6 * (1 / sto + 1 / (sto - 1))
+        out = FunctionParameter("Electrode OCP [V]", inputs)
 
         out.print_name = r"U(c^\mathrm{surf}_\mathrm{s})"
         return out

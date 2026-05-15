@@ -435,21 +435,12 @@ class GroupedDFN(BaseGroupedModel):
 
     def U(self, sto, domain):
         """
-        Dimensional open-circuit potential [V], calculated as U(x) = U_ref(x).
+        Dimensional open-circuit potential [V].
         Credit: PyBaMM
         """
-        # bound stoichiometry between tol and 1-tol. Adding 1/sto + 1/(sto-1) later
-        # will ensure that ocp goes to +- infinity if sto goes into that region
-        # anyway
         Domain = domain.capitalize()
-        tol = pybamm.settings.tolerances["U__c_s"]
-        sto = pybamm.maximum(pybamm.minimum(sto, 1 - tol), tol)
         inputs = {f"{Domain} particle surface stoichiometry": sto}
-        u_ref = FunctionParameter(f"{Domain} electrode OCP [V]", inputs)
-
-        # add a term to ensure that the OCP goes to infinity at 0 and -infinity at 1
-        # this will not affect the OCP for most values of sto
-        out = u_ref + 1e-6 * (1 / sto + 1 / (sto - 1))
+        out = FunctionParameter(f"{Domain} electrode OCP [V]", inputs)
 
         if domain == "negative":
             out.print_name = r"U_\mathrm{n}(c^\mathrm{surf}_\mathrm{s,n})"
