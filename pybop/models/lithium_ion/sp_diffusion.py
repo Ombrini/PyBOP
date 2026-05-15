@@ -48,14 +48,15 @@ class SPDiffusion(BaseGroupedModel):
         sto_surf = pybamm.surf(sto)
 
         # Events specify points at which a solution should terminate
+        tol = pybamm.settings.tolerances["U__c_s"]
         self.events += [
             Event(
                 "Minimum particle surface stoichiometry",
-                pybamm.min(sto_surf) - 0.01,
+                pybamm.min(sto_surf) - tol,
             ),
             Event(
                 "Maximum particle surface stoichiometry",
-                (1 - 0.01) - pybamm.max(sto_surf),
+                (1 - tol) - pybamm.max(sto_surf),
             ),
         ]
 

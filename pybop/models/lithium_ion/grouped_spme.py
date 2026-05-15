@@ -99,22 +99,23 @@ class GroupedSPMe(BaseGroupedModel):
         sto_p_surf = pybamm.surf(sto_p)
 
         # Events specify points at which a solution should terminate
+        tol = pybamm.settings.tolerances["U__c_s"]
         self.events += [
             Event(
                 "Minimum negative particle surface stoichiometry",
-                pybamm.min(sto_n_surf) - 0.01,
+                pybamm.min(sto_n_surf) - tol,
             ),
             Event(
                 "Maximum negative particle surface stoichiometry",
-                (1 - 0.01) - pybamm.max(sto_n_surf),
+                (1 - tol) - pybamm.max(sto_n_surf),
             ),
             Event(
                 "Minimum positive particle surface stoichiometry",
-                pybamm.min(sto_p_surf) - 0.01,
+                pybamm.min(sto_p_surf) - tol,
             ),
             Event(
                 "Maximum positive particle surface stoichiometry",
-                (1 - 0.01) - pybamm.max(sto_p_surf),
+                (1 - tol) - pybamm.max(sto_p_surf),
             ),
             # model does not capture electrolyte depletion, use the DFN instead
             Event(
