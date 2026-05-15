@@ -389,7 +389,8 @@ class LogUniform(Distribution):
         # Validate that upper > lower for all elements
         if not np.all(0 < lower < upper):
             raise ValueError(
-                "All elements of upper bounds must be greater than lower bounds."
+                "All bounds must be positive and all elements of upper bounds "
+                "must be greater than lower bounds."
             )
         properties = {"a": float(lower), "b": float(upper)}
         super().__init__(stats.loguniform(**properties), properties=properties)
@@ -430,7 +431,7 @@ class Unbounded(BaseDistribution):
         self.initial_value = (
             None
             if initial_value is None
-            else float(np.minimum(np.maximum(initial_value, lower), upper))
+            else float(np.clip(initial_value, lower, upper))
         )
 
     def support(self) -> tuple[float]:

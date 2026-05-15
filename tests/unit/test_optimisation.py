@@ -133,22 +133,21 @@ class TestOptimisation:
 
     @pytest.fixture
     def multivariate_problem(self, multivariate_simulator, dataset):
-        cost = pybop.SumSquaredError(dataset)
-        problem = pybop.Problem(multivariate_simulator, cost)
-        return problem
+        cost = pybop.SquareRootFeatureDistance(dataset, feature="offset")
+        return pybop.Problem(multivariate_simulator, cost)
 
     @pytest.fixture
     def gitt_like_problem(self, multivariate_simulator, dataset):
         sqrt_cost_1 = pybop.costs.feature_distances.SquareRootFeatureDistance(
-            dataset["Time [s]"],
-            dataset["Voltage [V]"],
+            dataset,
+            target="Voltage [V]",
             feature="offset",
             time_start=0,
             time_end=180,
         )
         sqrt_cost_2 = pybop.costs.feature_distances.SquareRootFeatureDistance(
-            dataset["Time [s]"],
-            dataset["Voltage [V]"],
+            dataset,
+            target="Voltage [V]",
             feature="offset",
             time_start=180,
             time_end=360,
@@ -507,7 +506,7 @@ class TestOptimisation:
         assert result.scipy_result is not None
 
     @pytest.mark.skipif(
-        sys.version_info > (3, 12), reason="requires python3.12 or lower"
+        sys.version_info >= (3, 13), reason="requires a python version < 3.13"
     )
     def test_ep_bolfi(self, multivariate_problem, gitt_like_problem):
         options = pybop.EPBOLFIOptions()

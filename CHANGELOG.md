@@ -2,6 +2,7 @@
 
 ## Features
 
+- [#918](https://github.com/pybop-team/PyBOP/pull/918) - Adds a plot for predictions sampled from a posterior distribution (`pybop.plot.predictive`).
 - [#940](https://github.com/pybop-team/PyBOP/pull/940) - Adds support for Python 3.14 (EP-BOLFI optimiser and PyProBE still restricted to Python 3.12 or below).
 
 ## Optimisations
@@ -16,6 +17,7 @@
 
 ## Breaking Changes
 
+- [#938](https://github.com/pybop-team/PyBOP/pull/938) - Make SALib an optional dependency and remove `sensitivity_analysis` in favour of using SALib directly.
 - [#942](https://github.com/pybop-team/PyBOP/pull/942) - Adds `evaluate_batch` to the costs and ensures that an `Evaluation` is returned.
 
 # [v26.3](https://github.com/pybop-team/PyBOP/tree/v26.3) - 2026-03-05
