@@ -4,7 +4,7 @@ from pybop.costs.design_cost import DesignCost
 from pybop.costs.error_measures import ErrorMeasure
 from pybop.parameters.parameter import Inputs
 from pybop.plot.standard_plots import StandardPlot
-from pybop.plot.util import get_default_options, update_and_show
+from pybop.plot.util import get_default_options, import_backend
 from pybop.problems.meta_problem import MetaProblem
 from pybop.problems.problem import Problem
 from pybop.simulators.solution import Solution
@@ -73,6 +73,7 @@ def problem(
     fill_options = plot_options.get("fill_options") or {}
 
     # Create a plot for each output
+    backend_module = import_backend(backend)
     figure_list = []
     for var in problem.target:
         options = trace_options.copy()
@@ -120,7 +121,8 @@ def problem(
 
         # Generate the figure and update the layout
         fig = plot_dict(show=False)
-        fig = update_and_show(fig, backend=backend)
+        if show:
+            backend_module.show_figure(fig)
 
         figure_list.append(fig)
 

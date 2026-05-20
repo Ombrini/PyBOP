@@ -2,13 +2,13 @@ from typing import TYPE_CHECKING
 
 from pybop.costs.log_likelihoods import GaussianLogLikelihood
 from pybop.plot.standard_plots import StandardSubplot
-from pybop.plot.util import get_default_options, update_and_show
+from pybop.plot.util import get_default_options, import_backend
 
 if TYPE_CHECKING:
     from pybop._result import Result
 
 
-def parameters(result: "Result", show=True, backend=None, **layout_kwargs):
+def parameters(result: "Result", show=True, backend=None):
     """
     Plot the evolution of parameters during the optimisation process using Plotly.
 
@@ -44,6 +44,9 @@ def parameters(result: "Result", show=True, backend=None, **layout_kwargs):
         axis_titles.append(("Evaluation", "Sigma"))
         trace_names.append("Sigma")
 
+    # import plotting backend
+    backend_module = import_backend(backend)
+
     # Set subplot layout options
     opts = get_default_options("parameters", backend)
     layout_options = opts.get("layout_options") or {}
@@ -65,6 +68,6 @@ def parameters(result: "Result", show=True, backend=None, **layout_kwargs):
 
     # Generate the figure and update the layout
     fig = plot_dict(show=False)
-    fig = update_and_show(fig, backend, **layout_kwargs)
+    fig = backend_module.show_figure(fig)
 
     return fig

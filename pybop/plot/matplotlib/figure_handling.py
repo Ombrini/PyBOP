@@ -1,22 +1,26 @@
+import warnings
 from matplotlib import pyplot as plt
 
 from pybop.plot.matplotlib import plot_trace
 from pybop.plot.util import _AxisData
 
 
-def create_figure(traces, **layout_options):
+def create_figure(traces=None, **layout_options):
     figsize = (8, 6)
     if "figsize" in layout_options:
         figsize = layout_options.get("figsize")
 
     fig = plt.figure(figsize=figsize, dpi=100)
 
-    for trace in traces:
-        plot_trace(trace, fig)
+    if traces is not None:
+        for trace in traces:
+            plot_trace(trace, fig)
 
     update_layout(fig, **layout_options)
     return fig
 
+def legend(fig, **kwargs):
+    fig.legend(**kwargs)
 
 def update_layout(fig, axes=None, **layout_options):
     if axes is None:
@@ -84,3 +88,6 @@ def make_subplots(axes: list[_AxisData], subplot_options=None):
         axes[i] = fig.add_subplot(num_rows, num_cols, (idx_start, idx_end))
 
     return fig
+
+def show_figure(fig):
+    plt.show()

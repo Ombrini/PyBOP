@@ -71,10 +71,6 @@ def import_backend(backend):
     return module
 
 
-def update_and_show(fig, backend=None, **kwargs):
-    return call_plotting_function("update_and_show", backend, fig=fig, **kwargs)
-
-
 def get_default_options(plot_type, backend):
     if backend is None:
         backend = pybop.plot.backend

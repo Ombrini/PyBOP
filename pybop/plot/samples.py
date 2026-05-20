@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING
 
 from pybop.plot import StandardPlot
-from pybop.plot.util import get_default_options, import_backend, update_and_show
+from pybop.plot.util import get_default_options, import_backend
+from pybop.plot.plotly import PlotlyManager
 
 if TYPE_CHECKING:
     from pybop.samplers.base_pints_sampler import SamplingResult
@@ -16,58 +17,70 @@ def chains(result: "SamplingResult", show=True, backend=None):
     trace_options = options.get("trace_options") or {}
     trace_options_vline = options.get("trace_options_vline") or {}
 
-    plot_dict = StandardPlot(
-        backend=backend,
+    # Import backend
+    backend = import_backend(backend)
+    
+
+    fig = backend.create_figure(
         title="Posterior Distribution",
         xaxis_title="Value",
         yaxis_title="Density",
-        **plot_options,
+        **plot_options
     )
 
     for i, chain in enumerate(result.chains):
         for j in range(chain.shape[1]):
-            hist = plot_dict.create_histogram(
-                x=chain[:, j], name=f"Chain {i} - Parameter {j}", **trace_options
+            backend.plot_trace(
+                backend.histogram_plot(
+                    x=chain[:, j],
+                    name=f"Chain {i} - Parameter {j}",
+                    **trace_options
+                ),
+                fig
             )
-            plot_dict.traces.append(hist)
 
-    fig = plot_dict(show=False)
-    for j in range(chain.shape[1]):
-        plot_dict.create_vline(fig, result.mean[j], **trace_options_vline)
+            backend.add_vline(
+                fig, 
+                result.mean[j],
+                **trace_options_vline
+            )
 
-    update_and_show(fig, backend=backend)
-
+    backend.legend(fig)
+            
+    if show:
+        backend.show_figure(fig)
 
 def trace(result: "SamplingResult", show=True, backend=None):
     """
     Plot trace plots for the posterior samples.
     """
+    # Import plotting backend
+    backend = import_backend(backend)
+
+
     figlist = []
-    options = get_default_options("trace", backend)
-    plot_options = options.get("plot_options") or {}
-    trace_options = options.get("trace_options") or {}
     for i in range(result.n_parameters):
-        plots = StandardPlot(
+        fig = backend.create_figure(
             title=f"Parameter {i} Trace Plot",
             xaxis_title="Sample Index",
             yaxis_title="Value",
-            backend=backend,
-            **plot_options,
         )
-
         for j, chain in enumerate(result.chains):
-            plots.traces.append(
-                plots.create_trace(y=chain[:, i], label=f"Chain {j}", **trace_options)
+            backend.plot_trace(
+                backend.line_plot(y=chain[:, i], label=f"Chain {j}"),
+                fig
             )
-        fig = plots(show=False)
+        backend.legend(fig)
         figlist.append(fig)
 
-    update_and_show(figlist, show=show, backend=backend)
+    if show:
+        backend.show_figure(figlist)
 
     return figlist
 
 
-def posterior(result: "SamplingResult", backend=None):
+
+def posterior(result: "SamplingResult", backend=None, show=True):
     """
     Plot the summed posterior distribution across chains.
     """
@@ -75,9 +88,9 @@ def posterior(result: "SamplingResult", backend=None):
     plot_options = options.get("plot_options") or {}
     trace_options = options.get("trace_options") or {}
     trace_options_vline = options.get("trace_options_vline") or {}
-    # Import plotly only when needed
-    plot_dict = StandardPlot(
-        backend=backend,
+    # Import backend
+    backend = import_backend(backend)
+    fig = backend.create_figure(
         title="Posterior Distribution",
         xaxis_title="Value",
         yaxis_title="Density",
@@ -85,17 +98,18 @@ def posterior(result: "SamplingResult", backend=None):
     )
 
     for j in range(result.all_samples.shape[1]):
-        hist = plot_dict.create_histogram(
-            x=result.all_samples[:, j], name=f"Parameter {j}", **trace_options
+        backend.plot_trace(
+            backend.histogram_plot(
+                x=result.all_samples[:, j], name=f"Parameter {j}", **trace_options
+            ),
+            fig
         )
+        backend.add_vline(fig, result.mean[j], **trace_options_vline)
 
-        plot_dict.traces.append(hist)
+    backend.legend(fig)
 
-    fig = plot_dict(show=False)
-    for j in range(result.all_samples.shape[1]):
-        plot_dict.create_vline(fig, result.mean[j], **trace_options_vline)
-
-    update_and_show(fig, backend=backend)
+    if show:
+        backend.show_figure(fig)
 
 
 def summary_table(result: "SamplingResult", backend=None):
@@ -120,3 +134,4 @@ def summary_table(result: "SamplingResult", backend=None):
         values=values,
         title="Summary Statistics",
     )
+

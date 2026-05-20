@@ -7,12 +7,14 @@ def _check_empty(specs, row, col):
         raise ValueError("Overlapping axes are not supported")
 
 
-def create_figure(traces, **layout_options):
+def create_figure(traces=None, **layout_options):
     go = PlotlyManager().go
     layout = go.Layout(**layout_options)
     fig = go.Figure(data=traces, layout=layout)
     return fig
 
+def legend(fig, **kwargs):
+    fig.update_layout(showlegend=True, **kwargs)
 
 def update_layout(fig, axes=None, **layout_options):
     fig.update_layout(**layout_options)
@@ -38,3 +40,10 @@ def make_subplots(axes: list[_AxisData], subplot_options=None):
     fig = make_subplots(rows=num_rows, cols=num_cols, specs=specs, **subplot_options)
 
     return fig
+
+def show_figure(fig):
+    if hasattr(fig, "__len__") and len(fig) > 0:
+        for f in fig:
+            f.show()
+    else:
+        fig.show()

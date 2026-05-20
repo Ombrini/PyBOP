@@ -77,7 +77,7 @@ def line_plot(x=None, y=None, label=None, **kwargs):
     return trace
 
 
-def colorbar(fig, data, colorscale="viridis"):
+def colorbar(fig, data, colorscale="viridis", label=None):
     # normalise cost
     f_min = np.nanmin(data[np.isfinite(data)])
     f_max = np.nanmax(data[np.isfinite(data)])
@@ -86,7 +86,7 @@ def colorbar(fig, data, colorscale="viridis"):
     # get colours
     cmap = mpl.colormaps["viridis"]
 
-    plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=fig.gca())
+    plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=fig.gca(), label=label)
 
 
 def contour_plot(x, y, z, **kwargs):
@@ -131,12 +131,14 @@ def add_vline(fig, x, **trace_options):
     plt.axvline(x, **trace_options)
 
 
-def sample_color_scale(data, scale="viridis"):
+def sample_color_scale(data, scale="viridis", d_min=None, d_max=None):
     # normalise and clip data
-    d_min = np.nanmin(data[np.isfinite(data)])
-    d_max = np.nanmax(data[np.isfinite(data)])
+    d_min = d_min or np.nanmin(data[np.isfinite(data)])
+    d_max = d_max or np.nanmax(data[np.isfinite(data)])
     norm = mpl.colors.Normalize(vmin=d_min, vmax=d_max, clip=True)
     norm_d = norm(data, clip=True)
+    if np.isscalar(norm_d):
+        norm_d = [norm_d]
 
     # get colours
     cmap = mpl.colormaps[scale]

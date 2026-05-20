@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from pybop.plot.standard_plots import StandardPlot
-from pybop.plot.util import update_and_show
+from pybop.plot.util import import_backend
 
 if TYPE_CHECKING:
     from pybop._result import Result
@@ -47,6 +47,7 @@ def convergence(result: "Result", show=True, backend=None):
 
     # Generate and display the figure
     fig = plot_dict(show=False)
+    backend_module = import_backend(backend)
     if show:
-        update_and_show(fig, backend=backend)
+        backend_module.show_figure(fig)
     return fig

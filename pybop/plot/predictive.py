@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pybop.plot.plotly.plotly_manager import PlotlyManager
+from pybop.plot.util import import_backend, get_default_options
 from pybop.plot.standard_plots import StandardPlot
 from pybop.problems.meta_problem import MetaProblem
 from pybop.simulators.failed_solution import FailedSolution
@@ -21,13 +21,11 @@ def predictive(
     pdf_label: str = "PDF",
     colour_scale="viridis",
     show: bool = True,
-    **layout_kwargs,
+    backend: str | None = None,
 ):
     """
     Plot the predictive posterior of a Bayesian optimisation result.
     """
-    # Import plotly only when needed
-    px = PlotlyManager().px
 
     posterior_samples = result.posterior.sample_from_distribution(
         n_samples=number_of_traces
@@ -44,6 +42,9 @@ def predictive(
         else [result.problem]
     )
     figure_list = []
+    options = get_default_options("predictive", backend)
+    trace_options_pdf = options.get("trace_options_pdf") or {}
+    backend_module = import_backend(backend)
 
     for problem in problems:
         plot_dict = StandardPlot(
@@ -52,51 +53,40 @@ def predictive(
             xaxis_title=StandardPlot.remove_brackets(problem.domain),
             yaxis_title=StandardPlot.remove_brackets(problem.target[0]),
             trace_names=data_legend_entry,
-            backend="plotly",
+            backend=backend,
         )
+        fig = plot_dict(show=False)
 
         # Simulate the samples and add to plot
         inputs = [problem.parameters.to_dict(s) for s in posterior_samples]
         simulations = problem.simulate_batch(inputs=inputs)
         for pdf, sim in zip(posterior_samples_pdf, simulations, strict=False):
             if not isinstance(sim, FailedSolution):
-                plot_dict.add_traces(
-                    x=problem.domain_data,
-                    y=sim[problem.target[0]].data,
-                    line={
-                        "dash": "dot",
-                        "color": px.colors.sample_colorscale(
-                            colour_scale,
-                            (pdf - pdf_range[0]) / (pdf_range[1] - pdf_range[0]),
-                        )[0],
-                    },
+                colors = backend_module.sample_color_scale(pdf, d_min = pdf_range[0], d_max=pdf_range[1] )
+                backend_module.plot_trace(
+                    backend_module.line_plot(
+                        x=problem.domain_data,
+                        y=sim[problem.target[0]].data,
+                        color=colors[0],
+                        **trace_options_pdf
+
+                    ),
+                    fig
                 )
 
         # Add the colourbar
-        plot_dict.add_traces(
-            x=[None],
-            y=[None],
-            mode="markers",
-            marker={
-                "size": 0,
-                "color": pdf_range,
-                "colorscale": colour_scale,
-                "showscale": True,
-                "colorbar": {"title": {"text": "Posterior PDF", "side": "right"}},
-            },
-        )
+        backend_module.colorbar(fig, pdf_range, colorscale=colour_scale, label="Posterior PDF")
 
         if pdf_plot is not None:
-            plot_dict.add_traces(
-                x=pdf_plot[0],
-                y=pdf_plot[1],
-                trace_names=pdf_label,
+            backend_module.plot_trace(
+                backend_module.line_plot(
+                    x=pdf_plot[0],
+                    y=pdf_plot[1],
+                    trace_names=pdf_label,
+                )
             )
-
-        fig = plot_dict(show=False)
-        fig.update_layout(**layout_kwargs)
         if show:
-            fig.show()
+            backend_module.show_figure(fig)
 
         figure_list.append(fig)
 

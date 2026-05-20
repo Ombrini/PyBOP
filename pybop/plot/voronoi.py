@@ -334,4 +334,4 @@ def surface(
     backend.update_layout(fig, **layout_options)
 
     if show:
-        backend.update_and_show(fig)
+        backend.show_figure(fig)

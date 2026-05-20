@@ -1,5 +1,5 @@
 from pybop.plot.standard_plots import StandardPlot, trajectories
-from pybop.plot.util import update_and_show
+from pybop.plot.util import import_backend
 
 
 def dataset(
@@ -56,6 +56,8 @@ def dataset(
         backend=backend,
     )
 
-    fig = update_and_show(fig, backend=backend, show=show, **layout_kwargs)
+    backend_module = import_backend(backend)
+    if show:
+        backend_module.show_figure(fig)
 
     return fig

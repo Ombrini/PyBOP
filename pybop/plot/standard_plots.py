@@ -7,8 +7,7 @@ import numpy as np
 from pybop.plot.util import (
     create_axis,
     get_default_options,
-    import_backend,
-    update_and_show,
+    import_backend
 )
 
 
@@ -45,7 +44,7 @@ class StandardPlot:
     def __call__(self, show=True):
         fig = self.backend.create_figure(self.traces, **self.layout_options)
         if show:
-            update_and_show(fig, backend=self.backend.name)
+            self.backend.show_figure(fig)
         return fig
 
     def add_traces(self, x, y, trace_names=None, **trace_options):
@@ -79,7 +78,8 @@ class StandardPlot:
         # Create a trace for each trajectory
         self.traces.extend(self.backend.add_traces(x, y, trace_names, **options))
 
-    def parse_data(self, x, y):
+    @staticmethod
+    def parse_data(x, y):
         """
         Check the type and dimensions of the data and convert if necessary to a list
         of 'things plotly can take', e.g. numpy arrays or lists of numbers.
@@ -283,7 +283,7 @@ class StandardSubplot(StandardPlot):
         self.backend.update_layout(fig, axes=axes, **self.layout_options)
 
         if show:
-            self.backend.update_and_show(fig)
+            self.backend.show_figure(fig)
         else:
             return fig
 

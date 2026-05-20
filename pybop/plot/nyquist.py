@@ -1,6 +1,6 @@
 from pybop.parameters.parameter import Inputs
 from pybop.plot.standard_plots import StandardPlot
-from pybop.plot.util import get_default_options, update_and_show
+from pybop.plot.util import get_default_options, import_backend
 
 
 def nyquist(
@@ -48,8 +48,6 @@ def nyquist(
     trace_options_model = options.get("trace_options_model") or {}
     trace_options_reference = options.get("trace_options_reference") or {}
 
-    plot_options.update({"title": title})
-
     if not isinstance(inputs, dict):
         inputs = problem.parameters.to_dict(inputs)
 
@@ -57,27 +55,39 @@ def nyquist(
     domain_data = model_output["Impedance"].data.real
     target_output = problem.target_data
     figure_list = []
+    backend = import_backend(backend)
     for var in problem.target:
-        plot_dict = StandardPlot(
-            x=domain_data,
-            y=-model_output[var].data.imag,
-            trace_names="Model",
+        fig = backend.create_figure(
+            xaxis_title=r"$Z_{re} / \Omega$", 
+            yaxis_title=r"$-Z_{im} / \Omega$",
+            title=title,
             **plot_options,
         )
 
-        plot_dict.traces[0].update(trace_options_model)
-
-        target_trace = plot_dict.create_trace(
-            x=target_output[var].real,
-            y=-target_output[var].imag,
-            **trace_options_reference,
+        backend.plot_trace(
+            backend.line_plot(
+            x=domain_data,
+            y=-model_output[var].data.imag,
+            label="Model",
+            **trace_options_model
+            ),
+            fig
         )
-        plot_dict.traces.append(target_trace)
 
-        fig = plot_dict(show=False)
+        backend.plot_trace(
+            backend.line_plot(
+                x=target_output[var].real,
+                y=-target_output[var].imag,
+                label="Reference",
+                **trace_options_reference,
+            ),
+            fig
+        )
+        backend.legend(fig)
         figure_list.append(fig)
 
+    
     if show:
-        update_and_show(figure_list)
+        backend.show_figure(fig)
 
     return figure_list

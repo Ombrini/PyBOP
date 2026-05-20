@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from pybop.plot.standard_plots import StandardPlot
-from pybop.plot.util import call_plotting_function, get_default_options, update_and_show
+from pybop.plot.util import get_default_options, import_backend
 from pybop.problems.problem import Problem
 
 if TYPE_CHECKING:
@@ -60,6 +60,8 @@ def contour(
     ValueError
         If the cost function does not return a valid cost when called with a parameter list.
     """
+    backend_module = import_backend(backend)
+
     plot_optim = False
     problem = call_object
 
@@ -170,12 +172,10 @@ def contour(
         # Plot the optimisation trace
         optim_trace = np.asarray([item[:2] for item in result.x_model])
         optim_trace = optim_trace.reshape(-1, 2)
-        call_plotting_function(
-            "plot_optimisation_path",
-            backend=backend,
+        backend_module.plot_optimisation_path(
             plot_dict=plot_dict,
             x=transform_array_of_values(optim_trace[:, 0], parameters[names[0]]),
-            y=transform_array_of_values(optim_trace[:, 1], parameters[names[1]]),
+            y=transform_array_of_values(optim_trace[:, 1], parameters[names[1]])
         )
 
         # Plot the initial guess
@@ -203,7 +203,7 @@ def contour(
     # Update the layout and display the figure
     fig = plot_dict(show=False)
     if show:
-        update_and_show(fig)
+        backend_module.show_figure(fig)
 
     # if gradient:
     #     grad_figs = []

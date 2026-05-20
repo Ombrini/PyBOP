@@ -6,14 +6,16 @@ from pybop.plot import StandardPlot
 from pybop.plot.plotly.plotly_manager import PlotlyManager
 
 
-def sample_color_scale(data, scale="viridis"):
+def sample_color_scale(data, scale="viridis", d_min=None, d_max=None):
     px = PlotlyManager().px
     # normalise and clip data
-    d_min = np.nanmin(data[np.isfinite(data)])
-    d_max = np.nanmax(data[np.isfinite(data)])
+    d_min = d_min or np.nanmin(data[np.isfinite(data)])
+    d_max = d_max or np.nanmax(data[np.isfinite(data)])
 
     d = (data - d_min) / (d_max - d_min)
     d = np.clip(np.asarray(data), 0, 1.0)
+    if np.isscalar(d):
+        d = [d]
     return px.colors.sample_colorscale("viridis", list(d))
 
 
@@ -41,10 +43,15 @@ def add_traces(x, y, trace_names, **trace_options):
     return traces
 
 
-def line_plot(x=None, y=None, label=None, ax=None, **kwargs):
+def line_plot(x=None, y=None, label=None, ax=None, color=None, **kwargs):
     go = PlotlyManager().go
     if label is not None:
         kwargs.update({"name": label})
+    if color is not None:
+        if "line" in kwargs:
+            kwargs["line"].update(color=color)
+        else:
+            kwargs.update({"line": {"color" : color}})
     if x is not None and y is not None:
         return go.Scatter(
             x=x,
@@ -63,10 +70,14 @@ def contour_plot(x, y, z, **kwargs):
     return go.Contour(x=x, y=y, z=z, **kwargs)
 
 
-def colorbar(fig, data, colorscale="viridis"):
+def colorbar(fig, data, colorscale="viridis", label=None):
     go = PlotlyManager().go
     d_min = np.nanmin(data[np.isfinite(data)])
     d_max = np.nanmax(data[np.isfinite(data)])
+
+    colorbar=dict(thickness=25, outlinewidth=1)
+    if label is not None:
+        colorbar.update({"title": {"text": label, "side": "right"}})
     fig.add_trace(
         go.Scatter(
             x=[None],
@@ -77,7 +88,7 @@ def colorbar(fig, data, colorscale="viridis"):
                 showscale=True,
                 cmin=d_min,
                 cmax=d_max,
-                colorbar=dict(thickness=25, outlinewidth=0),
+                colorbar=colorbar,
             ),
             showlegend=False,
             hoverinfo="none",
