@@ -17,7 +17,7 @@ class TestPlots:
     def test_standard_plot(self, backend):
         pybop.plot.set_backend(backend)
         # Test standard plot
-        trace_names = pybop.plot.StandardPlot.remove_brackets(
+        trace_names = pybop.plot.remove_brackets(
             ["Trace [1]", "Trace [2]"]
         )
         plot_dict = pybop.plot.StandardPlot(
@@ -77,7 +77,7 @@ class TestPlots:
         pybop.plot.trajectories(
             dataset["Time [s]"],
             dataset["Voltage [V]"],
-            trace_names=["Time [s]", "Voltage [V]"],
+            labels=["Time [s]", "Voltage [V]"],
         )
         pybop.plot.dataset(dataset)
 

@@ -1,6 +1,6 @@
-import importlib.util
-from copy import deepcopy
+import textwrap
 from dataclasses import dataclass
+import numpy as np
 
 import pybop.plot
 
@@ -11,18 +11,6 @@ class _AxisData:
     col: int = 1
     row_span: int = 1
     col_span: int = 1
-    xlabel: str | None = None
-    ylabel: str | None = None
-
-    def set_xlabel(self, xlabel: str):
-        self.xlabel = xlabel
-
-    def set_ylabel(self, ylabel: str):
-        self.ylabel = ylabel
-
-
-def create_axis(row, col, row_span=1, col_span=1):
-    return _AxisData(row, col, row_span, col_span)
 
 
 def set_backend(backend):
@@ -30,59 +18,97 @@ def set_backend(backend):
         f"Plotting backend {backend} is not available. The default backend has not been updated. \n"
         f"The default backend is set to {pybop.plot.backend}"
     )
-    try:
-        importlib.import_module("pybop.plot." + backend)
-        pybop.plot.backend = backend
+    if backend.lower() in ['matplotlib', 'plotly']:
+            pybop.plot.backend = backend
 
-    except ModuleNotFoundError as error:
-        # Raise an ModuleNotFoundError if the module or attribute is not available
-        raise ModuleNotFoundError(err_msg) from error
-
-
-def call_plotting_function(function_name, backend, **kwargs):
-    if backend is None:
-        backend = pybop.plot.backend
-    err_msg = f"Plotting backend {backend} is not available."
-    try:
-        module = importlib.import_module("pybop.plot." + backend)
-        if hasattr(module, function_name):
-            plotting_function = getattr(module, function_name)
-            # Return the imported attribute
-            return plotting_function(**kwargs)
-        else:
-            err_msg = f"Plotting backend {backend} has no attribute {function_name}."
-            raise ModuleNotFoundError(err_msg)
-
-    except ModuleNotFoundError as error:
-        # Raise an ModuleNotFoundError if the module or attribute is not available
-        raise ModuleNotFoundError(err_msg) from error
+    else:
+        raise ModuleNotFoundError(err_msg)
 
 
 def import_backend(backend):
     if backend is None:
         backend = pybop.plot.backend
     err_msg = f"Plotting backend {backend} is not available."
-    try:
-        module = importlib.import_module("pybop.plot." + backend)
-    except ModuleNotFoundError as error:
-        # Raise an ModuleNotFoundError if the module or attribute is not available
-        raise ModuleNotFoundError(err_msg) from error
+    if backend.lower() == 'matplotlib':
+        return pybop.plot.backends.MatplotlibBackend()
+    elif backend.lower() == 'plotly':
+        return pybop.plot.backends.PlotlyBackend()
+    else:
+        raise ModuleNotFoundError(err_msg)
 
-    return module
+def parse_data(x, y):
+    """
+    Check the type and dimensions of the data and convert if necessary to a list
+    of 'things plotly can take', e.g. numpy arrays or lists of numbers.
 
+    Parameters
+    ----------
+    x : list or np.ndarray, optional
+        X-axis data points.
+    y : list or np.ndarray, optional
+        Primary Y-axis data points for simulated model output.
+    """
+    if isinstance(x, list):
+        # If it's a list of numpy arrays, it's fine
+        # If it's a list of lists, it's fine
+        # If it's neither, it's a list of numbers that we need to wrap
+        if not isinstance(x[0], np.ndarray) and not isinstance(x[0], list):
+            x = [x]
+    elif isinstance(x, np.ndarray):
+        x = np.squeeze(x)
+        if x.ndim == 1:
+            x = [x]
+        else:
+            x = x.tolist()
+    if isinstance(y, list):
+        if not isinstance(y[0], np.ndarray) and not isinstance(y[0], list):
+            y = [y]
+    if isinstance(y, np.ndarray):
+        y = np.squeeze(y)
+        if y.ndim == 1:
+            y = [y]
+        else:
+            y = y.tolist()
+    if len(x) > 1 and len(x) != len(y):
+        raise ValueError(
+            "Input x should have either one data series or the same number as y."
+        )
+    return x, y  
 
-def get_default_options(plot_type, backend):
-    if backend is None:
-        backend = pybop.plot.backend
+def remove_brackets(s):
+    """
+    Remove square brackets from a string and replace with forward slashes
+    as per section 7.1 of the SI Handbook
+    """
+    # If s is an iterable (but not a string), apply the function recursively to each element
+    if hasattr(s, "__iter__") and not isinstance(s, str):
+        return type(s)(remove_brackets(i) for i in s)
+    elif isinstance(s, str):
+        start = s.find("[")
+        end = s.find("]")
+        if start != -1 and end != -1:
+            char_in_brackets = s[start + 1 : end]
+            return s[:start] + " / " + char_in_brackets + s[end + 1 :]
+    return s
 
+def wrap_text(text, width, backend="matplotlib"):
+    """
+    Wrap text to a specified width with HTML line breaks.
+
+    Parameters
+    ----------
+    text : str
+        The text to wrap.
+    width : int
+        The width to wrap the text to.
+
+    Returns
+    -------
+    str
+        The wrapped text.
+    """
+    wrapped_text = textwrap.fill(text, width=width, break_long_words=False)
     if backend == "plotly":
-        opts = pybop.plot.plotly.DEFAULT_PLOT_OPTIONS
-    elif backend == "matplotlib":
-        opts = pybop.plot.matplotlib.DEFAULT_PLOT_OPTIONS
+        return wrapped_text.replace("\n", "<br>")
     else:
-        opts = {}
-
-    if plot_type in opts.keys():
-        return deepcopy(opts[plot_type])
-    else:
-        return {}
+        return wrapped_text

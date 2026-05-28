@@ -2,8 +2,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pybop.plot.util import import_backend, get_default_options
-from pybop.plot.standard_plots import StandardPlot
+from pybop.plot.util import import_backend, remove_brackets
 from pybop.problems.meta_problem import MetaProblem
 from pybop.simulators.failed_solution import FailedSolution
 
@@ -42,20 +41,28 @@ def predictive(
         else [result.problem]
     )
     figure_list = []
-    options = get_default_options("predictive", backend)
-    trace_options_pdf = options.get("trace_options_pdf") or {}
     backend_module = import_backend(backend)
 
     for problem in problems:
-        plot_dict = StandardPlot(
-            x=problem.domain_data,
-            y=problem.target_data[problem.target[0]],
-            xaxis_title=StandardPlot.remove_brackets(problem.domain),
-            yaxis_title=StandardPlot.remove_brackets(problem.target[0]),
-            trace_names=data_legend_entry,
-            backend=backend,
+        fig = backend_module.create_figure(
+            xaxis_title=remove_brackets(problem.domain),
+            yaxis_title=remove_brackets(problem.target[0]),
+            style={
+                "bg_color" : "white",
+                "width" : 600,
+                "height" : 600
+            }
         )
-        fig = plot_dict(show=False)
+
+        backend_module.plot_trace(
+            backend_module.line_plot(
+                x=problem.domain_data,
+                y=problem.target_data[problem.target[0]],
+                label=data_legend_entry
+
+            ),
+            fig
+        )
 
         # Simulate the samples and add to plot
         inputs = [problem.parameters.to_dict(s) for s in posterior_samples]
@@ -67,9 +74,10 @@ def predictive(
                     backend_module.line_plot(
                         x=problem.domain_data,
                         y=sim[problem.target[0]].data,
-                        color=colors[0],
-                        **trace_options_pdf
-
+                        style=dict(
+                            color=colors[0],
+                            linestyle="dotted"
+                        )
                     ),
                     fig
                 )

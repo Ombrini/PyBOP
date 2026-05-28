@@ -1,5 +1,5 @@
-from pybop.plot.standard_plots import StandardPlot, trajectories
-from pybop.plot.util import import_backend
+from pybop.plot.standard_plots import trajectories
+from pybop.plot.util import import_backend, remove_brackets
 
 
 def dataset(
@@ -37,13 +37,13 @@ def dataset(
     # Compile ydata and labels or legend
     y = [dataset[s] for s in signal]
     if len(signal) == 1:
-        yaxis_title = StandardPlot.remove_brackets(signal[0])
+        yaxis_title = remove_brackets(signal[0])
         if trace_names is None:
             trace_names = ["Data"]
     else:
         yaxis_title = "Output"
         if trace_names is None:
-            trace_names = StandardPlot.remove_brackets(signal)
+            trace_names = remove_brackets(signal)
 
     # Create the figure
     fig = trajectories(
@@ -51,7 +51,7 @@ def dataset(
         y=y,
         trace_names=trace_names,
         show=False,
-        xaxis_title=StandardPlot.remove_brackets(dataset.domain),
+        xaxis_title=remove_brackets(dataset.domain),
         yaxis_title=yaxis_title,
         backend=backend,
     )

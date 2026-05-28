@@ -1,6 +1,5 @@
 from pybop.parameters.parameter import Inputs
-from pybop.plot.standard_plots import StandardPlot
-from pybop.plot.util import get_default_options, import_backend
+from pybop.plot.util import  import_backend
 
 
 def nyquist(
@@ -43,10 +42,18 @@ def nyquist(
     >>> # The plots will be displayed and nyquist_figures will contain the list of figure objects.
     """
 
-    options = get_default_options("nyquist", backend)
-    plot_options = options.get("plot_options") or {}
-    trace_options_model = options.get("trace_options_model") or {}
-    trace_options_reference = options.get("trace_options_reference") or {}
+    trace_style_model = dict(
+        linewidth = 2,
+        color = "#00CC96",
+        marker = "o",
+        markerfacecolor = "#00CC96",
+    )
+    trace_style_reference = dict(
+        linestyle = "none",
+        marker = "o",
+        fillstyle= "none",
+        markeredgecolor="#636EFA"
+    )
 
     if not isinstance(inputs, dict):
         inputs = problem.parameters.to_dict(inputs)
@@ -61,7 +68,6 @@ def nyquist(
             xaxis_title=r"$Z_{re} / \Omega$", 
             yaxis_title=r"$-Z_{im} / \Omega$",
             title=title,
-            **plot_options,
         )
 
         backend.plot_trace(
@@ -69,7 +75,7 @@ def nyquist(
             x=domain_data,
             y=-model_output[var].data.imag,
             label="Model",
-            **trace_options_model
+            style=trace_style_model
             ),
             fig
         )
@@ -79,7 +85,7 @@ def nyquist(
                 x=target_output[var].real,
                 y=-target_output[var].imag,
                 label="Reference",
-                **trace_options_reference,
+                style=trace_style_reference,
             ),
             fig
         )

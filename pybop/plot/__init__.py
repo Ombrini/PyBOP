@@ -2,12 +2,12 @@
 DEFAULT_BACKEND = 'matplotlib'
 backend=DEFAULT_BACKEND
 
-from .util import set_backend, get_default_options, import_backend, _AxisData
+from .util import set_backend, import_backend, _AxisData, remove_brackets, wrap_text, parse_data
 
 #
 # Import plots
 #
-from .standard_plots import StandardPlot, StandardSubplot, trajectories
+from .standard_plots import trajectories, Subplots
 from .contour import contour
 from .dataset import dataset
 from .convergence import convergence
@@ -20,5 +20,4 @@ from .predictive import predictive
 from .distribution import distribution
 
 # Import backend specific plotting functions
-from . import matplotlib
-from . import plotly
+from . import  backends

@@ -1,7 +1,8 @@
 import numpy as np
 
 from pybop.parameters.parameter import Parameters
-from pybop.plot.standard_plots import StandardSubplot
+from pybop.plot.standard_plots import Subplots
+from pybop.plot.util import import_backend
 
 
 def distribution(
@@ -10,22 +11,24 @@ def distribution(
     n_samples: int = 100,
     transformed: bool = False,
     show: bool = True,
-    **layout_kwargs,
+    backend = None,
 ):
     """
     Plot the posterior on top of the prior distribution for a Bayesian optimisation result.
     """
     # Create lists of axis titles and trace names
-    axis_titles = []
+    axis_titles_x = []
+    axis_titles_y = []
     trace_names = (
         parameters.names
         if posterior is None
-        else ["Prior"] * len(parameters) + ["Posterior"] * len(parameters)
+        else ["Prior"] * len(parameters)
     )
     for name in parameters.names:
-        axis_titles.append(
-            (name + " (transformed)" if transformed else name, "Probability density")
+        axis_titles_x.append(
+            name + " (transformed)" if transformed else name
         )
+        axis_titles_y.append("Probability density")
 
     # Evaluate marginal distributions for each parameter
     values = []
@@ -37,24 +40,27 @@ def distribution(
         values.append(parameter_range)
         probability.append([d.pdf(s) for s in values[-1]])
 
-    # Set subplot layout options
-    layout_options = dict(
-        width=1024,
-        height=576,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    )
-
     # Create a plot dictionary
-    plot_dict = StandardSubplot(
+    subplots = Subplots(       
         x=values,
         y=probability,
-        axis_titles=axis_titles,
-        layout_options=layout_options,
-        trace_names=trace_names,
-        trace_name_width=50,
-        backend="plotly",
+        backend=backend
     )
-    fig = plot_dict(show=False)
+
+    subplots.create_figure(
+        axis_titles_x=axis_titles_x, 
+        axis_titles_y=axis_titles_y,
+        style={
+            "width" : 1024,
+            "height" : 576
+        }
+    )
+
+    subplots.plot_lines(
+        labels=trace_names
+    )
+ 
+    backend = import_backend(backend)
 
     if posterior is not None:
         for idx, p in enumerate(posterior):
@@ -64,15 +70,14 @@ def distribution(
             values.append(parameter_range)
             probability.append([d.pdf(s) for s in values[-1]])
 
-            trace = plot_dict.create_trace(
-                values[-1], probability[-1], **plot_dict.trace_options
+            trace = backend.line_plot(
+                values[-1], probability[-1], label="Posterior"
             )
-            row = (idx // plot_dict.num_cols) + 1
-            col = (idx % plot_dict.num_cols) + 1
-            fig.add_trace(trace, row=row, col=col)
-
-    fig.update_layout(**layout_kwargs)
+            row = (idx // subplots.num_cols) + 1
+            col = (idx % subplots.num_cols) + 1
+            backend.plot_trace(trace, subplots.fig, ax=subplots.get_axis(row, col))
+    backend.legend(subplots.fig, style=dict(horizontal=True, loc="lower right", coords=(1, 1.02)),)
     if show:
-        fig.show()
+        backend.show_figure(subplots.fig)
 
-    return fig
+    return subplots.fig

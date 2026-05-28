@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.spatial import Voronoi
 
-from pybop.plot.util import get_default_options, import_backend
+from pybop.plot.util import import_backend
 
 if TYPE_CHECKING:
     from pybop._result import Result
@@ -202,8 +202,7 @@ def surface(
     normalise=True,
     title="Voronoi Cost Landscape",
     show=True,
-    backend=None,
-    **layout_kwargs,
+    backend=None
 ):
     """
     Plot a 2D representation of the Voronoi diagram with color-coded regions.
@@ -268,29 +267,40 @@ def surface(
         x, y, f, regions = _voronoi_regions(x_optim, y_optim, f, xlim, ylim)
 
     # Get plotting options
-    opts = get_default_options("voronoi", backend.name)
-    outline_opts = opts.get("outline_opts") or {}
-    layout_options = opts.get("layout_options") or {}
-    optimised_opts = opts.get("optimised_opts") or {}
-    inital_opts = opts.get("initial_opts") or {}
-    scatter_opts = opts.get("scatter_opts") or {}
-    layout_options.update(layout_kwargs)
+    outline_opts = dict(color="white", linewidth=0.5)
+    optimised_opts = dict(
+            marker="P",
+            markersize=14,
+            markerfacecolor="black",
+            markeredgecolor="white",
+            linestyle="None",
+            zorder=2.6,
+        )
+    inital_opts = dict(
+            marker="X",
+            markersize=14,
+            markerfacecolor="white",
+            markeredgecolor="black",
+            linestyle="None",
+            zorder=2.6,
+        )
+    
     names = parameters.names
-    layout_options.update(
-        {
-            "title": title,
+
+    # Construct figure
+    fig = backend.create_figure(
+        title = title,
+        xaxis_title = names[0],
+        yaxis_title = names[1],
+        style={
+            "width" : 600,
+            "height" : 600,
             "xaxis_range": xlim,
             "yaxis_range": ylim,
-            "xaxis_title": names[0],
-            "yaxis_title": names[1],
         }
     )
 
-    # Construct figure
-    fig = backend.create_figure([])
-
     # Add Voronoi edges and fill Voronoi regions
-    print(f)
     colors = backend.sample_color_scale(f)
     for j, region in enumerate(regions):
         x_region = region[:, 0].tolist() + [region[0, 0]]
@@ -303,7 +313,7 @@ def surface(
             fig,
         )
 
-        backend.plot_trace(backend.line_plot(x_region, y_region, **outline_opts), fig)
+        backend.plot_trace(backend.line_plot(x_region, y_region, style=outline_opts), fig)
 
     backend.colorbar(fig, f)
 
@@ -314,7 +324,6 @@ def surface(
             y=y_optim,
             colors=[i / len(x_optim) for i in range(len(x_optim))],
             labels=[f"f={val:.2f}" for val in f],
-            **scatter_opts,
         ),
         fig,
     )
@@ -322,16 +331,20 @@ def surface(
     # Plot the initial guess
     if len(result.x_model) > 0:
         x0 = result.x_model[0]
-        backend.plot_trace(backend.line_plot(x=[x0[0]], y=[x0[1]], **inital_opts), fig)
+        backend.plot_trace(backend.line_plot(x=[x0[0]], y=[x0[1]], label="Initial values", style=inital_opts), fig)
 
         # Plot optimised value
         if result.x is not None:
             x_best = result.x
             backend.plot_trace(
-                backend.line_plot(x=[x_best[0]], y=[x_best[1]], **optimised_opts), fig
+                backend.line_plot(x=[x_best[0]], y=[x_best[1]], label="Final values", style=optimised_opts), fig
             )
 
-    backend.update_layout(fig, **layout_options)
+    backend.legend(fig, style={
+        "horizontal" : True,
+        "loc" : "lower right",
+        "coords" : (1, 1),
+    })
 
     if show:
         backend.show_figure(fig)

@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
 from pybop.costs.log_likelihoods import GaussianLogLikelihood
-from pybop.plot.standard_plots import StandardSubplot
-from pybop.plot.util import get_default_options, import_backend
+from pybop.plot.standard_plots import Subplots
+from pybop.plot.util import import_backend
 
 if TYPE_CHECKING:
     from pybop._result import Result
@@ -35,39 +35,39 @@ def parameters(result: "Result", show=True, backend=None):
     y = [list(item) for item in zip(*result.x_model, strict=False)]
 
     # Create lists of axis titles and trace names
-    axis_titles = []
+    axis_titles_x = []
+    axis_titles_y = []
     trace_names = parameters.names
-    for name in trace_names:
-        axis_titles.append(("Evaluation", name))
-
     if isinstance(result.problem, GaussianLogLikelihood):
-        axis_titles.append(("Evaluation", "Sigma"))
         trace_names.append("Sigma")
+        print('yay')
+
+
+    for name in trace_names:
+        axis_titles_x.append("Evaluation")
+        axis_titles_y.append(name)
 
     # import plotting backend
     backend_module = import_backend(backend)
 
-    # Set subplot layout options
-    opts = get_default_options("parameters", backend)
-    layout_options = opts.get("layout_options") or {}
-    subplot_options = opts.get("subplot_options") or {}
-    trace_options = opts.get("trace_options") or {}
-
     # Create a plot dictionary
-    plot_dict = StandardSubplot(
-        x=x,
-        y=y,
-        axis_titles=axis_titles,
-        trace_options=trace_options,
-        trace_names=trace_names,
-        trace_name_width=50,
-        backend=backend,
-        layout_options=layout_options,
-        subplot_options=subplot_options,
-    )
+    subplots = Subplots(x=x, y=y, backend=backend)
+    subplots.create_figure(
+        title="Parameter Convergence",
+        axis_titles_x=axis_titles_x,
+        axis_titles_y=axis_titles_y,
+        style=dict(bg_color="white", width=1024, height=576)
+        )
+    subplots.plot_lines(labels=trace_names)
 
+    # import plotting backend
+    backend_module = import_backend(backend)
+
+    # add legend
+    backend_module.legend(subplots.fig, style={"fig_legend" : True})
+    
     # Generate the figure and update the layout
-    fig = plot_dict(show=False)
-    fig = backend_module.show_figure(fig)
+    if show:
+        backend_module.show_figure(subplots.fig)
 
-    return fig
+    return subplots.fig

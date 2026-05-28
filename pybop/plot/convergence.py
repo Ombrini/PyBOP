@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 
-from pybop.plot.standard_plots import StandardPlot
 from pybop.plot.util import import_backend
 
 if TYPE_CHECKING:
@@ -34,20 +33,27 @@ def convergence(result: "Result", show=True, backend=None):
     # Generate a list of iteration numbers
     iteration_numbers = list(range(1, len(cost_log) + 1))
 
+    backend = import_backend(backend)
+
     # Create a plot dictionary
-    plot_dict = StandardPlot(
-        x=iteration_numbers,
-        y=cost_log,
+    fig= backend.create_figure(
         xaxis_title="Evaluation",
         yaxis_title="Cost",
         title="Convergence",
-        trace_names=result.method_name,
-        backend=backend,
+        style = {
+            "bg_color" : "white",
+            "width" : 600,
+            "height" : 600
+        }
     )
 
-    # Generate and display the figure
-    fig = plot_dict(show=False)
-    backend_module = import_backend(backend)
+    backend.plot_trace(backend.line_plot(
+        x=iteration_numbers,
+        y=cost_log,
+        label=result.method_name,
+    ), fig)
+
+    # Display figure
     if show:
-        backend_module.show_figure(fig)
+        backend.show_figure(fig)
     return fig
