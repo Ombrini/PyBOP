@@ -62,6 +62,9 @@ class GroupedSPM(BaseGroupedModel):
         Q = Variable("Discharge capacity [A.h]")
         Qt = Variable("Throughput capacity [A.h]")
 
+        v_s_n = Variable("Negative particle surface voltage variable [V]")
+        v_s_p = Variable("Positive particle surface voltage variable [V]")
+
         # Variables that vary spatially are created with a domain
         sto_n = Variable(
             "Negative particle stoichiometry",
@@ -158,48 +161,39 @@ class GroupedSPM(BaseGroupedModel):
         # Primary broadcasts are used to broadcast scalar quantities across a domain
         # into a vector of the right shape, for multiplying with other vectors
         alpha = 0.5  # cathodic transfer coefficient
+
+        # Reference exchange current
         j0_n = sto_n_surf**alpha * (1 - sto_n_surf) ** (1 - alpha) / tau_ct_n
         j0_p = sto_p_surf**alpha * (1 - sto_p_surf) ** (1 - alpha) / tau_ct_p
-        if not include_double_layer:
-            # Assuming alpha = 0.5
-            j_n = PrimaryBroadcast(I / (3 * Q_th_n), "negative electrode")
-            j_p = PrimaryBroadcast(-I / (3 * Q_th_p), "positive electrode")
-            eta_n = 2 * RT_F * pybamm.arcsinh(j_n / (2 * j0_n))
-            eta_p = 2 * RT_F * pybamm.arcsinh(j_p / (2 * j0_p))
-            v_s_n = pybamm.x_average(eta_n + U_n)
-            v_s_p = pybamm.x_average(eta_p + U_p)
+
+        # Overpotentials
+        eta_n = PrimaryBroadcast(v_s_n - U_n, "negative electrode")
+        eta_p = PrimaryBroadcast(v_s_p - U_p, "positive electrode")
+
+        # Exchange current
+        j_n = j0_n * (
+            pybamm.exp((1 - alpha) * eta_n / RT_F) - pybamm.exp(-alpha * eta_n / RT_F)
+        )
+        j_p = j0_p * (
+            pybamm.exp((1 - alpha) * eta_p / RT_F) - pybamm.exp(-alpha * eta_p / RT_F)
+        )
 
         ######################
         # Double layer
         ######################
         if include_double_layer:
-            # Additional variables
-            v_s_n = Variable("Negative particle surface voltage variable [V]")
-            v_s_p = Variable("Positive particle surface voltage variable [V]")
-
             # Additional parameters
             C_p = Parameter("Positive electrode capacitance [F]")
             C_n = Parameter("Negative electrode capacitance [F]")
 
-            # Overpotentials
-            eta_n = PrimaryBroadcast(v_s_n - U_n, "negative electrode")
-            eta_p = PrimaryBroadcast(v_s_p - U_p, "positive electrode")
-
-            # Exchange current
-            j_n = j0_n * (
-                pybamm.exp((1 - alpha) * eta_n / RT_F)
-                - pybamm.exp(-alpha * eta_n / RT_F)
-            )
-            j_p = j0_p * (
-                pybamm.exp((1 - alpha) * eta_p / RT_F)
-                - pybamm.exp(-alpha * eta_p / RT_F)
-            )
-
-            # Electrode surface potentials
             self.rhs[v_s_n] = 1 / C_n * (I - 3 * Q_th_n * pybamm.x_average(j_n))
             self.rhs[v_s_p] = 1 / C_p * (-I - 3 * Q_th_p * pybamm.x_average(j_p))
-            self.initial_conditions[v_s_n] = U_n_init
-            self.initial_conditions[v_s_p] = U_p_init
+        else:
+            self.algebraic[v_s_n] = I - 3 * Q_th_n * pybamm.x_average(j_n)
+            self.algebraic[v_s_p] = -I - 3 * Q_th_p * pybamm.x_average(j_p)
+
+        self.initial_conditions[v_s_n] = U_n_init
+        self.initial_conditions[v_s_p] = U_p_init
 
         ######################
         # Particles

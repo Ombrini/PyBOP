@@ -36,6 +36,9 @@ class GroupedDFN(BaseGroupedModel):
     def __init__(self, name="Grouped Doyle Fuller Newman Model", **model_kwargs):
         super().__init__(name=name, **model_kwargs)
 
+        # Unpack model options
+        include_double_layer = self.options["surface form"] == "differential"
+
         pybamm.citations.register(
             """
             @article{Hallemans2025,
@@ -61,6 +64,15 @@ class GroupedDFN(BaseGroupedModel):
         Qt = Variable("Throughput capacity [A.h]")
 
         # Variables that vary spatially are created with a domain
+        v_s_n = Variable(
+            "Negative particle surface voltage [V]",
+            domain="negative electrode",
+        )
+        v_s_p = Variable(
+            "Positive particle surface voltage [V]",
+            domain="positive electrode",
+        )
+
         sto_n = Variable(
             "Negative particle stoichiometry",
             domain="negative particle",
@@ -185,29 +197,14 @@ class GroupedDFN(BaseGroupedModel):
         # Primary broadcasts are used to broadcast scalar quantities across a domain
         # into a vector of the right shape, for multiplying with other vectors
         alpha = 0.5  # cathodic transfer coefficient
+
+        # Reference exchange current
         j0_n = (
             sto_n_surf**alpha * (sto_e_n * (1 - sto_n_surf)) ** (1 - alpha) / tau_ct_n
         )
         j0_p = (
             sto_p_surf**alpha * (sto_e_p * (1 - sto_p_surf)) ** (1 - alpha) / tau_ct_p
         )
-
-        ######################
-        # Double layer
-        ######################
-        # Additional variables
-        v_s_n = Variable(
-            "Negative particle surface voltage [V]",
-            domain="negative electrode",
-        )
-        v_s_p = Variable(
-            "Positive particle surface voltage [V]",
-            domain="positive electrode",
-        )
-
-        # Additional parameters
-        C_p = Parameter("Positive electrode capacitance [F]")
-        C_n = Parameter("Negative electrode capacitance [F]")
 
         # Overpotentials
         eta_n = v_s_n - U_n
@@ -231,9 +228,21 @@ class GroupedDFN(BaseGroupedModel):
             + (2 * RT_F * (1 - t_plus)) * pybamm.grad(sto_e_p) / sto_e_p
         )
 
-        # Electrode surface potentials
-        self.rhs[v_s_n] = (l_n * Q_e * pybamm.div(i_e_n) - 3 * Q_th_n * j_n) / C_n
-        self.rhs[v_s_p] = (l_p * Q_e * pybamm.div(i_e_p) - 3 * Q_th_p * j_p) / C_p
+        ######################
+        # Double layer
+        ######################
+        if include_double_layer:
+            # Additional parameters
+            C_p = Parameter("Positive electrode capacitance [F]")
+            C_n = Parameter("Negative electrode capacitance [F]")
+
+            # Electrode surface potentials
+            self.rhs[v_s_n] = (l_n * Q_e * pybamm.div(i_e_n) - 3 * Q_th_n * j_n) / C_n
+            self.rhs[v_s_p] = (l_p * Q_e * pybamm.div(i_e_p) - 3 * Q_th_p * j_p) / C_p
+        else:
+            # Electrode surface potentials
+            self.algebraic[v_s_n] = l_n * Q_e * pybamm.div(i_e_n) - 3 * Q_th_n * j_n
+            self.algebraic[v_s_p] = l_p * Q_e * pybamm.div(i_e_p) - 3 * Q_th_p * j_p
 
         self.initial_conditions[v_s_n] = U_n_init
         self.initial_conditions[v_s_p] = U_p_init
