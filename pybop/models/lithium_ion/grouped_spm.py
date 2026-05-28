@@ -166,8 +166,8 @@ class GroupedSPM(BaseGroupedModel):
         eta_p = PrimaryBroadcast(v_s_p - U_p, "positive electrode")
 
         # Exchange rates
-        j_n = self.butler_volmer(sto_n_surf, eta_n / RT_F) / tau_ct_n
-        j_p = self.butler_volmer(sto_p_surf, eta_p / RT_F) / tau_ct_p
+        j_n = self.j(sto_n_surf, eta_n / RT_F, "negative") / tau_ct_n
+        j_p = self.j(sto_p_surf, eta_p / RT_F, "positive") / tau_ct_p
 
         ######################
         # Double layer
@@ -327,13 +327,18 @@ class GroupedSPM(BaseGroupedModel):
         inputs = {f"{Domain} particle surface stoichiometry": sto}
         return FunctionParameter(f"{Domain} particle diffusion time scale [s]", inputs)
 
-    def butler_volmer(self, sto_surf, eta_RT_F):
+    def j(self, sto_surf, eta_RT_F, domain):
         """
-        Dimensionless Butler-Volmer exchange rate.
+        Dimensionless exchange rate.
         """
-        alpha = 0.5  # cathodic transfer coefficient
-        j0 = sto_surf**alpha * (1 - sto_surf) ** (1 - alpha)
-        return j0 * (pybamm.exp((1 - alpha) * eta_RT_F) - pybamm.exp(-alpha * eta_RT_F))
+        Domain = domain.capitalize()
+        inputs = {
+            f"{Domain} particle surface stoichiometry": sto_surf,
+            f"{Domain} electrode dimensionless overpotential": eta_RT_F,
+        }
+        return FunctionParameter(
+            f"{Domain} electrode dimensionless exchange rate", inputs
+        )
 
     @property
     def default_parameter_values(self) -> ParameterValues:
@@ -545,6 +550,8 @@ class GroupedSPM(BaseGroupedModel):
             "Measured cell capacity [A.s]": Q_meas,
             "Positive particle diffusion time scale [s]": tau_d_p,
             "Negative particle diffusion time scale [s]": tau_d_n,
+            "Positive electrode dimensionless exchange rate": GroupedSPM.symmetric_butler_volmer,
+            "Negative electrode dimensionless exchange rate": GroupedSPM.symmetric_butler_volmer,
             "Positive electrode charge transfer time scale [s]": tau_ct_p,
             "Negative electrode charge transfer time scale [s]": tau_ct_n,
             "Positive electrode capacitance [F]": C_p,
@@ -556,3 +563,12 @@ class GroupedSPM(BaseGroupedModel):
         parameter_values = ParameterValues(values=parameter_dictionary)
         parameter_values._set_initial_state = GroupedSPM.set_initial_state  # noqa: SLF001
         return parameter_values
+
+    @staticmethod
+    def symmetric_butler_volmer(sto_surf, eta_RT_F):
+        """
+        Dimensionless Butler-Volmer exchange rate.
+        """
+        alpha = 0.5  # cathodic transfer coefficient
+        j0 = sto_surf**alpha * (1 - sto_surf) ** (1 - alpha)
+        return j0 * (pybamm.exp((1 - alpha) * eta_RT_F) - pybamm.exp(-alpha * eta_RT_F))
