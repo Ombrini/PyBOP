@@ -211,15 +211,6 @@ class GroupedSPMe(BaseGroupedModel):
         ######################
         # Primary broadcasts are used to broadcast scalar quantities across a domain
         # into a vector of the right shape, for multiplying with other vectors
-        alpha = 0.5  # cathodic transfer coefficient
-
-        # Reference exchange current
-        j0_n = (
-            sto_n_surf**alpha * (sto_e_n * (1 - sto_n_surf)) ** (1 - alpha) / tau_ct_n
-        )
-        j0_p = (
-            sto_p_surf**alpha * (sto_e_p * (1 - sto_p_surf)) ** (1 - alpha) / tau_ct_p
-        )
 
         # Overpotentials
         eta_n = (v_s_n - U_n) + (2 * RT_F * (1 - t_plus)) * (
@@ -229,13 +220,9 @@ class GroupedSPMe(BaseGroupedModel):
             pybamm.x_average(pybamm.log(sto_e_p)) - pybamm.log(sto_e_p)
         )
 
-        # Exchange current
-        j_n = j0_n * (
-            pybamm.exp((1 - alpha) * eta_n / RT_F) - pybamm.exp(-alpha * eta_n / RT_F)
-        )
-        j_p = j0_p * (
-            pybamm.exp((1 - alpha) * eta_p / RT_F) - pybamm.exp(-alpha * eta_p / RT_F)
-        )
+        # Exchange rates
+        j_n = self.butler_volmer(sto_n_surf, sto_e_n, eta_n / RT_F) / tau_ct_n
+        j_p = self.butler_volmer(sto_p_surf, sto_e_p, eta_p / RT_F) / tau_ct_p
 
         ######################
         # Double layer
@@ -455,6 +442,14 @@ class GroupedSPMe(BaseGroupedModel):
         Domain = domain.capitalize()
         inputs = {f"{Domain} particle surface stoichiometry": sto}
         return FunctionParameter(f"{Domain} particle diffusion time scale [s]", inputs)
+
+    def butler_volmer(self, sto_surf, sto_e, eta_RT_F):
+        """
+        Dimensionless Butler-Volmer exchange rate.
+        """
+        alpha = 0.5  # cathodic transfer coefficient
+        j0 = sto_surf**alpha * (sto_e * (1 - sto_surf)) ** (1 - alpha)
+        return j0 * (pybamm.exp((1 - alpha) * eta_RT_F) - pybamm.exp(-alpha * eta_RT_F))
 
     @property
     def default_parameter_values(self) -> ParameterValues:
