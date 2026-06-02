@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pybop.plot.util import import_backend, remove_brackets
+from pybop.plot.util import get_backend, remove_brackets
 from pybop.problems.meta_problem import MetaProblem
 from pybop.simulators.failed_solution import FailedSolution
 
@@ -41,27 +41,22 @@ def predictive(
         else [result.problem]
     )
     figure_list = []
-    backend_module = import_backend(backend)
+    backend_module = get_backend(backend)
 
     for problem in problems:
         fig = backend_module.create_figure(
             xaxis_title=remove_brackets(problem.domain),
             yaxis_title=remove_brackets(problem.target[0]),
-            style={
-                "bg_color" : "white",
-                "width" : 600,
-                "height" : 600
-            }
+            style={"bg_color": "white", "width": 600, "height": 600},
         )
 
         backend_module.plot_trace(
-            backend_module.line_plot(
+            backend_module.line(
                 x=problem.domain_data,
                 y=problem.target_data[problem.target[0]],
-                label=data_legend_entry
-
+                label=data_legend_entry,
             ),
-            fig
+            fig,
         )
 
         # Simulate the samples and add to plot
@@ -69,25 +64,26 @@ def predictive(
         simulations = problem.simulate_batch(inputs=inputs)
         for pdf, sim in zip(posterior_samples_pdf, simulations, strict=False):
             if not isinstance(sim, FailedSolution):
-                colors = backend_module.sample_color_scale(pdf, d_min = pdf_range[0], d_max=pdf_range[1] )
+                colors = backend_module.sample_color_scale(
+                    pdf, d_min=pdf_range[0], d_max=pdf_range[1]
+                )
                 backend_module.plot_trace(
-                    backend_module.line_plot(
+                    backend_module.line(
                         x=problem.domain_data,
                         y=sim[problem.target[0]].data,
-                        style=dict(
-                            color=colors[0],
-                            linestyle="dotted"
-                        )
+                        style=dict(color=colors[0], linestyle="dotted"),
                     ),
-                    fig
+                    fig,
                 )
 
         # Add the colourbar
-        backend_module.colorbar(fig, pdf_range, colorscale=colour_scale, label="Posterior PDF")
+        backend_module.colorbar(
+            fig, pdf_range, colorscale=colour_scale, label="Posterior PDF"
+        )
 
         if pdf_plot is not None:
             backend_module.plot_trace(
-                backend_module.line_plot(
+                backend_module.line(
                     x=pdf_plot[0],
                     y=pdf_plot[1],
                     trace_names=pdf_label,

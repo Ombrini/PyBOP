@@ -1,5 +1,5 @@
-from pybop.plot.standard_plots import trajectories
-from pybop.plot.util import import_backend, remove_brackets
+from pybop.plot.trajectories import trajectories
+from pybop.plot.util import get_backend, remove_brackets
 
 
 def dataset(
@@ -49,14 +49,14 @@ def dataset(
     fig = trajectories(
         x=dataset[dataset.domain],
         y=y,
-        trace_names=trace_names,
+        labels=trace_names,
         show=False,
         xaxis_title=remove_brackets(dataset.domain),
         yaxis_title=yaxis_title,
         backend=backend,
     )
 
-    backend_module = import_backend(backend)
+    backend_module = get_backend(backend)
     if show:
         backend_module.show_figure(fig)
 

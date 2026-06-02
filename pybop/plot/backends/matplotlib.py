@@ -1,20 +1,29 @@
-import warnings
 from copy import deepcopy
 
 import matplotlib as mpl
 import numpy as np
 from matplotlib import pyplot as plt
-from pybop.plot.util import _AxisData
+
 from pybop.plot.backends.base import PlotBackend
+from pybop.plot.util import AxisData, wrap_text
+
 
 class MatplotlibBackend(PlotBackend):
     def __init__(self):
-        self.name = 'matplotlib'
+        self.name = "matplotlib"
+        self.global_colorcycle = False
+        self.colorcycle = plt.rcParams["axes.prop_cycle"]()
+        self.rect = [0, 0, 1, 1]
 
-    def create_figure(self, title = None, xaxis_title = None, yaxis_title = None, traces = None, style = None):
+    def create_figure(
+        self, title=None, xaxis_title=None, yaxis_title=None, traces=None, style=None
+    ):
         style = style or {}
-        figsize = (np.ceil(style.get("width", 800)/100), np.ceil(style.get("height", 600)/100))
-        
+        figsize = (
+            np.ceil(style.get("width", 800) / 100),
+            np.ceil(style.get("height", 600) / 100),
+        )
+
         fig = plt.figure(figsize=figsize, dpi=100)
 
         # Set titles
@@ -35,28 +44,38 @@ class MatplotlibBackend(PlotBackend):
             ax.set_facecolor(style.get("bg_color"))
             ax.set_axisbelow(True)
 
-
         if traces is not None:
             for trace in traces:
                 self.plot_trace(trace, fig)
         return fig
-    def make_subplots(self, axes: list[_AxisData], title=None, axis_titles_x: list[str] | str = None, axis_titles_y: list[str] | str = None, style=None):
+
+    def make_subplots(
+        self,
+        axes: list[AxisData],
+        title=None,
+        axis_titles_x: list[str] | str = None,
+        axis_titles_y: list[str] | str = None,
+        style=None,
+    ):
         style = style or {}
 
         num_rows = max(ax.row + ax.row_span - 1 for ax in axes)
         num_cols = max(ax.col + ax.col_span - 1 for ax in axes)
 
-        figsize = (np.ceil(style.get("width", 800)/100), np.ceil(style.get("height", 600)/100))
+        figsize = (
+            np.ceil(style.get("width", 800) / 100),
+            np.ceil(style.get("height", 600) / 100),
+        )
 
         fig = plt.figure(figsize=figsize, dpi=100)
         axes_dict = {}
 
         for ax in axes:
-            print(ax)
             idx_start = (ax.row - 1) * num_cols + ax.col
             idx_end = (ax.row + ax.row_span - 2) * num_cols + ax.col + ax.col_span - 1
-            axes_dict[(ax.row, ax.col)] = fig.add_subplot(num_rows, num_cols, (idx_start, idx_end))
-
+            axes_dict[(ax.row, ax.col)] = fig.add_subplot(
+                num_rows, num_cols, (idx_start, idx_end)
+            )
 
         # Set title
         if title is not None:
@@ -64,29 +83,59 @@ class MatplotlibBackend(PlotBackend):
 
         for i, ax in enumerate(fig.axes):
             if isinstance(axis_titles_x, str):
-                ax.set_xlabel(axis_titles_x)
+                ax.set_xlabel(
+                    wrap_text(axis_titles_x, np.floor(50 / num_rows), self.name)
+                )
             elif isinstance(axis_titles_x, list) and i < len(axis_titles_x):
-                ax.set_xlabel(axis_titles_x[i])
+                ax.set_xlabel(
+                    wrap_text(axis_titles_x[i], np.floor(50 / num_rows), self.name)
+                )
             if isinstance(axis_titles_y, str):
-                ax.set_ylabel(axis_titles_y)
+                ax.set_ylabel(
+                    wrap_text(axis_titles_y, np.floor(50 / num_rows), self.name)
+                )
             elif isinstance(axis_titles_y, list) and i < len(axis_titles_y):
-                ax.set_ylabel(axis_titles_y[i])
+                ax.set_ylabel(
+                    wrap_text(axis_titles_y[i], np.floor(50 / num_rows), self.name)
+                )
             if "bg_color" in style:
                 ax.set_facecolor(style.get("bg_color"))
                 ax.set_axisbelow(True)
 
+        self.global_colorcycle = True
+
         return fig, axes_dict, num_rows, num_cols
 
-    def legend(self, fig, style: dict=None):
-        style= style or {}
+    def legend(self, fig, style: dict = None):
+        style = style or {}
         lines_labels = []
-        if style.get('fig_legend'):
+        if style.get("fig_legend"):
             axes = fig.axes
         else:
             axes = [fig.gca()]
+
+        if "outside" in style.keys():
+            side, offset = style.get("outside")
+            if side == "left":
+                style["loc"] = "upper left"
+                style["coords"] = (0.0, 1.0)
+                self.rect = [offset, 0, 1, 1]
+            elif side == "top":
+                style["loc"] = "lower right"
+                style["coords"] = (1.0, 1.0 - offset)
+                self.rect = [0, 0, 1, 1 - offset]
+            elif side == "bottom":
+                style["loc"] = "lower left"
+                style["coords"] = (0.0, 0.0)
+                self.rect = [0, offset, 1, 1]
+            else:
+                style["loc"] = "upper right"
+                style["coords"] = (1.0, 1.0)
+                self.rect = [0.0, 0, 1 - offset, 1]
+
         labels_in_fig = False
         lines_labels = []
-        opts ={}
+        opts = {}
         for ax in axes:
             if not ax.get_legend_handles_labels() == ([], []):
                 lines_labels.append(ax.get_legend_handles_labels())
@@ -97,17 +146,20 @@ class MatplotlibBackend(PlotBackend):
                 opts["ncols"] = len(lines)
             if "coords" in style.keys():
                 opts["bbox_to_anchor"] = style.get("coords")
-            if style.get('fig_legend'):
+            if style.get("fig_legend"):
                 opts["loc"] = style.get("loc", "upper right")
                 fig.legend(lines, labels, **opts)
             else:
                 opts["loc"] = style.get("loc", "best")
-            axes[0].legend(lines, labels, **opts)
+                axes[0].legend(lines, labels, **opts)
 
     def show_figure(self, fig):
-        fig.tight_layout()
+        if isinstance(fig, list):
+            for f in fig:
+                f.tight_layout(rect=self.rect)
+        else:
+            fig.tight_layout(rect=self.rect)
         plt.show()
-
 
     def plot_trace(self, traces: dict | list[dict], fig, ax=None, color_cycle=None):
         if not isinstance(traces, list):
@@ -131,8 +183,8 @@ class MatplotlibBackend(PlotBackend):
                     del trace_options[key]
 
             # update color
-            if color_cycle is not None and plot_type == "plot":
-                trace_options.update(**next(color_cycle))
+            if self.global_colorcycle and plot_type == "plot":
+                trace_options.update(**next(self.colorcycle))
 
             # get plotting function
             try:
@@ -156,7 +208,7 @@ class MatplotlibBackend(PlotBackend):
         # get colours
         cmap = mpl.colormaps[scale]
         return cmap(norm_d)
-    
+
     def colorbar(self, fig, data, colorscale="viridis", label=None):
         # normalise cost
         f_min = np.nanmin(data[np.isfinite(data)])
@@ -166,7 +218,9 @@ class MatplotlibBackend(PlotBackend):
         # get colours
         cmap = mpl.colormaps[colorscale]
 
-        plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=fig.gca(), label=label)
+        plt.colorbar(
+            mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=fig.gca(), label=label
+        )
 
     def contour_plot(self, x, y, z, colorscale="viridis"):
         contour = dict(positional_args=[x, y, z], plot_type="contourf", cmap=colorscale)
@@ -178,21 +232,22 @@ class MatplotlibBackend(PlotBackend):
             plot_type="contour",
         )
         return [contour, contour_lines]
-    
+
     def fill_plot(self, x, y, color=None, label=None):
         return dict(positional_args=(x, y), plot_type="fill", color=color)
-    
 
     def fill_between_plot(self, x, y_upper, y_lower, color):
-        trace = dict(positional_args=(x, y_upper, y_lower), plot_type="fill_between", color=color)
+        trace = dict(
+            positional_args=(x, y_upper, y_lower), plot_type="fill_between", color=color
+        )
         return trace
 
     def histogram_plot(self, x, name, style: dict = None):
         trace = dict(positional_args=[x], label=name, plot_type="hist")
-        trace.update({"alpha" : style.get("alpha")})
+        trace.update({"alpha": style.get("alpha")})
         return trace
 
-    def line_plot(self, x=None, y=None, label=None, style=None):
+    def line(self, x=None, y=None, label=None, style=None):
         style = style or {}
         if x is not None and y is not None:
             size = min(len(x), len(y))
@@ -234,10 +289,5 @@ class MatplotlibBackend(PlotBackend):
 
     def add_vline(self, fig, x, style=None):
         fig.gca()
-        style=style or {}
+        style = style or {}
         plt.axvline(x, **style)
-
-
-
-
-

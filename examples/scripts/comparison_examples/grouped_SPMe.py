@@ -11,8 +11,7 @@ identification purposes.
 """
 
 # Prepare figure
-pybop.plot.set_backend("matplotlib")
-plot_dict = pybop.plot.StandardPlot()
+fig = plt.figure()
 plt.xlabel("Time / s")
 plt.ylabel("Voltage / V")
 
@@ -55,10 +54,9 @@ for model, param, linestyle in zip(
         model, parameter_values=param, experiment=experiment, cache_esoh=False
     ).solve(initial_soc=init_soc)
     dataset = pybop.import_pybamm_solution(solution)
-    plot_dict.create_trace(
+    plt.plot(
         dataset["Time [s]"], dataset["Voltage [V]"], label=None, linestyle=linestyle
     )
-plot_dict()
 
 # Set up figure
 fig, ax = plt.subplots()

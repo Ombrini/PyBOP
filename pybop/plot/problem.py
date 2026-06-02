@@ -3,7 +3,7 @@ import numpy as np
 from pybop.costs.design_cost import DesignCost
 from pybop.costs.error_measures import ErrorMeasure
 from pybop.parameters.parameter import Inputs
-from pybop.plot.util import import_backend, remove_brackets
+from pybop.plot.util import get_backend, remove_brackets
 from pybop.problems.meta_problem import MetaProblem
 from pybop.problems.problem import Problem
 from pybop.simulators.solution import Solution
@@ -64,7 +64,7 @@ def problem(
         model_domain = target_domain[: len(model_output[target].data)]
 
     # Create a plot for each output
-    backend_module = import_backend(backend)
+    backend_module = get_backend(backend)
     figure_list = []
     for var in problem.target:
         # Create a plot dictionary
@@ -72,33 +72,26 @@ def problem(
             title=title,
             xaxis_title=remove_brackets(domain),
             yaxis_title=remove_brackets(var),
-            style = {
-                "bg_color" : "white",
-                "width" : 600,
-                "height" : 600
-            }
+            style={"bg_color": "white", "width": 600, "height": 600},
         )
         traces = []
 
-        model_trace = backend_module.line_plot(
+        model_trace = backend_module.line(
             x=model_domain,
             y=model_output[var].data,
             label="Optimised" if isinstance(problem.cost, DesignCost) else "Model",
             style={
-                "linestyle" : "none" if isinstance(problem, MetaProblem) else "solid",
-                "marker" : "." if isinstance(problem, MetaProblem) else "none"
-            }
-
+                "linestyle": "none" if isinstance(problem, MetaProblem) else "solid",
+                "marker": "." if isinstance(problem, MetaProblem) else "none",
+            },
         )
         traces.append(model_trace)
 
-        target_trace = backend_module.line_plot(
-            x=target_domain, y=target_output[var].data,
+        target_trace = backend_module.line(
+            x=target_domain,
+            y=target_output[var].data,
             label="Reference",
-            style={
-                "linestyle" : "none",
-                "marker" : "."
-            }
+            style={"linestyle": "none", "marker": "."},
         )
         traces.append(target_trace)
 
@@ -114,7 +107,7 @@ def problem(
             y_lower = (model_output[var].data - sigma).tolist()
 
             fill_trace = backend_module.fill_between_plot(
-                    x, y_upper, y_lower, color="#FFE5CC"
+                x, y_upper, y_lower, color="#FFE5CC"
             )
             traces.append(fill_trace)
 

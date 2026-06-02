@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from pybop.plot.util import import_backend
+from pybop.plot.util import get_backend
 
 if TYPE_CHECKING:
     from pybop.samplers.base_pints_sampler import SamplingResult
@@ -11,8 +11,7 @@ def chains(result: "SamplingResult", show=True, backend=None):
     Plot posterior distributions for each chain.
     """
     # Import backend
-    backend = import_backend(backend)
-    
+    backend = get_backend(backend)
 
     fig = backend.create_figure(
         title="Posterior Distribution",
@@ -26,29 +25,29 @@ def chains(result: "SamplingResult", show=True, backend=None):
                 backend.histogram_plot(
                     x=chain[:, j],
                     name=f"Chain {i} - Parameter {j}",
-                    style=dict(alpha=0.75)
+                    style=dict(alpha=0.75),
                 ),
-                fig
+                fig,
             )
 
             backend.add_vline(
-                fig, 
+                fig,
                 result.mean[j],
-                style = dict(linewidth=3, linestyle="dashed", color="black")
+                style=dict(linewidth=3, linestyle="dashed", color="black"),
             )
 
     backend.legend(fig)
-            
+
     if show:
         backend.show_figure(fig)
+
 
 def trace(result: "SamplingResult", show=True, backend=None):
     """
     Plot trace plots for the posterior samples.
     """
     # Import plotting backend
-    backend = import_backend(backend)
-
+    backend = get_backend(backend)
 
     figlist = []
     for i in range(result.n_parameters):
@@ -58,10 +57,7 @@ def trace(result: "SamplingResult", show=True, backend=None):
             yaxis_title="Value",
         )
         for j, chain in enumerate(result.chains):
-            backend.plot_trace(
-                backend.line_plot(y=chain[:, i], label=f"Chain {j}"),
-                fig
-            )
+            backend.plot_trace(backend.line(y=chain[:, i], label=f"Chain {j}"), fig)
         backend.legend(fig)
         figlist.append(fig)
 
@@ -71,13 +67,12 @@ def trace(result: "SamplingResult", show=True, backend=None):
     return figlist
 
 
-
 def posterior(result: "SamplingResult", backend=None, show=True):
     """
     Plot the summed posterior distribution across chains.
     """
     # Import backend
-    backend = import_backend(backend)
+    backend = get_backend(backend)
     fig = backend.create_figure(
         title="Posterior Distribution",
         xaxis_title="Value",
@@ -87,11 +82,17 @@ def posterior(result: "SamplingResult", backend=None, show=True):
     for j in range(result.all_samples.shape[1]):
         backend.plot_trace(
             backend.histogram_plot(
-                x=result.all_samples[:, j], name=f"Parameter {j}", style=dict(alpha=0.75)
+                x=result.all_samples[:, j],
+                name=f"Parameter {j}",
+                style=dict(alpha=0.75),
             ),
-            fig
+            fig,
         )
-        backend.add_vline(fig, result.mean[j], style=dict(linewidth=3, linestyle="dashed", color="black"))
+        backend.add_vline(
+            fig,
+            result.mean[j],
+            style=dict(linewidth=3, linestyle="dashed", color="black"),
+        )
 
     backend.legend(fig)
 
@@ -115,10 +116,9 @@ def summary_table(result: "SamplingResult", backend=None):
         ["95% CI Upper", summary_stats["ci_upper"]],
     ]
 
-    backend = import_backend(backend)
+    backend = get_backend(backend)
     backend.show_table(
         header=header,
         values=values,
         title="Summary Statistics",
     )
-

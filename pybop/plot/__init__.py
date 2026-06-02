@@ -1,13 +1,21 @@
 # Plotting backend default
 DEFAULT_BACKEND = 'matplotlib'
-backend=DEFAULT_BACKEND
+current_default_backend=DEFAULT_BACKEND
 
-from .util import set_backend, import_backend, _AxisData, remove_brackets, wrap_text, parse_data
+from .util import (
+    AxisData,
+    use_backend,
+    get_backend,
+    parse_data,
+    remove_brackets,
+    wrap_text
+)
 
 #
 # Import plots
 #
-from .standard_plots import trajectories, Subplots
+from .standard_plots import StandardPlot, StandardSubplot
+from .trajectories import trajectories
 from .contour import contour
 from .dataset import dataset
 from .convergence import convergence

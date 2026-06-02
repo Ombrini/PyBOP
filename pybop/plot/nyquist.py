@@ -1,5 +1,5 @@
 from pybop.parameters.parameter import Inputs
-from pybop.plot.util import  import_backend
+from pybop.plot.util import get_backend
 
 
 def nyquist(
@@ -43,16 +43,13 @@ def nyquist(
     """
 
     trace_style_model = dict(
-        linewidth = 2,
-        color = "#00CC96",
-        marker = "o",
-        markerfacecolor = "#00CC96",
+        linewidth=2,
+        color="#00CC96",
+        marker="o",
+        markerfacecolor="#00CC96",
     )
     trace_style_reference = dict(
-        linestyle = "none",
-        marker = "o",
-        fillstyle= "none",
-        markeredgecolor="#636EFA"
+        linestyle="none", marker="o", fillstyle="none", markeredgecolor="#636EFA"
     )
 
     if not isinstance(inputs, dict):
@@ -62,37 +59,37 @@ def nyquist(
     domain_data = model_output["Impedance"].data.real
     target_output = problem.target_data
     figure_list = []
-    backend = import_backend(backend)
+    backend = get_backend(backend)
     for var in problem.target:
         fig = backend.create_figure(
-            xaxis_title=r"$Z_{re} / \Omega$", 
+            xaxis_title=r"$Z_{re} / \Omega$",
             yaxis_title=r"$-Z_{im} / \Omega$",
             title=title,
+            style={"width": 600, "height": 600, "bg_color": "white"},
         )
 
         backend.plot_trace(
-            backend.line_plot(
-            x=domain_data,
-            y=-model_output[var].data.imag,
-            label="Model",
-            style=trace_style_model
+            backend.line(
+                x=domain_data,
+                y=-model_output[var].data.imag,
+                label="Model",
+                style=trace_style_model,
             ),
-            fig
+            fig,
         )
 
         backend.plot_trace(
-            backend.line_plot(
+            backend.line(
                 x=target_output[var].real,
                 y=-target_output[var].imag,
                 label="Reference",
                 style=trace_style_reference,
             ),
-            fig
+            fig,
         )
         backend.legend(fig)
         figure_list.append(fig)
 
-    
     if show:
         backend.show_figure(fig)
 

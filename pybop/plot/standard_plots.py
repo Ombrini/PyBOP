@@ -1,172 +1,217 @@
 import math
-from copy import deepcopy
 
-import numpy as np
+from pybop.plot.backends import PlotBackend
+from pybop.plot.util import AxisData, get_backend, parse_data, wrap_text
 
-from pybop.plot.util import (
-    _AxisData,
-    import_backend,
-    wrap_text,
-    parse_data
-)
 
-class Subplots():
+class StandardPlot:
+    """
+    A class for creating and displaying figures.
+
+    Parameters
+    ----------
+    x : list or np.ndarray, optional
+        X-axis data points.
+    y : list or np.ndarray, optional
+        Primary Y-axis data points for simulated model output.
+    title: str, optional
+        The title of the figure
+    xaxis_title: str, optional
+        Sets the title/label of the x-axis
+    yaxis_title: str, optional
+        Sets the title/label of the y-axis
+        Settings to modify the default trace type (default: DEFAULT_TRACE_OPTIONS).
+    labels : str, optional
+        Name(s) for the primary trace(s) (default: None).
+    label_width : int, optional
+        Maximum length of the labels before text wrapping is used (default: 40).
+    style: dict, optional
+    backend: str or pybop.backends.PlotBackend, optional
+        Plotting backend to be used to create plot
+
+    Returns
+    -------
+    plotly.graph_objs.Figure or matplotlib.figure.Figure
+        The generated Plotly figure.
+    """
 
     def __init__(
         self,
-        x=None,
-        y=None,
-        num_rows=None,
-        num_cols=None,
-        num_plots=None,
+        x,
+        y,
+        title: str = None,
+        xaxis_title: str = None,
+        yaxis_title: str = None,
+        labels: list[str] = None,
+        label_width=40,
+        style: dict = None,
         backend=None,
     ):
-        self.num_rows = num_rows
-        self.num_cols = num_cols
-        self.num_plots = num_plots
+        self.lines = []
+        self.backend = backend
+        self.title = title
+        self.xaxis_title = xaxis_title
+        self.yaxis_title = yaxis_title
+        self.style = style
+        if not isinstance(self.backend, PlotBackend):
+            self.backend = get_backend(backend)
 
         if x is not None and y is not None:
-            self.x, self.y = parse_data(x, y)
-            if self.num_plots is None:
-                self.num_plots = len(self.y)
-        else: 
-            self.x = None
-            self.y = None
+            self.add_lines(x, y, labels, label_width)
 
+    def __call__(self, show=True):
+        """
+        Generate and show the figure.
 
-        self.backend = import_backend(backend)
-    
-        if self.num_rows == None and self.num_cols == None:
-            if self.num_plots is not None:
-                # Work out the number of subplots
-                self.num_cols = int(math.ceil(math.sqrt(self.num_plots)))
-                self.num_rows = int(math.ceil(self.num_plots/ self.num_cols))
-        elif self.num_rows is None:
-            if self.num_plots is None:
-                self.num_rows = 1
-                self.num_plots = self.num_cols
-            else:
-                self.num_rows = int(math.ceil(self.num_plots/ self.num_cols))
-        elif self.num_cols is None:
-            if self.num_plots is None:
-                self.num_cols = 1
-                self.num_plots = self.num_rows
-            else:
-                self.num_cols = int(math.ceil(self.num_traces / self.num_rows))
-
-        if self.num_plots is not None:
-            self._axes_data = [
-                _AxisData(row + 1, col + 1)
-                for row in range(self.num_rows)
-                for col in range(self.num_cols)
-            ]
-        else: 
-            self._axes_data = []
-
-        self.fig = None
-        self.axes = None
-
-    def add_axis_data(self, row, col, row_span=1, col_span=1):
-        self._axes_data.append(_AxisData(row, col, row_span, col_span))
-
-    def create_figure(self, title=None, axis_titles_x: list[str] | str = None, axis_titles_y: list[str] | str = None, style=None):
-        self.fig, self.axes, self.num_rows, self.num_cols = self.backend.make_subplots(self._axes_data, title=title, axis_titles_x=axis_titles_x, axis_titles_y=axis_titles_y, style=style)
-
-    def get_axis(self, row, col):
-        if self.axes is None:
-            raise ValueError("Figure contains no axes or has not been created.")
-        
-        if (row, col) in self.axes.keys():
-            return self.axes[(row, col)]
+        Parameters
+        ----------
+        show : bool, optional
+            If True, the figure is shown upon creation (default: True).
+        """
+        fig = self.backend.create_figure(
+            title=self.title,
+            xaxis_title=self.xaxis_title,
+            yaxis_title=self.yaxis_title,
+            style=self.style,
+            traces=self.lines,
+        )
+        if show:
+            self.backend.show_figure(fig)
         else:
-            raise KeyError(f"No axes for row={row} and col={col} found.")
-        
-    def plot_lines(self, x=None, y=None, labels=None):
-        if self.fig is None:
-            self.create_figure()
-        if x is None:
-            if self.x is None:
-                raise ValueError("No data for plotting supplied.")
-            else:
-                x = self.x
-        if y is None:
-            if self.y is None:
-                raise ValueError("No data for plotting supplied.")
-            else:
-                y = self.y
+            return fig
+
+    def add_lines(self, x, y, labels=None, labelwidth=40):
+        """
+        Add a set of lines.
+
+        Parameters
+        ----------
+        x : list or np.ndarray
+            X-axis data points.
+        y : list or np.ndarray
+            Primary Y-axis data points for simulated model output.
+        labels : str or list[str], optional
+            Name(s) for the primary line(s) (default: None).
+        label_width : int, optional
+            Maximum length of the labels before text wrapping is used (default: 40).
+        """
+        # Parse the data
         x, y = parse_data(x, y)
         xi = x[0]
         for i in range(0, len(y)):
-            row = (i // self.num_cols) + 1
-            col = (i % self.num_cols) + 1
-            if row > self.num_rows:
-                row = (row % self.num_rows) + 1
             if len(x) > 1:
                 xi = x[i]
             label = None
             if labels is not None:
-                label = labels[i]
+                label = wrap_text(labels[i], 30, backend=self.backend.name)
 
-            self.backend.plot_trace(self.backend.line_plot(xi, y[i], label), self.fig, ax=self.get_axis(row, col))
+            line = self.backend.line(xi, y[i], label)
+            self.lines.append(line)
 
 
-def trajectories(x, y, xaxis_title: str = None, yaxis_title: str = None, labels=None, title:str = None, show=True, backend=None, label_width=20):
+class StandardSubplot(StandardPlot):
     """
-    Quickly plot one or more trajectories using Plotly.
+    A class for creating and displaying a set of figures in a grid layout.
 
     Parameters
     ----------
     x : list or np.ndarray
         X-axis data points.
     y : list or np.ndarray
-        Y-axis data points for each trajectory.
-    trace_names : list or str, optional
-        Name(s) for the trace(s) (default: None).
-    **layout_kwargs : optional
-            Valid Plotly layout keys and their values,
-            e.g. `xaxis_title="Time / s"` or
-            `xaxis={"title": "Time [s]", font={"size":14}}`
+        Primary Y-axis data points for simulated model output.
+    num_rows : int, optional
+        Number of rows of subplots, can be set automatically (default: None).
+    num_cols : int, optional
+        Number of columns of subplots, can be set automatically (default: None).
+    title: str, optional
+        Title of the Figure
+    xaxis_titles: str or list of str, optional
+        titles for the x-axes (default: None)
+    yaxis_titles: str or list of str, optional
+        titles for the x-axes (default: None)
+
+    labels : str, optional
+        Name(s) for the primary trace(s) (default: None).
+    label_width : int, optional
+        Maximum length of the trace names before text wrapping is used (default: 40).
+    style: dict, optional
+        Options for figure layout
+    backend: str or pybop.plot.backends.PlotBackend
 
     Returns
     -------
-    plotly.graph_objs.Figure
-        The Plotly figure object for the scatter plot.
+    plotly.graph_objs.Figure or matplotlib.figure.Figure
+        The generated figure.
     """
 
-    # Check and wrap trace names
-    if labels is not None:
-        if isinstance(labels, str):
-            labels = [labels]
-        for i, name in enumerate(labels):
-            labels[i] = wrap_text(
-                name, width=label_width, backend=backend
-            )
+    def __init__(
+        self,
+        x,
+        y,
+        num_rows: int = None,
+        num_cols: int = None,
+        title: str = None,
+        xaxis_titles: list[str] | str = None,
+        yaxis_titles: list[str] | str = None,
+        labels: list[str] = None,
+        label_width: int = 40,
+        style: dict = None,
+        backend=None,
+    ):
+        super().__init__(
+            x,
+            y,
+            title=title,
+            xaxis_title=xaxis_titles,
+            yaxis_title=yaxis_titles,
+            labels=labels,
+            label_width=label_width,
+            style=style,
+            backend=backend,
+        )
 
-    backend = import_backend(backend)
-    fig = backend.create_figure(
-        title = title,
-        xaxis_title = xaxis_title,
-        yaxis_title = yaxis_title,
-        style = {
-            "height" : 600,
-            "width" : 600,
-            "bg_color" : "white"
-        }
-    )
+        self.num_lines = len(self.lines)
+        self.num_rows = num_rows
+        self.num_cols = num_cols
+        if self.num_rows is None and self.num_cols is None:
+            # Work out the number of subplots
+            self.num_cols = int(math.ceil(math.sqrt(self.num_lines)))
+            self.num_rows = int(math.ceil(self.num_lines / self.num_cols))
+        elif self.num_rows is None:
+            self.num_rows = int(math.ceil(self.num_lines / self.num_cols))
+        elif self.num_cols is None:
+            self.num_cols = int(math.ceil(self.num_lines / self.num_rows))
 
-    x, y = parse_data(x, y)
-    xi = x[0]
-    for i in range(0, len(y)):
-        if len(x) > 1:
-            xi = x[i]
-        label = None
-        if labels is not None:
-            label = labels[i]
+        self.axes_data = []
+        for idx in range(self.num_lines):
+            row = (idx // self.num_cols) + 1
+            col = (idx % self.num_cols) + 1
+            self.axes_data.append(AxisData(row, col))
 
-        backend.plot_trace(backend.line_plot(xi, y[i], label), fig)
-    
-    backend.legend(fig)
+    def __call__(self, show):
+        """
+        Generate and show the set of figures.
 
-    if show:
-        backend.show_figure(fig)
-    return fig
+        Parameters
+        ----------
+        show : bool, optional
+            If True, the figure is shown upon creation (default: True).
+        """
+
+        fig, self.axes, self.num_rows, self.num_cols = self.backend.make_subplots(
+            self.axes_data,
+            title=self.title,
+            axis_titles_x=self.xaxis_title,
+            axis_titles_y=self.yaxis_title,
+            style=self.style,
+        )
+
+        for idx, line in enumerate(self.lines):
+            row = (idx // self.num_cols) + 1
+            col = (idx % self.num_cols) + 1
+            self.backend.plot_trace(line, fig, self.axes[(row, col)])
+
+        if show:
+            self.backend.show_figure(fig)
+        else:
+            return fig

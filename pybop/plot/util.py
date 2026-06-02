@@ -1,40 +1,42 @@
 import textwrap
 from dataclasses import dataclass
+
 import numpy as np
 
 import pybop.plot
 
 
 @dataclass
-class _AxisData:
+class AxisData:
     row: int = 1
     col: int = 1
     row_span: int = 1
     col_span: int = 1
 
 
-def set_backend(backend):
+def use_backend(backend):
     err_msg = (
         f"Plotting backend {backend} is not available. The default backend has not been updated. \n"
-        f"The default backend is set to {pybop.plot.backend}"
+        f"The default backend is set to {pybop.plot.current_default_backend}"
     )
-    if backend.lower() in ['matplotlib', 'plotly']:
-            pybop.plot.backend = backend
+    if backend.lower() in ["matplotlib", "plotly"]:
+        pybop.plot.current_default_backend = backend
 
     else:
         raise ModuleNotFoundError(err_msg)
 
 
-def import_backend(backend):
+def get_backend(backend):
     if backend is None:
-        backend = pybop.plot.backend
+        backend = pybop.plot.current_default_backend
     err_msg = f"Plotting backend {backend} is not available."
-    if backend.lower() == 'matplotlib':
+    if backend.lower() == "matplotlib":
         return pybop.plot.backends.MatplotlibBackend()
-    elif backend.lower() == 'plotly':
+    elif backend.lower() == "plotly":
         return pybop.plot.backends.PlotlyBackend()
     else:
         raise ModuleNotFoundError(err_msg)
+
 
 def parse_data(x, y):
     """
@@ -73,7 +75,8 @@ def parse_data(x, y):
         raise ValueError(
             "Input x should have either one data series or the same number as y."
         )
-    return x, y  
+    return x, y
+
 
 def remove_brackets(s):
     """
@@ -90,6 +93,7 @@ def remove_brackets(s):
             char_in_brackets = s[start + 1 : end]
             return s[:start] + " / " + char_in_brackets + s[end + 1 :]
     return s
+
 
 def wrap_text(text, width, backend="matplotlib"):
     """

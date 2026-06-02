@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
 from pybop.costs.log_likelihoods import GaussianLogLikelihood
-from pybop.plot.standard_plots import Subplots
-from pybop.plot.util import import_backend
+from pybop.plot.standard_plots import StandardSubplot
+from pybop.plot.util import get_backend
 
 if TYPE_CHECKING:
     from pybop._result import Result
@@ -40,34 +40,39 @@ def parameters(result: "Result", show=True, backend=None):
     trace_names = parameters.names
     if isinstance(result.problem, GaussianLogLikelihood):
         trace_names.append("Sigma")
-        print('yay')
-
 
     for name in trace_names:
         axis_titles_x.append("Evaluation")
         axis_titles_y.append(name)
 
     # import plotting backend
-    backend_module = import_backend(backend)
+    backend = get_backend(backend)
 
     # Create a plot dictionary
-    subplots = Subplots(x=x, y=y, backend=backend)
-    subplots.create_figure(
+    plot_dict = StandardSubplot(
+        x,
+        y,
         title="Parameter Convergence",
-        axis_titles_x=axis_titles_x,
-        axis_titles_y=axis_titles_y,
-        style=dict(bg_color="white", width=1024, height=576)
-        )
-    subplots.plot_lines(labels=trace_names)
+        xaxis_titles=axis_titles_x,
+        yaxis_titles=axis_titles_y,
+        style=dict(bg_color="white", width=1600, height=800),
+        labels=trace_names,
+        backend=backend,
+    )
 
-    # import plotting backend
-    backend_module = import_backend(backend)
+    fig = plot_dict(show=False)
 
     # add legend
-    backend_module.legend(subplots.fig, style={"fig_legend" : True})
-    
+    backend.legend(
+        fig,
+        style={
+            "fig_legend": True,
+            "outside": ("right", 0.18),
+        },
+    )
+
     # Generate the figure and update the layout
     if show:
-        backend_module.show_figure(subplots.fig)
+        backend.show_figure(fig)
 
-    return subplots.fig
+    return fig

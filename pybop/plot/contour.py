@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pybop.plot.util import import_backend
+from pybop.plot.util import get_backend
 from pybop.problems.problem import Problem
 
 if TYPE_CHECKING:
@@ -58,7 +58,7 @@ def contour(
     ValueError
         If the cost function does not return a valid cost when called with a parameter list.
     """
-    backend_module = import_backend(backend)
+    backend_module = get_backend(backend)
 
     plot_optim = False
     problem = call_object
@@ -146,40 +146,36 @@ def contour(
     bounds[1] = transform_array_of_values(bounds[1], parameters[names[1]])
 
     optimised_opts = dict(
-            marker="P",
-            markersize=14,
-            markerfacecolor="black",
-            markeredgecolor="white",
-            linestyle="None",
-            zorder=2.6,
-        )
+        marker="P",
+        markersize=14,
+        markerfacecolor="black",
+        markeredgecolor="white",
+        linestyle="None",
+        zorder=2.6,
+    )
     inital_opts = dict(
-            marker="X",
-            markersize=14,
-            markerfacecolor="white",
-            markeredgecolor="black",
-            linestyle="None",
-            zorder=2.6,
-        )
+        marker="X",
+        markersize=14,
+        markerfacecolor="white",
+        markeredgecolor="black",
+        linestyle="None",
+        zorder=2.6,
+    )
 
     fig = backend_module.create_figure(
-        title = "Cost Landscape",
+        title="Cost Landscape",
         xaxis_title="Transformed " + names[0] if transformed else names[0],
         yaxis_title="Transformed " + names[1] if transformed else names[1],
-        style ={
-            "width" : 600,
-            "height" : 600,
-            "xaxis_range" : bounds[0],
-            "yaxis_range" : bounds[1],
-        }
+        style={
+            "width": 600,
+            "height": 600,
+            "xaxis_range": bounds[0],
+            "yaxis_range": bounds[1],
+        },
     )
 
     # Create contour plot and update the layout
-    backend_module.plot_trace(
-        backend_module.contour_plot(x=x, y=y, z=costs),
-        fig
-    )
-    
+    backend_module.plot_trace(backend_module.contour_plot(x=x, y=y, z=costs), fig)
 
     if plot_optim:
         # Plot the optimisation trace
@@ -189,42 +185,45 @@ def contour(
             backend_module.scatter_plot(
                 transform_array_of_values(optim_trace[:, 0], parameters[names[0]]),
                 transform_array_of_values(optim_trace[:, 1], parameters[names[1]]),
-                [i / optim_trace.shape[0] for i in range(optim_trace.shape[0])]
+                [i / optim_trace.shape[0] for i in range(optim_trace.shape[0])],
             ),
-            fig
+            fig,
         )
 
         # Plot the initial guess
         if len(result.x_model) > 0:
             x0 = result.x_model[0]
             backend_module.plot_trace(
-                backend_module.line_plot(
+                backend_module.line(
                     x=transform_array_of_values([x0[0]], parameters[names[0]]),
                     y=transform_array_of_values([x0[1]], parameters[names[1]]),
                     label="Initial values",
                     style=inital_opts,
                 ),
-                fig
+                fig,
             )
 
         # Plot optimised value
         if result.x is not None:
             x_best = result.x
             backend_module.plot_trace(
-                backend_module.line_plot(
+                backend_module.line(
                     x=transform_array_of_values([x_best[0]], parameters[names[0]]),
                     y=transform_array_of_values([x_best[1]], parameters[names[1]]),
                     style=optimised_opts,
-                    label="Final values"
+                    label="Final values",
                 ),
-                fig
+                fig,
             )
 
-    backend_module.legend(fig, style={
-        "horizontal" : True,
-        "loc" : "lower right",
-        "coords" : (1, 1),
-    })
+    backend_module.legend(
+        fig,
+        style={
+            "horizontal": True,
+            "loc": "lower right",
+            "coords": (1, 1),
+        },
+    )
     # display the figure
     if show:
         backend_module.show_figure(fig)

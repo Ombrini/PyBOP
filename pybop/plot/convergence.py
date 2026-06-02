@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING
 
-from pybop.plot.util import import_backend
+from pybop.plot.util import get_backend
 
 if TYPE_CHECKING:
     from pybop._result import Result
 
 
-def convergence(result: "Result", show=True, backend=None):
+def convergence(result: "Result", show: bool = True, backend: str = None):
     """
     Plot the convergence of the optimisation algorithm.
 
@@ -16,15 +16,13 @@ def convergence(result: "Result", show=True, backend=None):
         Optimisation result containing the history of parameter values and associated cost.
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    **layout_kwargs : optional
-        Valid Plotly layout keys and their values,
-        e.g. `xaxis_title="Time [s]"` or
-        `xaxis={"title": "Time [s]", font={"size":14}}`
+    backend : str, optional
+        Select a plotting backend. If None, the current default backend is used.
 
     Returns
     ---------
-    fig : plotly.graph_objs.Figure
-        The Plotly figure object for the convergence plot.
+    fig : plotly.graph_objs.Figure or matplotlib.figure.Figure
+        The figure object for the convergence plot.
     """
 
     # Extract log from the optimisation object
@@ -33,27 +31,28 @@ def convergence(result: "Result", show=True, backend=None):
     # Generate a list of iteration numbers
     iteration_numbers = list(range(1, len(cost_log) + 1))
 
-    backend = import_backend(backend)
+    backend = get_backend(backend)
 
-    # Create a plot dictionary
-    fig= backend.create_figure(
+    # Create figure
+    fig = backend.create_figure(
         xaxis_title="Evaluation",
         yaxis_title="Cost",
         title="Convergence",
-        style = {
-            "bg_color" : "white",
-            "width" : 600,
-            "height" : 600
-        }
+        style={"bg_color": "white", "width": 600, "height": 600},
     )
 
-    backend.plot_trace(backend.line_plot(
-        x=iteration_numbers,
-        y=cost_log,
-        label=result.method_name,
-    ), fig)
+    # Add line plot
+    backend.plot_trace(
+        backend.line(
+            x=iteration_numbers,
+            y=cost_log,
+            label=result.method_name,
+        ),
+        fig,
+    )
 
-    # Display figure
+    # Display or return figure
     if show:
         backend.show_figure(fig)
-    return fig
+    else:
+        return fig

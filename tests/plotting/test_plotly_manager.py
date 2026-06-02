@@ -8,7 +8,7 @@ import pybamm
 import pytest
 
 import pybop
-from pybop.plot.plotly import PlotlyManager
+from pybop.plot.backends import PlotlyManager
 
 # Find the Python executable
 python_executable = which("python")
@@ -131,7 +131,7 @@ def dataset(plotly_installed):
 @pytest.mark.unit
 def test_standard_plot(dataset, plotly_installed):
     # Set plotting backend
-    pybop.plot.set_backend("plotly")
+    pybop.plot.use_backend("plotly")
 
     # Check the StandardPlot class
     pybop.plot.StandardPlot(dataset["Time [s]"], dataset["Voltage [V]"])
@@ -173,7 +173,7 @@ def test_standard_plot(dataset, plotly_installed):
 @pytest.mark.unit
 def test_plot_dataset(dataset, plotly_installed):
     # Set plotting backend
-    pybop.plot.set_backend("plotly")
+    pybop.plot.use_backend("plotly")
 
     # Test plot of a dataset
     pybop.plot.dataset(dataset, signal=["Voltage [V]"])
