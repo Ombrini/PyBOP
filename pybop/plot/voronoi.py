@@ -198,9 +198,9 @@ def interpolate_point(p, q, axis, boundary_val):
 
 def surface(
     result: "Result",
+    title="Voronoi Cost Landscape",
     bounds=None,
     normalise=True,
-    title="Voronoi Cost Landscape",
     show=True,
     backend=None,
 ):
@@ -211,6 +211,8 @@ def surface(
     -----------
     result : pybop.Result
         Optimisation result containing the history of parameter values and associated cost.
+    title: str, optional
+        The title of the plot (default: "Voronoi Cost Landscape")
     bounds : numpy.ndarray, optional
         A 2x2 array specifying the [min, max] bounds for each parameter. If None, uses
         `cost.parameters.get_bounds_for_plotly`.
@@ -219,10 +221,8 @@ def surface(
         points normalised with respect to the bounds (default: True).
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    **layout_kwargs : optional
-        Valid Plotly layout keys and their values,
-        e.g. `xaxis_title="Time [s]"` or
-        `xaxis={"title": "Time [s]", font={"size":14}}`
+    backend: str, optional
+        The plotting backend to be used.
     """
     backend = get_backend(backend)
     points = result.x_model
@@ -266,28 +266,8 @@ def surface(
         # Compute regions
         x, y, f, regions = _voronoi_regions(x_optim, y_optim, f, xlim, ylim)
 
-    # Get plotting options
-    outline_opts = dict(color="white", linewidth=0.5)
-    optimised_opts = dict(
-        marker="P",
-        markersize=14,
-        markerfacecolor="black",
-        markeredgecolor="white",
-        linestyle="None",
-        zorder=2.6,
-    )
-    inital_opts = dict(
-        marker="X",
-        markersize=14,
-        markerfacecolor="white",
-        markeredgecolor="black",
-        linestyle="None",
-        zorder=2.6,
-    )
-
-    names = parameters.names
-
     # Construct figure
+    names = parameters.names
     fig = backend.create_figure(
         title=title,
         xaxis_title=names[0],
@@ -307,19 +287,20 @@ def surface(
         y_region = region[:, 1].tolist() + [region[0, 1]]
 
         backend.plot_trace(
-            backend.fill_plot(
-                x_region, y_region, color=colors[j], label=f"f={f[j]:.2f}"
-            ),
+            backend.fill(x_region, y_region, color=colors[j], label=f"f={f[j]:.2f}"),
             fig,
         )
 
-        backend.plot_trace(backend.line(x_region, y_region, style=outline_opts), fig)
+        backend.plot_trace(
+            backend.line(x_region, y_region, style=dict(color="white", linewidth=0.5)),
+            fig,
+        )
 
     backend.colorbar(fig, f)
 
     # Add original points
     backend.plot_trace(
-        backend.scatter_plot(
+        backend.scatter(
             x=x_optim,
             y=y_optim,
             colors=[i / len(x_optim) for i in range(len(x_optim))],
@@ -333,7 +314,17 @@ def surface(
         x0 = result.x_model[0]
         backend.plot_trace(
             backend.line(
-                x=[x0[0]], y=[x0[1]], label="Initial values", style=inital_opts
+                x=[x0[0]],
+                y=[x0[1]],
+                label="Initial values",
+                style=dict(
+                    marker="X",
+                    markersize=14,
+                    markerfacecolor="white",
+                    markeredgecolor="black",
+                    linestyle="None",
+                    zorder=2.6,
+                ),
             ),
             fig,
         )
@@ -346,7 +337,14 @@ def surface(
                     x=[x_best[0]],
                     y=[x_best[1]],
                     label="Final values",
-                    style=optimised_opts,
+                    style=dict(
+                        marker="P",
+                        markersize=14,
+                        markerfacecolor="black",
+                        markeredgecolor="white",
+                        linestyle="None",
+                        zorder=2.6,
+                    ),
                 ),
                 fig,
             )

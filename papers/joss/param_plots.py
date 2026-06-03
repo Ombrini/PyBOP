@@ -57,7 +57,7 @@ if create_plot["simulation"]:
     simulation_plot_dict = pybop.plot.StandardPlot(
         x=solution["Time [s]"].data,
         y=[corrupt_values, solution["Battery open-circuit voltage [V]"].data, values],
-        trace_names=[
+        labels=[
             "Voltage w. noise",
             "Open-circuit voltage",
             "Voltage",
@@ -244,7 +244,7 @@ if create_plot["minimising"]:
         convergence_plot_dict = pybop.plot.StandardPlot(
             x=iteration_numbers,
             y=cost_log,
-            trace_names=[cost.name],
+            labels=[cost.name],
             trace_options={"line": {"width": 4, "dash": "dash"}},
         )
         convergence_traces.extend(convergence_plot_dict.traces)
@@ -323,7 +323,7 @@ if create_plot["maximising"]:
         convergence_plot_dict = pybop.plot.StandardPlot(
             x=iteration_numbers,
             y=cost_log,
-            trace_names=cost.name
+            labels=cost.name
             + " "
             + (
                 cost.log_likelihood.name if isinstance(cost, pybop.LogPosterior) else ""

@@ -2,9 +2,7 @@ from pybop.plot.trajectories import trajectories
 from pybop.plot.util import get_backend, remove_brackets
 
 
-def dataset(
-    dataset, signal=None, trace_names=None, show=True, backend=None, **layout_kwargs
-):
+def dataset(dataset, signal=None, labels=None, show=True, backend=None):
     """
     Quickly plot a PyBOP Dataset using Plotly.
 
@@ -14,19 +12,15 @@ def dataset(
         A PyBOP dataset.
     signal : list or str, optional
         The name of the time series to plot (default: "Voltage [V]").
-    trace_names : list or str, optional
+    labels : list or str, optional
         Name(s) for the trace(s) (default: "Data").
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    **layout_kwargs : optional
-        Valid Plotly layout keys and their values,
-        e.g. `xaxis_title="Time / s"` or
-        `xaxis={"title": "Time [s]", font={"size":14}}`
 
     Returns
     -------
-    plotly.graph_objs.Figure
-        The Plotly figure object for the scatter plot.
+    fig : plotly.graph_objs.Figure or matplotlib.figure.Figure
+        The figure object for the scatter plot.
     """
 
     # Get data dictionary
@@ -38,18 +32,18 @@ def dataset(
     y = [dataset[s] for s in signal]
     if len(signal) == 1:
         yaxis_title = remove_brackets(signal[0])
-        if trace_names is None:
-            trace_names = ["Data"]
+        if labels is None:
+            labels = ["Data"]
     else:
         yaxis_title = "Output"
-        if trace_names is None:
-            trace_names = remove_brackets(signal)
+        if labels is None:
+            labels = remove_brackets(signal)
 
     # Create the figure
     fig = trajectories(
         x=dataset[dataset.domain],
         y=y,
-        labels=trace_names,
+        labels=labels,
         show=False,
         xaxis_title=remove_brackets(dataset.domain),
         yaxis_title=yaxis_title,

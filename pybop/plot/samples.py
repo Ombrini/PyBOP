@@ -30,7 +30,7 @@ def chains(result: "SamplingResult", show=True, backend=None):
                 fig,
             )
 
-            backend.add_vline(
+            backend.vline(
                 fig,
                 result.mean[j],
                 style=dict(linewidth=3, linestyle="dashed", color="black"),
@@ -88,7 +88,7 @@ def posterior(result: "SamplingResult", backend=None, show=True):
             ),
             fig,
         )
-        backend.add_vline(
+        backend.vline(
             fig,
             result.mean[j],
             style=dict(linewidth=3, linestyle="dashed", color="black"),

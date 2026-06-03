@@ -13,19 +13,20 @@ def nyquist(
     problem : pybop.Problem
         An instance of a problem class that contains the parameters and methods
         for evaluation and target retrieval.
+    title: str, optional
+        The title of the figure
     inputs : Inputs, optional
         Input parameters for the problem. If not provided, the default parameters from the problem
         instance will be used. These parameters are verified before use (default is None).
     show : bool, optional
         If True, the plots will be displayed.
-    **layout_kwargs : dict, optional
-        Additional keyword arguments for customising the plot layout. These arguments are passed to
-        `fig.update_layout()`.
+    backend: str, optional
+        The plotting backend to be used.
 
     Returns
     -------
     list
-        A list of plotly `Figure` objects, each representing a Nyquist plot for the model's output and target values.
+        A list of plotly or matplotlib `Figure` objects, each representing a Nyquist plot for the model's output and target values.
 
     Notes
     -----
@@ -33,7 +34,6 @@ def nyquist(
       of the impedance from the target output.
     - For each signal in the problem, a Nyquist plot is created with the model's impedance plotted as a scatter plot.
     - An additional trace for the reference (target output) is added to the plot.
-    - The plot layout can be customised using `layout_kwargs`.
 
     Example
     -------

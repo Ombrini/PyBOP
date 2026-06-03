@@ -26,6 +26,7 @@ class StandardPlot:
     label_width : int, optional
         Maximum length of the labels before text wrapping is used (default: 40).
     style: dict, optional
+    legend_style: dict, optional
     backend: str or pybop.backends.PlotBackend, optional
         Plotting backend to be used to create plot
 
@@ -45,6 +46,7 @@ class StandardPlot:
         labels: list[str] = None,
         label_width=40,
         style: dict = None,
+        legend_style: dict = None,
         backend=None,
     ):
         self.lines = []
@@ -53,6 +55,7 @@ class StandardPlot:
         self.xaxis_title = xaxis_title
         self.yaxis_title = yaxis_title
         self.style = style
+        self.legend_style = legend_style
         if not isinstance(self.backend, PlotBackend):
             self.backend = get_backend(backend)
 
@@ -75,6 +78,10 @@ class StandardPlot:
             style=self.style,
             traces=self.lines,
         )
+
+        if self.legend_style is not None:
+            self.backend.legend(fig, style=self.legend_style)
+
         if show:
             self.backend.show_figure(fig)
         else:
@@ -201,8 +208,8 @@ class StandardSubplot(StandardPlot):
         fig, self.axes, self.num_rows, self.num_cols = self.backend.make_subplots(
             self.axes_data,
             title=self.title,
-            axis_titles_x=self.xaxis_title,
-            axis_titles_y=self.yaxis_title,
+            xaxis_titles=self.xaxis_title,
+            yaxis_titles=self.yaxis_title,
             style=self.style,
         )
 

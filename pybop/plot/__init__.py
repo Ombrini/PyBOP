@@ -1,6 +1,6 @@
 # Plotting backend default
 DEFAULT_BACKEND = 'matplotlib'
-current_default_backend=DEFAULT_BACKEND
+current_backend=DEFAULT_BACKEND
 
 from .util import (
     AxisData,

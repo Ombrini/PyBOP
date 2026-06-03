@@ -1,11 +1,17 @@
-from pybop.plot.util import (
-    get_backend,
-    wrap_text,
-    parse_data
-)
+from pybop.plot.standard_plots import StandardPlot
 
 
-def trajectories(x, y, xaxis_title: str = None, yaxis_title: str = None, labels=None, title:str = None, show=True, backend=None, label_width=20):
+def trajectories(
+    x,
+    y,
+    title: str = None,
+    xaxis_title: str = None,
+    yaxis_title: str = None,
+    labels=None,
+    label_width=20,
+    show=True,
+    backend=None,
+):
     """
     Quickly plot one or more trajectories using Plotly.
 
@@ -15,53 +21,40 @@ def trajectories(x, y, xaxis_title: str = None, yaxis_title: str = None, labels=
         X-axis data points.
     y : list or np.ndarray
         Y-axis data points for each trajectory.
-    trace_names : list or str, optional
+    title: str, optional
+        The title of the figure
+    xaxis_title: str, optional
+        Sets the title/label of the x-axis
+    yaxis_title: str, optional
+        Sets the title/label of the y-axis
+        Settings to modify the default trace type (default: DEFAULT_TRACE_OPTIONS).
+    labels : list or str, optional
         Name(s) for the trace(s) (default: None).
-    **layout_kwargs : optional
-            Valid Plotly layout keys and their values,
-            e.g. `xaxis_title="Time / s"` or
-            `xaxis={"title": "Time [s]", font={"size":14}}`
+    label_width : int, optional
+        Maximum length of the labels before text wrapping is used (default: 20).
+    show : bool, optional
+        If True, the figure is shown upon creation (default: True).
+    backend: str, optional
+        The plotting backend to be used.
 
     Returns
     -------
     plotly.graph_objs.Figure
         The Plotly figure object for the scatter plot.
     """
-
-    # Check and wrap trace names
-    if labels is not None:
-        if isinstance(labels, str):
-            labels = [labels]
-        for i, name in enumerate(labels):
-            labels[i] = wrap_text(
-                name, width=label_width, backend=backend
-            )
-
-    backend = get_backend(backend)
-    fig = backend.create_figure(
-        title = title,
-        xaxis_title = xaxis_title,
-        yaxis_title = yaxis_title,
-        style = {
-            "height" : 600,
-            "width" : 600,
-            "bg_color" : "white"
-        }
+    plot_dict = StandardPlot(
+        x,
+        y,
+        title=title,
+        xaxis_title=xaxis_title,
+        yaxis_title=yaxis_title,
+        labels=labels,
+        label_width=label_width,
+        style={"height": 600, "width": 600, "bg_color": "white"},
+        legend_style={},
+        backend=backend,
     )
 
-    x, y = parse_data(x, y)
-    xi = x[0]
-    for i in range(0, len(y)):
-        if len(x) > 1:
-            xi = x[i]
-        label = None
-        if labels is not None:
-            label = labels[i]
+    fig = plot_dict(show=show)
 
-        backend.plot_trace(backend.line(xi, y[i], label), fig)
-    
-    backend.legend(fig)
-
-    if show:
-        backend.show_figure(fig)
     return fig

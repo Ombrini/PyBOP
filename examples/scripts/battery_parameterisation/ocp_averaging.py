@@ -110,11 +110,11 @@ for discharge_dataset, charge_dataset in zip(
         charge_dataset["Voltage [V]"],
         average_dataset["Voltage [V]"],
     ]
-    trace_names = ["Discharge", "Charge", "Averaged"]
+    labels = ["Discharge", "Charge", "Averaged"]
     fig = pybop.plot.trajectories(
         x=stos,
         y=volt,
-        labels=trace_names,
+        labels=labels,
         xaxis_title="Stoichiometry",
         yaxis_title="Voltage [V]",
     )
@@ -129,7 +129,7 @@ for discharge_dataset, charge_dataset in zip(
     fig = pybop.plot.trajectories(
         x=stos,
         y=dcap,
-        labels=trace_names,
+        labels=labels,
         xaxis_title="Stoichiometry",
         yaxis_title="Differential capacity [V-1]",
     )

@@ -17,8 +17,9 @@ def contour(
     bounds: np.ndarray | None = None,
     transformed: bool = False,
     steps: int = 10,
+    title="Cost Landscape",
     show: bool = True,
-    backend=None,
+    backend: str = None,
 ):
     """
     Plot a 2D visualisation of a cost landscape using Plotly.
@@ -32,6 +33,8 @@ def contour(
         Either:
         - the cost function to be evaluated. Must accept a list of parameter values and return a cost value.
         - an optimiser result which provides a specific optimisation trace overlaid on the cost landscape.
+    title: str, optional
+        The title of the figure (default: "Cost Landscape")
     gradient : bool, optional
         If True, the gradient is shown (default: False).
     bounds : numpy.ndarray | list[list[float]], optional
@@ -43,15 +46,13 @@ def contour(
         The number of grid points to divide the parameter space into along each dimension (default: 10).
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    **layout_kwargs : optional
-        Valid Plotly layout keys and their values,
-        e.g. `xaxis_title="Time [s]"` or
-        `xaxis={"title": "Time [s]", font={"size":14}}`
+    backend: str, optional
+        The plotting backend to be used.
 
     Returns
     -------
-    plotly.graph_objs.Figure
-        The Plotly figure object containing the cost landscape plot.
+    fig : plotly.graph_objs.Figure or matplotlib.figure.Figure
+        The figure object containing the cost landscape plot.
 
     Raises
     ------
@@ -145,33 +146,18 @@ def contour(
     bounds[0] = transform_array_of_values(bounds[0], parameters[names[0]])
     bounds[1] = transform_array_of_values(bounds[1], parameters[names[1]])
 
-    optimised_opts = dict(
-        marker="P",
-        markersize=14,
-        markerfacecolor="black",
-        markeredgecolor="white",
-        linestyle="None",
-        zorder=2.6,
-    )
-    inital_opts = dict(
-        marker="X",
-        markersize=14,
-        markerfacecolor="white",
-        markeredgecolor="black",
-        linestyle="None",
-        zorder=2.6,
-    )
+    figure_style = {
+        "width": 600,
+        "height": 600,
+        "xaxis_range": bounds[0],
+        "yaxis_range": bounds[1],
+    }
 
     fig = backend_module.create_figure(
-        title="Cost Landscape",
+        title=title,
         xaxis_title="Transformed " + names[0] if transformed else names[0],
         yaxis_title="Transformed " + names[1] if transformed else names[1],
-        style={
-            "width": 600,
-            "height": 600,
-            "xaxis_range": bounds[0],
-            "yaxis_range": bounds[1],
-        },
+        style=figure_style,
     )
 
     # Create contour plot and update the layout
@@ -182,7 +168,7 @@ def contour(
         optim_trace = np.asarray([item[:2] for item in result.x_model])
         optim_trace = optim_trace.reshape(-1, 2)
         backend_module.plot_trace(
-            backend_module.scatter_plot(
+            backend_module.scatter(
                 transform_array_of_values(optim_trace[:, 0], parameters[names[0]]),
                 transform_array_of_values(optim_trace[:, 1], parameters[names[1]]),
                 [i / optim_trace.shape[0] for i in range(optim_trace.shape[0])],
@@ -198,7 +184,14 @@ def contour(
                     x=transform_array_of_values([x0[0]], parameters[names[0]]),
                     y=transform_array_of_values([x0[1]], parameters[names[1]]),
                     label="Initial values",
-                    style=inital_opts,
+                    style=dict(
+                        marker="X",
+                        markersize=14,
+                        markerfacecolor="white",
+                        markeredgecolor="black",
+                        linestyle="None",
+                        zorder=2.6,
+                    ),
                 ),
                 fig,
             )
@@ -210,7 +203,14 @@ def contour(
                 backend_module.line(
                     x=transform_array_of_values([x_best[0]], parameters[names[0]]),
                     y=transform_array_of_values([x_best[1]], parameters[names[1]]),
-                    style=optimised_opts,
+                    style=dict(
+                        marker="P",
+                        markersize=14,
+                        markerfacecolor="black",
+                        markeredgecolor="white",
+                        linestyle="None",
+                        zorder=2.6,
+                    ),
                     label="Final values",
                 ),
                 fig,
@@ -228,28 +228,27 @@ def contour(
     if show:
         backend_module.show_figure(fig)
 
-    # if gradient:
-    #     grad_figs = []
-    #     for i, grad_costs in enumerate(grad_parameter_costs):
-    #         # Update title for gradient plots
-    #         updated_layout_options = layout_options.copy()
-    #         updated_layout_options["title"] = f"Gradient for Parameter: {i + 1}"
+    if gradient:
+        grad_figs = []
+        for i, grad_costs in enumerate(grad_parameter_costs):
+            # Create fig
+            grad_fig = backend_module.create_figure(
+                title=f"Gradient for Parameter: {i + 1}",
+                xaxis_title="Transformed " + names[0] if transformed else names[0],
+                yaxis_title="Transformed " + names[1] if transformed else names[1],
+                style=figure_style,
+            )
 
-    #         # Create contour plot with updated layout options
-    #         grad_layout = go.Layout(updated_layout_options)
+            backend_module.plot_trace(
+                backend_module.contour_plot(x=x, y=y, z=grad_costs), grad_fig
+            )
 
-    #         # Create fig
-    #         grad_fig = go.Figure(
-    #             data=[go.Contour(x=x, y=y, z=grad_costs)], layout=grad_layout
-    #         )
-    #         grad_fig.update_layout(**layout_kwargs)
+            if show:
+                backend_module.show_figure(grad_fig)
 
-    #         if show:
-    #             grad_fig.show()
+            # append grad_fig to list
+            grad_figs.append(grad_fig)
 
-    #         # append grad_fig to list
-    #         grad_figs.append(grad_fig)
-
-    #     return fig, grad_figs
+        return fig, grad_figs
 
     return fig

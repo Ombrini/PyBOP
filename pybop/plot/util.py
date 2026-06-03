@@ -6,29 +6,37 @@ import numpy as np
 import pybop.plot
 
 
-@dataclass
-class AxisData:
-    row: int = 1
-    col: int = 1
-    row_span: int = 1
-    col_span: int = 1
-
-
 def use_backend(backend):
+    """
+    Select a plotting backend to be used for all subsequent plots.
+
+    Parameters
+    ----------
+    backend : str
+        The plotting backend to be used.
+    """
     err_msg = (
-        f"Plotting backend {backend} is not available. The default backend has not been updated. \n"
-        f"The default backend is set to {pybop.plot.current_default_backend}"
+        f"Plotting backend {backend} is not available. The current backend has not been updated. \n"
+        f"The current backend is set to {pybop.plot.current_backend}"
     )
     if backend.lower() in ["matplotlib", "plotly"]:
-        pybop.plot.current_default_backend = backend
+        pybop.plot.current_backend = backend
 
     else:
         raise ModuleNotFoundError(err_msg)
 
 
-def get_backend(backend):
+def get_backend(backend=None):
+    """
+    Get instance of PlotBackend class for a given plotting backend
+
+    Parameters
+    ----------
+    backend : str, optional
+        The plotting backend to be used (default: pybop.plot.current_backend)
+    """
     if backend is None:
-        backend = pybop.plot.current_default_backend
+        backend = pybop.plot.current_backend
     err_msg = f"Plotting backend {backend} is not available."
     if backend.lower() == "matplotlib":
         return pybop.plot.backends.MatplotlibBackend()
@@ -36,6 +44,19 @@ def get_backend(backend):
         return pybop.plot.backends.PlotlyBackend()
     else:
         raise ModuleNotFoundError(err_msg)
+
+
+@dataclass
+class AxisData:
+    """
+    Simple dataclass to store info needed to construct
+    subplots from specifying size and location of individual axes.
+    """
+
+    row: int = 1
+    col: int = 1
+    row_span: int = 1
+    col_span: int = 1
 
 
 def parse_data(x, y):

@@ -11,18 +11,18 @@ def distribution(
     n_samples: int = 100,
     transformed: bool = False,
     show: bool = True,
-    backend=None,
+    backend: str = None,
 ):
     """
     Plot the posterior on top of the prior distribution for a Bayesian optimisation result.
     """
     # Create lists of axis titles and trace names
-    axis_titles_x = []
-    axis_titles_y = []
-    trace_names = parameters.names if posterior is None else ["Prior"] * len(parameters)
+    xaxis_titles = []
+    yaxis_titles = []
+    labels = parameters.names if posterior is None else ["Prior"] * len(parameters)
     for name in parameters.names:
-        axis_titles_x.append(name + " (transformed)" if transformed else name)
-        axis_titles_y.append("Probability density")
+        xaxis_titles.append(name + " (transformed)" if transformed else name)
+        yaxis_titles.append("Probability density")
 
     # Evaluate marginal distributions for each parameter
     values = []
@@ -41,9 +41,9 @@ def distribution(
     plot_dict = StandardSubplot(
         x=values,
         y=probability,
-        xaxis_titles=axis_titles_x,
-        yaxis_titles=axis_titles_y,
-        labels=trace_names,
+        xaxis_titles=xaxis_titles,
+        yaxis_titles=yaxis_titles,
+        labels=labels,
         style={"width": 1024, "height": 576},
         backend=backend,
     )

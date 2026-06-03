@@ -86,7 +86,7 @@ def predictive(
                 backend_module.line(
                     x=pdf_plot[0],
                     y=pdf_plot[1],
-                    trace_names=pdf_label,
+                    labels=pdf_label,
                 )
             )
         if show:

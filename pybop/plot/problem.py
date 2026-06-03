@@ -12,9 +12,9 @@ from pybop.simulators.solution import Solution
 def problem(
     problem: Problem,
     inputs: Inputs = None,
-    show: bool = True,
     title="Scatter Plot",
-    backend=None,
+    show: bool = True,
+    backend: str = None,
 ):
     """
     Produce a quick plot of the target dataset against optimised model output.
@@ -28,8 +28,12 @@ def problem(
         Problem object with dataset and targets attributes.
     inputs : Inputs
         Optimised (or example) parameter values.
+    title: str, optional:
+        The title of the plot (default: "Scatter Plot")
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
+    backend: str, optional
+        The plotting backend to be used.
 
     Returns
     -------
@@ -106,7 +110,7 @@ def problem(
             y_upper = (model_output[var].data + sigma).tolist()
             y_lower = (model_output[var].data - sigma).tolist()
 
-            fill_trace = backend_module.fill_between_plot(
+            fill_trace = backend_module.fill_between(
                 x, y_upper, y_lower, color="#FFE5CC"
             )
             traces.append(fill_trace)

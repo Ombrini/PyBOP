@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from pybop._result import Result
 
 
-def parameters(result: "Result", show=True, backend=None):
+def parameters(result: "Result", show: bool = True, backend: str = None):
     """
     Plot the evolution of parameters during the optimisation process using Plotly.
 
@@ -18,15 +18,13 @@ def parameters(result: "Result", show=True, backend=None):
         Optimisation result containing the history of parameter values and associated cost.
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    **layout_kwargs : optional
-        Valid Plotly layout keys and their values,
-        e.g. `xaxis_title="Time [s]"` or
-        `xaxis={"title": "Time [s]", font={"size":14}}`
+    backend: str, optional
+        The plotting backend to be used
 
     Returns
     -------
-    plotly.graph_objs.Figure
-        A Plotly figure object showing the parameter evolution over iterations.
+    plotly.graph_objs.Figure or matplotlib.figure.Figure
+        A figure object showing the parameter evolution over iterations.
     """
 
     # Extract parameters and log from the optimisation object
@@ -35,15 +33,15 @@ def parameters(result: "Result", show=True, backend=None):
     y = [list(item) for item in zip(*result.x_model, strict=False)]
 
     # Create lists of axis titles and trace names
-    axis_titles_x = []
-    axis_titles_y = []
-    trace_names = parameters.names
+    xaxis_titles = []
+    yaxis_titles = []
+    labels = parameters.names
     if isinstance(result.problem, GaussianLogLikelihood):
-        trace_names.append("Sigma")
+        labels.append("Sigma")
 
-    for name in trace_names:
-        axis_titles_x.append("Evaluation")
-        axis_titles_y.append(name)
+    for name in labels:
+        xaxis_titles.append("Evaluation")
+        yaxis_titles.append(name)
 
     # import plotting backend
     backend = get_backend(backend)
@@ -53,10 +51,10 @@ def parameters(result: "Result", show=True, backend=None):
         x,
         y,
         title="Parameter Convergence",
-        xaxis_titles=axis_titles_x,
-        yaxis_titles=axis_titles_y,
+        xaxis_titles=xaxis_titles,
+        yaxis_titles=yaxis_titles,
         style=dict(bg_color="white", width=1600, height=800),
-        labels=trace_names,
+        labels=labels,
         backend=backend,
     )
 
