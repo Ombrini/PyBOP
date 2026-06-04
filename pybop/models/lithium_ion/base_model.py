@@ -104,8 +104,7 @@ class BaseGroupedModel(pybamm_lithium_ion.BaseModel):
                     "Negative electrode OCP [V]",
                     {"Negative particle stoichiometry": sto_n},
                 )
-
-                return parameter_values.evaluate(U_p - U_n, inputs=inputs)
+                return parameter_values.evaluate(U_p - U_n, inputs=inputs).squeeze()
 
             inverse_ocv = InverseOCV(ocv_function)
             soc = inverse_ocv(V_init)

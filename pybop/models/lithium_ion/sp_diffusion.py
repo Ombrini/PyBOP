@@ -283,8 +283,7 @@ class SPDiffusion(BaseGroupedModel):
                 U = FunctionParameter(
                     "Electrode OCP [V]", {"Particle stoichiometry": sto}
                 )
-
-                return parameter_values.evaluate(U, inputs=inputs)
+                return parameter_values.evaluate(U, inputs=inputs).squeeze()
 
             inverse_ocv = InverseOCV(ocv_function)
             sto = inverse_ocv(V_init)
