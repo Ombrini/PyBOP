@@ -1,12 +1,13 @@
+import os
+
 import numpy as np
 import pybamm
 
 import pybop
 
 """
-In this example, we introduce the Adaptive Moment Estimation with Weight Decay (AdamW)
-optimisation algorithm. This optimiser uses gradient information for trajectory and
-step-size determination.
+This example shows how to save and load an optimisation (or sampling) result.
+First we run an example optimisation to generate a result.
 """
 
 # Define model and parameter values
@@ -45,29 +46,35 @@ parameter_values.update(
 simulator = pybop.pybamm.Simulator(
     model, parameter_values=parameter_values, protocol=dataset
 )
-cost = pybop.SumOfPower(dataset, p=2.5)
+cost = pybop.MeanAbsoluteError(dataset)
 problem = pybop.Problem(simulator, cost)
 
 # Set up the optimiser
-options = pybop.PintsOptions(
-    verbose=True,
-    verbose_print_rate=20,
-    max_iterations=150,
-    max_unchanged_iterations=40,
-)
-optim = pybop.AdamW(problem, options=options)
-
-# Reduce the momentum influence for the reduced number of optimiser iterations
-optim.optimiser.b1 = 0.75
-optim.optimiser.b2 = 0.75
+options = pybop.PintsOptions(max_iterations=150, verbose=True)
+optim = pybop.PSO(problem, options=options)
 
 # Run the optimisation
 result = optim.run()
 
-# Plot the timeseries output
-pybop.plot.problem(problem, inputs=result.best_inputs, title="Optimised Comparison")
+# Save the result: either pickle the whole result or save the data in
+# one of these formats: "pickle", "json", "matlab"
+save_path = "examples/results/"
+os.makedirs(os.path.dirname(save_path), exist_ok=True)
+result.save(save_path + "saved_result_object.pkl")
+result.save_data(save_path + "saved_result_data.json", to_format="json")
 
-# Plot the optimisation result
-result.plot_convergence()
-result.plot_parameters()
-result.plot_surface()
+# Load the result
+result_from_pkl = pybop.Result.load(save_path + "saved_result_object.pkl")
+result_from_json = pybop.Result.load_data(
+    save_path + "saved_result_data.json", file_format="json"
+)
+
+# Plot the optimisation result from .pkl
+result_from_pkl.plot_convergence()
+result_from_pkl.plot_parameters()
+result_from_pkl.plot_surface(bounds=problem.parameters.get_bounds_array())
+
+# Plot the optimisation result from .json (it is the same)
+result_from_json.plot_convergence()
+result_from_json.plot_parameters()
+result_from_json.plot_surface(bounds=problem.parameters.get_bounds_array())
