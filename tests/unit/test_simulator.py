@@ -78,3 +78,21 @@ class TestPybammSimulator:
             ValueError, match="Not a variable is not a variable in the model."
         ):
             simulator.set_output_variables(["Not a variable"])
+
+    def test_safe_solver(self):
+        model = pybamm.lithium_ion.DFN()
+
+        experiment = pybamm.Experiment(["Discharge at C/10 for 10 seconds"])
+        simulator = pybop.pybamm.Simulator(
+            model, protocol=experiment, solver=pybop.pybamm.SafeSolver(timeout=10)
+        )
+        solution = simulator.solve()
+        assert isinstance(solution, pybamm.Solution)
+
+        experiment = pybamm.Experiment(["Discharge at C/10 for 10 hours"])
+        simulator = pybop.pybamm.Simulator(
+            model, protocol=experiment, solver=pybop.pybamm.SafeSolver(timeout=0.1)
+        )
+        simulator.debug_mode = True
+        with pytest.raises(pybamm.SolverError, match="Timeout after 0.1 seconds."):
+            simulator.solve()
