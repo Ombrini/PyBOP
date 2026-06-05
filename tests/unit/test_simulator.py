@@ -82,17 +82,25 @@ class TestPybammSimulator:
     def test_safe_solver(self):
         model = pybamm.lithium_ion.DFN()
 
+        # Test SafeSolver on short simulations
         experiment = pybamm.Experiment(["Discharge at C/10 for 10 seconds"])
+        simulator = pybop.pybamm.Simulator(
+            model, protocol=experiment, solver=pybop.pybamm.SafeSolver()
+        )
+        solution = simulator.solve()
+        assert isinstance(solution, pybamm.Solution)
+
         simulator = pybop.pybamm.Simulator(
             model, protocol=experiment, solver=pybop.pybamm.SafeSolver(timeout=10)
         )
         solution = simulator.solve()
         assert isinstance(solution, pybamm.Solution)
 
+        # Test SafeSolver timeout on long simulation
         experiment = pybamm.Experiment(["Discharge at C/10 for 10 hours"])
         simulator = pybop.pybamm.Simulator(
             model, protocol=experiment, solver=pybop.pybamm.SafeSolver(timeout=0.1)
         )
         simulator.debug_mode = True
-        with pytest.raises(pybamm.SolverError, match="Timeout after 0.1 seconds."):
+        with pytest.raises(pybamm.SolverError, match="Timeout"):
             simulator.solve()

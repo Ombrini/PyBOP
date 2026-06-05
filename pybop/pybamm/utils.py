@@ -1,5 +1,6 @@
 import multiprocessing as mp
 import platform
+from concurrent.futures import TimeoutError as CFTimeoutError
 
 import pybamm
 from pebble import ProcessPool
@@ -95,7 +96,7 @@ class SafeSolver(pybamm.CasadiSolver):
                         new_solutions.append(next(iterator))
                     except StopIteration:
                         break
-                    except TimeoutError as e:
+                    except (TimeoutError, CFTimeoutError) as e:
                         raise pybamm.SolverError(
                             f"Timeout after {e.args[1]:.1f} seconds."
                         ) from e
