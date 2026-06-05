@@ -2,6 +2,7 @@
 
 ## Features
 
+- [#948](https://github.com/pybop-team/PyBOP/pull/948) - Adds `SafeSolver`, which uses pebble multiprocessing with a timeout option.
 - [#918](https://github.com/pybop-team/PyBOP/pull/918) - Adds a plot for predictions sampled from a posterior distribution (`pybop.plot.predictive`).
 - [#940](https://github.com/pybop-team/PyBOP/pull/940) - Adds support for Python 3.14 (EP-BOLFI optimiser and PyProBE still restricted to Python 3.12 or below).
 
