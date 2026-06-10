@@ -585,6 +585,7 @@ class GroupedDFN(BaseGroupedModel):
 
         # Unpack physical parameters
         F = pybamm.constants.F.value
+        T = param["Ambient temperature [K]"]
         alpha_p = param["Positive electrode active material volume fraction"]
         alpha_n = param["Negative electrode active material volume fraction"]
         c_max_p = param["Maximum concentration in positive electrode [mol.m-3]"]
@@ -601,8 +602,12 @@ class GroupedDFN(BaseGroupedModel):
         b_n = param["Negative electrode Bruggeman coefficient (electrolyte)"]
         Cdl_p = param["Positive electrode double-layer capacity [F.m-2]"]
         Cdl_n = param["Negative electrode double-layer capacity [F.m-2]"]
-        m_p = 3.42e-6  # (A/m2)(m3/mol)**1.5
-        m_n = 6.48e-7  # (A/m2)(m3/mol)**1.5
+        m_p = param["Positive electrode exchange-current density [A.m-2]"](
+            1, 1, 2, T
+        )  # (A/m2)(m3/mol)**1.5
+        m_n = param["Negative electrode exchange-current density [A.m-2]"](
+            1, 1, 2, T
+        )  # (A/m2)(m3/mol)**1.5
         sigma_p = (
             param["Positive electrode conductivity [S.m-1]"]
             * alpha_p ** param["Positive electrode Bruggeman coefficient (electrode)"]
@@ -676,8 +681,8 @@ class GroupedDFN(BaseGroupedModel):
         parameter_dictionary = {
             "Nominal cell capacity [A.h]": param["Nominal cell capacity [A.h]"],
             "Current function [A]": param["Current function [A]"],
-            "Ambient temperature [K]": param["Ambient temperature [K]"],
-            "Initial temperature [K]": param["Ambient temperature [K]"],
+            "Ambient temperature [K]": T,
+            "Initial temperature [K]": T,
             "Initial SoC": soc_init,
             "Minimum negative stoichiometry": x_0,
             "Maximum negative stoichiometry": x_100,
