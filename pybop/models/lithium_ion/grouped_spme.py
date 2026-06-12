@@ -232,8 +232,9 @@ class GroupedSPMe(BaseGroupedModel):
             C_p = Parameter("Positive electrode capacitance [F]")
             C_n = Parameter("Negative electrode capacitance [F]")
 
-            self.rhs[v_s_n] = 1 / C_n * (I - 3 * Q_th_n * pybamm.x_average(j_n))
-            self.rhs[v_s_p] = 1 / C_p * (-I - 3 * Q_th_p * pybamm.x_average(j_p))
+            # Electrode surface potentials
+            self.rhs[v_s_n] = (I - 3 * Q_th_n * pybamm.x_average(j_n)) / C_n
+            self.rhs[v_s_p] = (-I - 3 * Q_th_p * pybamm.x_average(j_p)) / C_p
         else:
             self.algebraic[v_s_n] = I - 3 * Q_th_n * pybamm.x_average(j_n)
             self.algebraic[v_s_p] = -I - 3 * Q_th_p * pybamm.x_average(j_p)
@@ -301,13 +302,9 @@ class GroupedSPMe(BaseGroupedModel):
             "right": (Scalar(0), "Neumann"),
         }
 
-        self.initial_conditions[sto_e_n] = PrimaryBroadcast(
-            Scalar(1), "negative electrode"
-        )
-        self.initial_conditions[sto_e_sep] = PrimaryBroadcast(Scalar(1), "separator")
-        self.initial_conditions[sto_e_p] = PrimaryBroadcast(
-            Scalar(1), "positive electrode"
-        )
+        self.initial_conditions[sto_e_n] = Scalar(1)
+        self.initial_conditions[sto_e_sep] = Scalar(1)
+        self.initial_conditions[sto_e_p] = Scalar(1)
 
         ######################
         # Cell voltage
@@ -473,9 +470,9 @@ class GroupedSPMe(BaseGroupedModel):
     @property
     def default_quick_plot_variables(self):
         return [
-            "Negative particle surface stoichiometry",
+            "Negative particle stoichiometry",
             "Electrolyte stoichiometry",
-            "Positive particle surface stoichiometry",
+            "Positive particle stoichiometry",
             "Current [A]",
             {
                 "Negative electrode potential [V]",

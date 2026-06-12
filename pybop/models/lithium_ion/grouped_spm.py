@@ -177,8 +177,9 @@ class GroupedSPM(BaseGroupedModel):
             C_p = Parameter("Positive electrode capacitance [F]")
             C_n = Parameter("Negative electrode capacitance [F]")
 
-            self.rhs[v_s_n] = 1 / C_n * (I - 3 * Q_th_n * pybamm.x_average(j_n))
-            self.rhs[v_s_p] = 1 / C_p * (-I - 3 * Q_th_p * pybamm.x_average(j_p))
+            # Electrode surface potentials
+            self.rhs[v_s_n] = (I - 3 * Q_th_n * pybamm.x_average(j_n)) / C_n
+            self.rhs[v_s_p] = (-I - 3 * Q_th_p * pybamm.x_average(j_p)) / C_p
         else:
             self.algebraic[v_s_n] = I - 3 * Q_th_n * pybamm.x_average(j_n)
             self.algebraic[v_s_p] = -I - 3 * Q_th_p * pybamm.x_average(j_p)
@@ -191,21 +192,25 @@ class GroupedSPM(BaseGroupedModel):
         ######################
         # The div and grad operators will be converted to the appropriate matrix
         # multiplication at the discretisation stage
-        self.rhs[sto_n] = pybamm.div(pybamm.grad(sto_n) / self.tau_d(sto_n, "negative"))
-        self.rhs[sto_p] = pybamm.div(pybamm.grad(sto_p) / self.tau_d(sto_p, "positive"))
+        self.rhs[sto_n] = pybamm.div(
+            pybamm.grad(sto_n) / self.tau_d(sto_n, T, "negative")
+        )
+        self.rhs[sto_p] = pybamm.div(
+            pybamm.grad(sto_p) / self.tau_d(sto_p, T, "positive")
+        )
 
         # Boundary conditions must be provided for equations with spatial derivatives
         self.boundary_conditions[sto_n] = {
             "left": (Scalar(0), "Neumann"),
             "right": (
-                -self.tau_d(sto_n_surf, "negative") * pybamm.x_average(j_n),
+                -self.tau_d(sto_n_surf, T, "negative") * pybamm.x_average(j_n),
                 "Neumann",
             ),
         }
         self.boundary_conditions[sto_p] = {
             "left": (Scalar(0), "Neumann"),
             "right": (
-                -self.tau_d(sto_p_surf, "positive") * pybamm.x_average(j_p),
+                -self.tau_d(sto_p_surf, T, "positive") * pybamm.x_average(j_p),
                 "Neumann",
             ),
         }
@@ -319,12 +324,12 @@ class GroupedSPM(BaseGroupedModel):
             out.print_name = r"U_\mathrm{p}(c^\mathrm{surf}_\mathrm{s,p})"
         return out
 
-    def tau_d(self, sto, domain):
+    def tau_d(self, sto, T, domain):
         """
         Dimensional diffusion time scale [s].
         """
         Domain = domain.capitalize()
-        inputs = {f"{Domain} particle surface stoichiometry": sto}
+        inputs = {f"{Domain} particle surface stoichiometry": sto, "Temperature [K]": T}
         return FunctionParameter(f"{Domain} particle diffusion time scale [s]", inputs)
 
     def j(self, sto_surf, eta_RT_F, domain):
@@ -353,8 +358,8 @@ class GroupedSPM(BaseGroupedModel):
     @property
     def default_quick_plot_variables(self):
         return [
-            "Negative particle surface stoichiometry",
-            "Positive particle surface stoichiometry",
+            "Negative particle stoichiometry",
+            "Positive particle stoichiometry",
             "Current [A]",
             {
                 "Negative electrode potential [V]",

@@ -227,7 +227,6 @@ class GroupedDFN(BaseGroupedModel):
             self.rhs[v_s_n] = (l_n * Q_e * pybamm.div(i_e_n) - 3 * Q_th_n * j_n) / C_n
             self.rhs[v_s_p] = (l_p * Q_e * pybamm.div(i_e_p) - 3 * Q_th_p * j_p) / C_p
         else:
-            # Electrode surface potentials
             self.algebraic[v_s_n] = l_n * Q_e * pybamm.div(i_e_n) - 3 * Q_th_n * j_n
             self.algebraic[v_s_p] = l_p * Q_e * pybamm.div(i_e_p) - 3 * Q_th_p * j_p
 
@@ -302,13 +301,9 @@ class GroupedDFN(BaseGroupedModel):
             "right": (Scalar(0), "Neumann"),
         }
 
-        self.initial_conditions[sto_e_n] = PrimaryBroadcast(
-            Scalar(1), "negative electrode"
-        )
-        self.initial_conditions[sto_e_sep] = PrimaryBroadcast(Scalar(1), "separator")
-        self.initial_conditions[sto_e_p] = PrimaryBroadcast(
-            Scalar(1), "positive electrode"
-        )
+        self.initial_conditions[sto_e_n] = Scalar(1)
+        self.initial_conditions[sto_e_sep] = Scalar(1)
+        self.initial_conditions[sto_e_p] = Scalar(1)
 
         # Electrolyte overpotential
         eta_e = (2 * (1 - t_plus) * RT_F) * (
@@ -490,7 +485,7 @@ class GroupedDFN(BaseGroupedModel):
                 "Negative electrode potential [V]",
                 "Negative particle surface voltage [V]",
             },
-            {"Electrolyte scaled current density [s-1]"},
+            "Electrolyte scaled current density [s-1]",
             {
                 "Positive electrode potential [V]",
                 "Positive particle surface voltage [V]",
