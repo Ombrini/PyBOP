@@ -343,12 +343,12 @@ class PlotlyBackend(PlotBackend):
         yaxis_titles = np.atleast_1d(yaxis_titles)
         for i, ax in enumerate(axes):
             # Wrap the axis titles to the specified maximum width
-            xaxis_title = wrap_text(
-                xaxis_titles[i % len(xaxis_titles)], width=max_width, backend=self.name
-            )
-            yaxis_title = wrap_text(
-                yaxis_titles[i % len(yaxis_titles)], width=max_width, backend=self.name
-            )
+            xaxis_title = xaxis_titles[i % len(xaxis_titles)]
+            if xaxis_title is not None:
+                xaxis_title = wrap_text(xaxis_title, width=max_width)
+            yaxis_title = yaxis_titles[i % len(yaxis_titles)]
+            if yaxis_title is not None:
+                yaxis_title = wrap_text(yaxis_title, width=max_width)
             if ax is None:
                 figures[i].update_layout(xaxis_title=xaxis_title)
                 figures[i].update_layout(yaxis_title=yaxis_title)

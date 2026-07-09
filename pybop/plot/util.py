@@ -70,7 +70,7 @@ def get_backend_from_figure(backend=None, figures=None):
         Instance of the selected plotting backend.
     """
 
-    if figures is not None:
+    if figures is not None and len(np.atleast_1d(figures)) > 0:
         # Determine the backend from the provided figure
         if hasattr(figures, "__len__"):
             figures = figures[0]

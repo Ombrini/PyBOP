@@ -65,7 +65,11 @@ class StandardPlot:
         self.yaxis_title = yaxis_title
         self.style = style
         self.legend_style = legend_style
-        self.fig = np.atleast_1d(figures)[0]
+        self.fig = (
+            np.atleast_1d(figures)[0]
+            if figures is not None and len(np.atleast_1d(figures)) > 0
+            else None
+        )
         self.text_wrap_width = text_wrap_width
         _, axes, _, _ = self.backend.parse_input_axes(self.fig, axes, num_plots=1)
         self.ax = axes[0]

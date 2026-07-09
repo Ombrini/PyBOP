@@ -268,12 +268,14 @@ class MatplotlibBackend(PlotBackend):
         for i, ax in enumerate(np.atleast_1d(axes)):
             if ax is None:
                 ax = figures[i % len(figures)].gca()
-            ax.set_xlabel(
-                wrap_text(xaxis_titles[i % len(xaxis_titles)], width=max_width)
-            )
-            ax.set_ylabel(
-                wrap_text(yaxis_titles[i % len(yaxis_titles)], width=max_width)
-            )
+            xaxis_title = xaxis_titles[i % len(xaxis_titles)]
+            if xaxis_title is not None:
+                xaxis_title = wrap_text(xaxis_title, width=max_width)
+            ax.set_xlabel(xaxis_title)
+            yaxis_title = yaxis_titles[i % len(yaxis_titles)]
+            if yaxis_title is not None:
+                yaxis_title = wrap_text(yaxis_title, width=max_width)
+            ax.set_ylabel(yaxis_title)
 
     def update_plot_titles(self, figures, axes, titles, max_text_width=40, pad=0):
         """
