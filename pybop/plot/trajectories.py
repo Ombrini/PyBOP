@@ -11,6 +11,8 @@ def trajectories(
     label_width=20,
     show=True,
     backend=None,
+    figures=None,
+    axes=None,
 ):
     """
     Quickly plot one or more trajectories using Plotly.
@@ -36,6 +38,11 @@ def trajectories(
         If True, the figure is shown upon creation (default: True).
     backend: str, optional
         The plotting backend to be used.
+    figures: figure object, optional
+        Figure for plotting. If not provided a new figure is created
+    axes: axis, optional
+        Thes axis to be used for plotting
+        plotly: axis expected to be of the form tuple(row, col)
 
     Returns
     -------
@@ -53,6 +60,8 @@ def trajectories(
         style={"height": 600, "width": 600, "bg_color": "white"},
         legend_style={},
         backend=backend,
+        figures=figures,
+        axes=axes,
     )
 
     fig = plot_dict(show=show)

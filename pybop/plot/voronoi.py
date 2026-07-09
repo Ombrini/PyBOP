@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.spatial import Voronoi
 
-from pybop.plot.util import get_backend
+from pybop.plot.util import get_backend_from_figure
 
 if TYPE_CHECKING:
     from pybop._result import Result
@@ -203,6 +203,8 @@ def surface(
     normalise=True,
     show=True,
     backend=None,
+    figures=None,
+    axes=None,
 ):
     """
     Plot a 2D representation of the Voronoi diagram with color-coded regions.
@@ -224,7 +226,7 @@ def surface(
     backend: str, optional
         The plotting backend to be used.
     """
-    backend = get_backend(backend)
+    backend = get_backend_from_figure(backend, figures)
     points = result.x_model
     parameters = result.problem.parameters
 
@@ -268,17 +270,25 @@ def surface(
 
     # Construct figure
     names = parameters.names
-    fig = backend.create_figure(
-        title=title,
-        xaxis_title=names[0],
-        yaxis_title=names[1],
-        style={
-            "width": 600,
-            "height": 600,
-            "xaxis_range": xlim,
-            "yaxis_range": ylim,
-        },
+    num_plots = 1
+    figures, axes, create_figure, _ = backend.parse_input_axes(
+        figures, axes, num_plots=num_plots
     )
+    if create_figure:
+        fig = backend.create_figure(
+            style={
+                "width": 600,
+                "height": 600,
+            },
+        )
+        ax = None
+    else:
+        fig = figures[0]
+        ax = axes[0]
+
+    backend.update_axes_titles(fig, ax, names[0], names[1])
+    backend.update_plot_titles(fig, ax, title, pad=30)
+    backend.update_axes_ranges(fig, ax, xlim, ylim)
 
     # Add Voronoi edges and fill Voronoi regions
     colors = backend.sample_color_scale(f)
@@ -289,14 +299,16 @@ def surface(
         backend.plot_trace(
             backend.fill(x_region, y_region, color=colors[j], label=f"f={f[j]:.2f}"),
             fig,
+            ax=ax,
         )
 
         backend.plot_trace(
             backend.line(x_region, y_region, style=dict(color="white", linewidth=0.5)),
             fig,
+            ax=ax,
         )
 
-    backend.colorbar(fig, f)
+    backend.colorbar(fig, f, ax=ax)
 
     # Add original points
     backend.plot_trace(
@@ -307,6 +319,7 @@ def surface(
             labels=[f"f={val:.2f}" for val in f],
         ),
         fig,
+        ax=ax,
     )
 
     # Plot the initial guess
@@ -322,11 +335,12 @@ def surface(
                     markersize=14,
                     markerfacecolor="white",
                     markeredgecolor="black",
-                    linestyle="None",
+                    linestyle="none",
                     zorder=2.6,
                 ),
             ),
             fig,
+            ax=ax,
         )
 
         # Plot optimised value
@@ -342,20 +356,22 @@ def surface(
                         markersize=14,
                         markerfacecolor="black",
                         markeredgecolor="white",
-                        linestyle="None",
+                        linestyle="none",
                         zorder=2.6,
                     ),
                 ),
                 fig,
+                ax=ax,
             )
 
     backend.legend(
         fig,
         style={
             "horizontal": True,
-            "loc": "lower right",
-            "coords": (1, 1),
+            "loc": "lower left",
+            "coords": (0, 1),
         },
+        axes=ax,
     )
 
     if show:

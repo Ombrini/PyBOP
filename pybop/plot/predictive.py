@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pybop.plot.util import get_backend, remove_brackets
+from pybop.plot.util import get_backend_from_figure, remove_brackets
 from pybop.problems.meta_problem import MetaProblem
 from pybop.simulators.failed_solution import FailedSolution
 
@@ -21,11 +21,29 @@ def predictive(
     colour_scale="viridis",
     show: bool = True,
     backend: str | None = None,
+    figures=None,
+    axes=None,
 ):
     """
     Plot the predictive posterior of a Bayesian optimisation result.
     """
 
+    # Create a plot for each problem
+    problems = (
+        result.problem.problems
+        if isinstance(result.problem, MetaProblem)
+        else [result.problem]
+    )
+
+    # Import plotting backend
+    backend = get_backend_from_figure(backend, figures)
+
+    # Process input figures
+    figures, axes, create_figure, _ = backend.parse_input_axes(
+        figures, axes, num_plots=len(problems), allow_single_axis=False
+    )
+
+    # Retrieve data for plotting
     posterior_samples = result.posterior.sample_from_distribution(
         n_samples=number_of_traces
     )
@@ -34,29 +52,28 @@ def predictive(
     )
     pdf_range = np.asarray([posterior_samples_pdf.min(), posterior_samples_pdf.max()])
 
-    # Create a plot for each problem
-    problems = (
-        result.problem.problems
-        if isinstance(result.problem, MetaProblem)
-        else [result.problem]
-    )
-    figure_list = []
-    backend_module = get_backend(backend)
+    for i, problem in enumerate(problems):
+        if create_figure:
+            fig = backend.create_figure(
+                style={"bg_color": "white", "width": 600, "height": 600},
+            )
+            figures = np.append(figures, fig)
+            ax = None
+        else:
+            fig = figures[i]
+            ax = axes[i]
 
-    for problem in problems:
-        fig = backend_module.create_figure(
-            xaxis_title=remove_brackets(problem.domain),
-            yaxis_title=remove_brackets(problem.target[0]),
-            style={"bg_color": "white", "width": 600, "height": 600},
+        backend.update_axes_titles(
+            fig, ax, remove_brackets(problem.domain), remove_brackets(problem.target[0])
         )
-
-        backend_module.plot_trace(
-            backend_module.line(
+        backend.plot_trace(
+            backend.line(
                 x=problem.domain_data,
                 y=problem.target_data[problem.target[0]],
                 label=data_legend_entry,
             ),
             fig,
+            ax=ax,
         )
 
         # Simulate the samples and add to plot
@@ -64,34 +81,35 @@ def predictive(
         simulations = problem.simulate_batch(inputs=inputs)
         for pdf, sim in zip(posterior_samples_pdf, simulations, strict=False):
             if not isinstance(sim, FailedSolution):
-                colors = backend_module.sample_color_scale(
+                colors = backend.sample_color_scale(
                     pdf, d_min=pdf_range[0], d_max=pdf_range[1]
                 )
-                backend_module.plot_trace(
-                    backend_module.line(
+                backend.plot_trace(
+                    backend.line(
                         x=problem.domain_data,
                         y=sim[problem.target[0]].data,
                         style=dict(color=colors[0], linestyle="dotted"),
                     ),
                     fig,
+                    ax=ax,
                 )
 
         # Add the colourbar
-        backend_module.colorbar(
-            fig, pdf_range, colorscale=colour_scale, label="Posterior PDF"
+        backend.colorbar(
+            fig, pdf_range, colorscale=colour_scale, label="Posterior PDF", ax=ax
         )
 
         if pdf_plot is not None:
-            backend_module.plot_trace(
-                backend_module.line(
+            backend.plot_trace(
+                backend.line(
                     x=pdf_plot[0],
                     y=pdf_plot[1],
                     labels=pdf_label,
-                )
+                ),
+                fig,
+                ax=ax,
             )
         if show:
-            backend_module.show_figure(fig)
+            backend.show_figure(fig)
 
-        figure_list.append(fig)
-
-    return figure_list
+    return figures

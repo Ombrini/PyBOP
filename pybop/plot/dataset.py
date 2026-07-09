@@ -1,8 +1,10 @@
 from pybop.plot.trajectories import trajectories
-from pybop.plot.util import get_backend, remove_brackets
+from pybop.plot.util import get_backend_from_figure, remove_brackets
 
 
-def dataset(dataset, signal=None, labels=None, show=True, backend=None):
+def dataset(
+    dataset, signal=None, labels=None, show=True, backend=None, figures=None, axes=None
+):
     """
     Quickly plot a PyBOP Dataset using Plotly.
 
@@ -16,12 +18,18 @@ def dataset(dataset, signal=None, labels=None, show=True, backend=None):
         Name(s) for the trace(s) (default: "Data").
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
+    figures: figure object, optional
+        Figure for plotting. If not provided a new figure is created
+    axes: axis, optional
+        Thes axis to be used for plotting
+        plotly: axis expected to be of the form tuple(row, col)
 
     Returns
     -------
     fig : plotly.graph_objs.Figure or matplotlib.figure.Figure
         The figure object for the scatter plot.
     """
+    backend = get_backend_from_figure(backend, figures)
 
     # Get data dictionary
     if signal is None:
@@ -48,10 +56,11 @@ def dataset(dataset, signal=None, labels=None, show=True, backend=None):
         xaxis_title=remove_brackets(dataset.domain),
         yaxis_title=yaxis_title,
         backend=backend,
+        figures=figures,
+        axes=axes,
     )
 
-    backend_module = get_backend(backend)
     if show:
-        backend_module.show_figure(fig)
+        backend.show_figure(fig)
 
     return fig

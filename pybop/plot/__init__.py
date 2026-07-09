@@ -3,7 +3,6 @@ DEFAULT_BACKEND = 'matplotlib'
 current_backend=DEFAULT_BACKEND
 
 from .util import (
-    AxisData,
     use_backend,
     get_backend,
     parse_data,

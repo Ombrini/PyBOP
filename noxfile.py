@@ -76,7 +76,7 @@ def examples(session):
 @nox.session
 def notebooks(session):
     """Run the Jupyter notebooks."""
-    session.install("openpyxl", "ipywidgets")
+    session.install("openpyxl", "ipywidgets", "pip")
     session.install("-e", ".[all]", "--upgrade", silent=False)
     session.install(*nox.project.dependency_groups(PYPROJECT, "dev"), silent=False)
     if PYBOP_SCHEDULED:
@@ -93,7 +93,7 @@ def notebooks(session):
 @nox.session(name="notebooks-overwrite")
 def notebooks_overwrite(session):
     """Run the Jupyter notebooks."""
-    session.install("openpyxl", "ipywidgets")
+    session.install("openpyxl", "ipywidgets", "pip")
     session.install("-e", ".[all]", "--upgrade", silent=False)
     session.install(*nox.project.dependency_groups(PYPROJECT, "dev"), silent=False)
     if PYBOP_SCHEDULED:

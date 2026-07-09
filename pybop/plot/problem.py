@@ -3,7 +3,7 @@ import numpy as np
 from pybop.costs.design_cost import DesignCost
 from pybop.costs.error_measures import ErrorMeasure
 from pybop.parameters.parameter import Inputs
-from pybop.plot.util import get_backend, remove_brackets
+from pybop.plot.util import get_backend_from_figure, remove_brackets
 from pybop.problems.meta_problem import MetaProblem
 from pybop.problems.problem import Problem
 from pybop.simulators.solution import Solution
@@ -15,6 +15,8 @@ def problem(
     title="Scatter Plot",
     show: bool = True,
     backend: str = None,
+    figures=None,
+    axes=None,
 ):
     """
     Produce a quick plot of the target dataset against optimised model output.
@@ -37,8 +39,8 @@ def problem(
 
     Returns
     -------
-    plotly.graph_objs.Figure
-        The Plotly figure object for the scatter plot.
+    plotly.graph_objs.Figure or matplotlib.Figure.figure
+        The figure object for the scatter plot.
     """
     if inputs is None:
         inputs = problem.parameters.to_dict()
@@ -68,19 +70,30 @@ def problem(
         model_domain = target_domain[: len(model_output[target].data)]
 
     # Create a plot for each output
-    backend_module = get_backend(backend)
-    figure_list = []
-    for var in problem.target:
-        # Create a plot dictionary
-        fig = backend_module.create_figure(
-            title=title,
-            xaxis_title=remove_brackets(domain),
-            yaxis_title=remove_brackets(var),
-            style={"bg_color": "white", "width": 600, "height": 600},
+    # Import plotting backend
+    backend = get_backend_from_figure(backend, figures)
+
+    # Process input
+    figures, axes, create_figure, _ = backend.parse_input_axes(
+        figures, axes, num_plots=len(problem.target), allow_single_axis=False
+    )
+    for i, var in enumerate(problem.target):
+        ax = axes[i % len(axes)]
+        if create_figure:
+            fig = backend.create_figure(
+                style={"bg_color": "white", "width": 600, "height": 600},
+            )
+            figures = np.append(figures, fig)
+        else:
+            fig = figures[i % len(figures)]
+
+        backend.update_axes_titles(
+            fig, ax, remove_brackets(domain), remove_brackets(var)
         )
+        backend.update_plot_titles(fig, ax, title)
         traces = []
 
-        model_trace = backend_module.line(
+        model_trace = backend.line(
             x=model_domain,
             y=model_output[var].data,
             label="Optimised" if isinstance(problem.cost, DesignCost) else "Model",
@@ -91,7 +104,7 @@ def problem(
         )
         traces.append(model_trace)
 
-        target_trace = backend_module.line(
+        target_trace = backend.line(
             x=target_domain,
             y=target_output[var].data,
             label="Reference",
@@ -110,23 +123,19 @@ def problem(
             y_upper = (model_output[var].data + sigma).tolist()
             y_lower = (model_output[var].data - sigma).tolist()
 
-            fill_trace = backend_module.fill_between(
-                x, y_upper, y_lower, color="#FFE5CC"
-            )
+            fill_trace = backend.fill_between(x, y_upper, y_lower, color="#FFE5CC")
             traces.append(fill_trace)
 
         # Reverse the order of the traces to put the model on top
         traces = traces[::-1]
 
         for trace in traces:
-            backend_module.plot_trace(trace, fig)
+            backend.plot_trace(trace, fig, ax=ax)
 
-        backend_module.legend(fig)
+        backend.legend(fig, axes=ax)
 
         # Generate the figure and update the layout
         if show:
-            backend_module.show_figure(fig)
+            backend.show_figure(fig)
 
-        figure_list.append(fig)
-
-    return figure_list
+    return figures

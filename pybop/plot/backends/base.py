@@ -1,6 +1,7 @@
+import warnings
 from abc import ABC, abstractmethod
 
-from pybop.plot.util import AxisData
+import numpy as np
 
 
 class PlotBackend(ABC):
@@ -15,6 +16,18 @@ class PlotBackend(ABC):
     traces and annotations, generating specialised plot types, and rendering
     results.
     """
+
+    @property
+    def name(self):
+        """
+        Return the name of the backend.
+
+        Returns
+        -------
+        str
+            Name of the backend.
+        """
+        return self.__class__.__name__.replace("Backend", "").lower()
 
     @abstractmethod
     def create_figure(
@@ -46,15 +59,15 @@ class PlotBackend(ABC):
         object
             Backend-specific figure object.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def make_subplots(
         self,
-        axes: list[AxisData],
+        num_rows: int,
+        num_cols: int,
+        num_plots: int,
         title=None,
-        xaxis_titles: list[str] | str = None,
-        yaxis_titles: list[str] | str = None,
         style=None,
     ):
         """
@@ -62,26 +75,28 @@ class PlotBackend(ABC):
 
         Parameters
         ----------
-        axes : list[AxisData]
-            Definitions describing subplot layout and configuration.
+        num_rows : int
+            Number of rows in the subplot grid.
+        num_cols : int
+            Number of columns in the subplot grid.
+        num_plots : int
+            Total number of subplots to create.
         title : str, optional
             Figure title.
-        xaxis_titles : str or list[str], optional
-            X-axis titles for each subplot.
-        yaxis_titles : str or list[str], optional
-            Y-axis titles for each subplot.
         style : dict, optional
             Backend-specific styling options.
 
         Returns
         -------
-        object
+        fig : object
             Backend-specific figure object.
+        axes : list
+            List of subplot axes.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
-    def legend(self, fig, style: dict = None):
+    def legend(self, fig, ax=None, style: dict = None):
         """
         Configure or display a legend for a figure.
 
@@ -91,8 +106,10 @@ class PlotBackend(ABC):
             Figure object.
         style : dict, optional
             Legend styling options.
+        ax : object, optional
+            Subplot axis to apply the legend to (if applicable).
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def show_figure(self, fig):
@@ -104,7 +121,123 @@ class PlotBackend(ABC):
         fig : object
             Figure to display.
         """
-        raise NotImplementedError
+        pass
+
+    def parse_input_axes(self, figures, axes, num_plots=None, allow_single_axis=True):
+        """
+        Parse and validate input figures and axes for plotting.
+
+        Parameters
+        ----------
+        figures : object or list
+            Figure(s) to plot on.
+        axes : object or list
+            Axis/axes to plot on.
+        num_plots : int, optional
+            Expected number of axes for the plot.
+        allow_single_axis : bool, optional
+            Whether to allow a single axis for multiple plots.
+
+        Returns
+        -------
+        figures : list
+            List of figure objects.
+        axes : list
+            List of axis objects.
+        create_figure : bool
+            Whether a new figure should be created.
+        single_axis : bool
+            Whether a single axis is being used for multiple plots.
+        """
+        if figures is None:
+            if axes is not None:
+                warnings.warn(
+                    "Axes argument ignored if no figure provided.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            return [], [None], True, False
+
+        figures = figures if hasattr(figures, "__len__") else [figures]
+        axes = axes if hasattr(axes, "__len__") else [axes]
+        if not len(figures) == len(axes):
+            if len(figures) == 1:
+                figures = np.asarray([figures[0]] * len(axes))
+            elif axes[0] is None:
+                axes = np.asarray([axes[0]] * len(figures))
+            else:
+                raise ValueError(
+                    "Please provide the same number of figures and axes or only one figure."
+                )
+        if num_plots is not None and len(axes) != num_plots:
+            if not allow_single_axis:
+                raise ValueError(
+                    f"This plot requires {num_plots} axes. {len(axes)} axes provided."
+                )
+            elif len(axes) != 1:
+                raise ValueError(
+                    f"This plot requires either {num_plots} axes or a single axis. {len(axes)} axes provided."
+                )
+
+        return figures, axes, False, len(axes) == 1
+
+    @abstractmethod
+    def update_axes_titles(self, figs, axes, xaxis_titles, yaxis_titles):
+        """
+        Update the titles of the axes in the provided figures.
+
+        Parameters
+        ----------
+        figures : list[Figure]
+            List of figures containing the axes to update.
+        axes : list[tuple]
+            List of subplot locations.
+        xaxis_titles : list[str]
+            List of titles for the X-axes.
+        yaxis_titles : list[str]
+            List of titles for the Y-axes.
+        max_width : int, optional
+            Maximum width for the axis titles before wrapping. Default is 40 characters.
+        """
+        pass
+
+    @abstractmethod
+    def update_plot_titles(self, figs, axes, titles, pad):
+        """
+        Update the titles of the subplots in the provided figures.
+
+        Parameters
+        ----------
+        figures : list[Figure]
+            List of figures containing the subplots to update.
+        axes : list[tuple]
+            List of subplot locations.
+        titles : list[str]
+            List of titles for the subplots.
+        max_text_width : int, optional
+            Maximum width for the subplot titles before wrapping. Default is 40 characters.
+        pad : int, optional
+            Padding between the title and the subplot. Default is 0.
+        """
+        pass
+
+    @abstractmethod
+    def update_axes_ranges(self, fig, ax, xaxis_range, yaxis_range):
+        """
+        Update the ranges of the axes in the provided figure.
+
+        Parameters
+        ----------
+        fig : Figure
+            Figure containing the axes to update.
+        ax : tuple
+            Subplot location.
+        xaxis_range : tuple
+            Range for the x-axis.
+        yaxis_range : tuple
+            Range for the y-axis.
+        """
+        pass
 
     @abstractmethod
     def plot_trace(self, traces: dict | list[dict], fig, ax=None, color_cycle=None):
@@ -122,7 +255,7 @@ class PlotBackend(ABC):
         color_cycle : iterable, optional
             Sequence of colours used when plotting multiple traces.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def sample_color_scale(self, data, scale="viridis", d_min=None, d_max=None):
@@ -145,7 +278,7 @@ class PlotBackend(ABC):
         array-like
             Colours corresponding to the supplied data.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def colorbar(self, fig, data, colorscale="viridis", label=None):
@@ -163,10 +296,10 @@ class PlotBackend(ABC):
         label : str, optional
             Colour bar label.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
-    def contour_plot(self, x, y, z, colorscale="viridis"):
+    def contour_plot(self, x, y, z, fig, ax=None, colorscale="viridis"):
         """
         Create a contour plot.
 
@@ -178,13 +311,17 @@ class PlotBackend(ABC):
             Surface values.
         colorscale : str, optional
             Colour scale name.
+        fig : object
+            Target figure.
+        ax : object, optional
+            Target subplot axis.
 
         Returns
         -------
         object
             Backend-specific contour trace or figure.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def fill(self, x, y, color=None, label=None):
@@ -200,7 +337,7 @@ class PlotBackend(ABC):
         label : str, optional
             Legend label.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def fill_between(self, x, y_upper, y_lower, color):
@@ -218,7 +355,7 @@ class PlotBackend(ABC):
         color : str
             Fill colour.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def histogram_plot(self, x, name, style=None):
@@ -234,7 +371,7 @@ class PlotBackend(ABC):
         style : dict, optional
             Histogram styling options.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def line(self, x=None, y=None, label=None, style=None):
@@ -255,7 +392,7 @@ class PlotBackend(ABC):
         object
             Backend-specific line trace.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def scatter(self, x, y, colors, labels=None, colorscale="Greys"):
@@ -273,7 +410,7 @@ class PlotBackend(ABC):
         colorscale : str, optional
             Colour scale name.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def show_table(self, header, values, title):
@@ -289,7 +426,7 @@ class PlotBackend(ABC):
         title : str
             Table title.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def vline(self, fig, x, style=None):
@@ -305,4 +442,4 @@ class PlotBackend(ABC):
         style : dict, optional
             Line styling options.
         """
-        raise NotImplementedError
+        pass

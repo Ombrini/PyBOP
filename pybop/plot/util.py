@@ -1,5 +1,5 @@
 import textwrap
-from dataclasses import dataclass
+import warnings
 
 import numpy as np
 
@@ -12,14 +12,17 @@ def use_backend(backend):
 
     Parameters
     ----------
-    backend : str
+    backend : str or pybop.plot.backends.PlotBackend
         The plotting backend to be used.
     """
     err_msg = (
         f"Plotting backend {backend} is not available. The current backend has not been updated. \n"
         f"The current backend is set to {pybop.plot.current_backend}"
     )
-    if backend.lower() in ["matplotlib", "plotly"]:
+
+    if backend.lower() in ["matplotlib", "plotly"] or isinstance(
+        backend, pybop.plot.backends.PlotBackend
+    ):
         pybop.plot.current_backend = backend
 
     else:
@@ -32,11 +35,14 @@ def get_backend(backend=None):
 
     Parameters
     ----------
-    backend : str, optional
+    backend : str or pybop.plot.backends.PlotBackend, optional
         The plotting backend to be used (default: pybop.plot.current_backend)
     """
     if backend is None:
         backend = pybop.plot.current_backend
+    elif isinstance(backend, pybop.plot.backends.PlotBackend):
+        return backend
+
     err_msg = f"Plotting backend {backend} is not available."
     if backend.lower() == "matplotlib":
         return pybop.plot.backends.MatplotlibBackend()
@@ -46,17 +52,58 @@ def get_backend(backend=None):
         raise ModuleNotFoundError(err_msg)
 
 
-@dataclass
-class AxisData:
+def get_backend_from_figure(backend=None, figures=None):
     """
-    Simple dataclass to store info needed to construct
-    subplots from specifying size and location of individual axes.
+    Get instance of PlotBackend class from a provided figure or from a specified backend.
+    If both are provided, the figure's backend takes precedence.
+
+    Parameters
+    ----------
+    backend : str or pybop.plot.backends.PlotBackend, optional
+        The plotting backend to be used (default: pybop.plot.current_backend)
+    figures: figure object, optional
+        Figure for plotting. If not provided a new figure is created
+
+    Returns
+    -------
+    pybop.plot.backends.PlotBackend
+        Instance of the selected plotting backend.
     """
 
-    row: int = 1
-    col: int = 1
-    row_span: int = 1
-    col_span: int = 1
+    if figures is not None:
+        # Determine the backend from the provided figure
+        if hasattr(figures, "__len__"):
+            figures = figures[0]
+        if "matplotlib" in str(type(figures)).lower():
+            figure_backend = "matplotlib"
+        elif "plotly" in str(type(figures)).lower():
+            figure_backend = "plotly"
+        else:
+            raise ValueError(
+                f"Could not determine the backend from the provided figure of type {type(figures)}"
+            )
+        # If a backend is provided, check if it matches the figure's backend
+        if backend is not None:
+            backend_str = (
+                backend.name
+                if isinstance(backend, pybop.plot.backends.PlotBackend)
+                else backend.lower()
+            )
+
+            if backend_str != figure_backend:
+                warnings.warn(
+                    f"Backend {backend} does not match the provided figure's backend {figure_backend}."
+                    "Using the figure's backend.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                # Use the figure's backend if they don't match
+                backend = figure_backend
+        else:
+            # If no backend is provided, use the figure's backend
+            backend = figure_backend
+
+    return get_backend(backend)
 
 
 def parse_data(x, y):

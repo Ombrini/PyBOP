@@ -1,7 +1,7 @@
 import numpy as np
 
 from pybop.plot.backends.base import PlotBackend
-from pybop.plot.util import AxisData, wrap_text
+from pybop.plot.util import wrap_text
 
 
 class MatplotlibBackend(PlotBackend):
@@ -22,9 +22,6 @@ class MatplotlibBackend(PlotBackend):
         self.mpl = mpl
         self.plt = plt
 
-        # Backend identifier used by utility functions and text wrapping.
-        self.name = "matplotlib"
-
         # Enable automatic colour cycling across subplots when traces do not
         # explicitly define a colour.
         self.global_colorcycle = False
@@ -41,10 +38,13 @@ class MatplotlibBackend(PlotBackend):
         Convert pixel-based width and height values from a style dictionary
         into a Matplotlib figsize (inches).
         """
-        return (
-            np.ceil(style.get("width", 800) / 100),
-            np.ceil(style.get("height", 600) / 100),
-        )
+        if "width" in style or "height" in style:
+            return (
+                np.ceil(style.get("width", 800) / 100),
+                np.ceil(style.get("height", 600) / 100),
+            )
+        else:
+            return None
 
     def create_figure(
         self, title=None, xaxis_title=None, yaxis_title=None, traces=None, style=None
@@ -77,7 +77,7 @@ class MatplotlibBackend(PlotBackend):
             Configured figure instance.
         """
         style = style or {}
-        fig = self.plt.figure(figsize=self._figsize(style), dpi=100)
+        fig = self.plt.figure(figsize=self._figsize(style))
 
         if title is not None:
             self.plt.suptitle(title)
@@ -87,10 +87,11 @@ class MatplotlibBackend(PlotBackend):
             self.plt.ylabel(yaxis_title)
 
         # Apply backend-supported figure styling options.
-        if "xaxis_range" in style:
-            self.plt.xlim(style.get("xaxis_range"))
-        if "yaxis_range" in style:
-            self.plt.ylim(style.get("yaxis_range"))
+        self.update_axes_ranges(
+            fig,
+            xaxis_range=style.get("xaxis_range"),
+            yaxis_range=style.get("yaxis_range"),
+        )
         if "bg_color" in style:
             ax = fig.gca()
             ax.set_facecolor(style.get("bg_color"))
@@ -103,28 +104,25 @@ class MatplotlibBackend(PlotBackend):
 
     def make_subplots(
         self,
-        axes: list[AxisData],
+        num_rows: int,
+        num_cols: int,
+        num_plots: int,
         title=None,
-        xaxis_titles: list[str] | str = None,
-        yaxis_titles: list[str] | str = None,
         style=None,
     ):
         """
-        Create a figure containing a custom subplot layout.
-
-        The layout is defined by a collection of AxisData objects, which
-        specify subplot positions and spans within a grid.
+        Create a figure containing multiple subplot axes in a grid.
 
         Parameters
         ----------
+        num_rows : int
+            Number of rows in the subplot grid.
+        num_cols : int
+            Number of columns in the subplot grid.
+        num_plots : int
+            Total number of subplots to create.
         title : str, optional
             Figure title.
-        xaxis_title : str, optional
-            X-axis label.
-        yaxis_title : str, optional
-            Y-axis label.
-        traces : list[dict], optional
-            Trace definitions to plot immediately.
         style : dict, optional
             Figure styling options.
             Currently supported options:
@@ -139,50 +137,33 @@ class MatplotlibBackend(PlotBackend):
         """
 
         style = style or {}
+        if (num_rows * num_cols) < num_plots:
+            raise ValueError(
+                f"Insufficient subplots: {num_rows} rows and {num_cols} columns "
+                f"cannot accommodate {num_plots} plots."
+            )
 
         # Create figure
-        fig = self.plt.figure(figsize=self._figsize(style), dpi=100)
+        fig, axes = self.plt.subplots(
+            num_rows, num_cols, figsize=self._figsize(style), dpi=100
+        )
+        axes = np.atleast_1d(axes).flatten()
+        for ax in axes[num_plots:]:
+            ax.set_visible(False)
+
         if title is not None:
             self.plt.suptitle(title)
 
-        # Determine the minimum grid size required to accommodate all subplot spans.
-        num_rows = max(ax.row + ax.row_span - 1 for ax in axes)
-        num_cols = max(ax.col + ax.col_span - 1 for ax in axes)
-
-        axes_dict = {}
-        for ax in axes:
-            # Convert row/column span information into Matplotlib subplot indices.
-            idx_start = (ax.row - 1) * num_cols + ax.col
-            idx_end = (ax.row + ax.row_span - 2) * num_cols + ax.col + ax.col_span - 1
-            axes_dict[(ax.row, ax.col)] = fig.add_subplot(
-                num_rows, num_cols, (idx_start, idx_end)
-            )
-
-        # Helper to support either a shared axis title or per-axis titles.
-        def _get_axis_title(titles, i):
-            if isinstance(titles, str):
-                return titles
-            if isinstance(titles, list) and i < len(titles):
-                return titles[i]
-            return None
-
-        # Reduce wrapping width as the number of subplot rows increases.
-        width = np.floor(50 / num_rows)
-        for i, ax in enumerate(fig.axes):
-            if title := _get_axis_title(xaxis_titles, i):
-                ax.set_xlabel(wrap_text(title, width, self.name))
-            if title := _get_axis_title(yaxis_titles, i):
-                ax.set_ylabel(wrap_text(title, width, self.name))
+        for ax in fig.axes:
             if "bg_color" in style:
                 ax.set_facecolor(style.get("bg_color"))
                 ax.set_axisbelow(True)
 
         # Use a shared colour cycle across all subplot axes.
         self.global_colorcycle = True
+        return fig, axes[:num_plots]
 
-        return fig, axes_dict, num_rows, num_cols
-
-    def legend(self, fig, style: dict = None):
+    def legend(self, fig, axes=None, style: dict = None):
         """
         Create an axis-level or figure-level legend.
 
@@ -212,6 +193,8 @@ class MatplotlibBackend(PlotBackend):
         lines_labels = []
         if style.get("fig_legend"):
             axes = fig.axes
+        elif axes is not None:
+            axes = np.atleast_1d(axes)
         else:
             axes = [fig.gca()]
 
@@ -257,7 +240,88 @@ class MatplotlibBackend(PlotBackend):
                 fig.legend(lines, labels, **opts)
             else:
                 opts["loc"] = style.get("loc", "best")
-                axes[0].legend(lines, labels, **opts)
+                axes[-1].legend(lines, labels, **opts)
+
+    def update_axes_titles(
+        self, figures, axes, xaxis_titles, yaxis_titles, max_width=40
+    ):
+        """
+        Update the titles of the axes in the provided figures.
+
+        Parameters
+        ----------
+        figures : list[Figure]
+            List of matplotlib figures containing the axes to update.
+        axes : list[tuple]
+            List of subplot locations specified as matplotlib axes objects.
+        xaxis_titles : list[str]
+            List of titles for the X-axes.
+        yaxis_titles : list[str]
+            List of titles for the Y-axes.
+        max_width : int, optional
+            Maximum width for the axis titles before wrapping. Default is 40 characters.
+        """
+        xaxis_titles = np.atleast_1d(xaxis_titles)
+        yaxis_titles = np.atleast_1d(yaxis_titles)
+        figures = np.atleast_1d(figures)
+
+        for i, ax in enumerate(np.atleast_1d(axes)):
+            if ax is None:
+                ax = figures[i % len(figures)].gca()
+            ax.set_xlabel(
+                wrap_text(xaxis_titles[i % len(xaxis_titles)], width=max_width)
+            )
+            ax.set_ylabel(
+                wrap_text(yaxis_titles[i % len(yaxis_titles)], width=max_width)
+            )
+
+    def update_plot_titles(self, figures, axes, titles, max_text_width=40, pad=0):
+        """
+        Update the titles of the subplots in the provided figures.
+
+        Parameters
+        ----------
+        figures : list[Figure]
+            List of matplotlib figures containing the subplots to update.
+        axes : list[tuple]
+            List of subplot locations specified as matplotlib axes objects.
+        titles : list[str]
+            List of titles for the subplots.
+        max_text_width : int, optional
+            Maximum width for the subplot titles before wrapping. Default is 40 characters.
+        pad : int, optional
+            Padding between the title and the subplot. Default is 0.
+        """
+        titles = np.atleast_1d(titles)
+        figures = np.atleast_1d(figures)
+        for i, ax in enumerate(np.atleast_1d(axes)):
+            if ax is None:
+                ax = figures[i].gca()
+            title = titles[i % len(titles)]
+            if title is not None:
+                title = wrap_text(title, width=max_text_width)
+            ax.set_title(title, pad=pad)
+
+    def update_axes_ranges(self, fig, ax=None, xaxis_range=None, yaxis_range=None):
+        """
+        Update the ranges of the axes in the provided figure.
+
+        Parameters
+        ----------
+        fig : Figure
+            Matplotlib figure containing the axes to update.
+        ax : tuple
+            Subplot location.
+        xaxis_range : tuple
+            Range for the x-axis.
+        yaxis_range : tuple
+            Range for the y-axis.
+        """
+        ax = ax or fig.gca()
+        if xaxis_range is not None:
+            ax.set_xlim(xaxis_range)
+        if yaxis_range is not None:
+            ax.set_ylim(yaxis_range)
 
     def show_figure(self, fig):
         """
@@ -269,7 +333,7 @@ class MatplotlibBackend(PlotBackend):
             The figure object
         """
 
-        if isinstance(fig, list):
+        if isinstance(fig, (list, np.ndarray, tuple)):
             for f in fig:
                 f.tight_layout(rect=self.rect)
         else:
@@ -296,6 +360,7 @@ class MatplotlibBackend(PlotBackend):
 
         # Extract plotting keyword arguments while removing backend metadata.
         ax = ax or fig.gca()
+        fig.sca(ax)
         for trace in traces:
             if title := trace.get("xaxis_title"):
                 ax.set_xlabel(title)
@@ -317,7 +382,13 @@ class MatplotlibBackend(PlotBackend):
             args = trace.get("positional_args", ())
 
             # Apply the global colour cycle when plotting standard line traces.
-            if self.global_colorcycle and plot_type == "plot":
+            if (
+                self.global_colorcycle
+                and plot_type == "plot"
+                and "color" not in options
+                and "markeredgecolor" not in options
+                and "markerfacecolor" not in options
+            ):
                 options.update(next(self.colorcycle))
             # Resolve the requested plotting method on the target axis.
             plot_func = getattr(ax, plot_type)
@@ -355,7 +426,7 @@ class MatplotlibBackend(PlotBackend):
         cmap = self.mpl.colormaps[scale]
         return cmap(norm_d)
 
-    def colorbar(self, fig, data, colorscale="viridis", label=None):
+    def colorbar(self, fig, data, colorscale="viridis", label=None, ax=None):
         """
         Add colourbar to figure
 
@@ -369,6 +440,8 @@ class MatplotlibBackend(PlotBackend):
             Name of the colormap
         label: str, optional
             label to be displayed alongside colorbar
+        ax: matplotlib axis object, optional
+            Specity an axis for plotting. Otherwise current axis is used.
         """
         # Create a normalisation matching the supplied data range.
         f_min = np.nanmin(data[np.isfinite(data)])
@@ -378,10 +451,12 @@ class MatplotlibBackend(PlotBackend):
         # Create and attach a standalone colourbar.
         cmap = self.mpl.colormaps[colorscale]
         self.plt.colorbar(
-            self.mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=fig.gca(), label=label
+            self.mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+            ax=ax or fig.gca(),
+            label=label,
         )
 
-    def contour_plot(self, x, y, z, colorscale="viridis"):
+    def contour_plot(self, x, y, z, fig, ax=None, colorscale="viridis"):
         """
         Return trace definitions for a filled contour plot and contour lines.
 
@@ -393,6 +468,10 @@ class MatplotlibBackend(PlotBackend):
             Surface values.
         colorscale : str, optional
             Colour scale name.
+        fig : matplotlib.figure.Figure
+            The figure.
+        ax : matplotlib axis object, optional
+            Specity an axis for plotting. Otherwise current axis is used.
 
         Returns
         -------
@@ -408,7 +487,8 @@ class MatplotlibBackend(PlotBackend):
             linewidths=0.2,
             plot_type="contour",
         )
-        return [contour, contour_lines]
+        self.plot_trace(contour, fig, ax=ax)
+        self.plot_trace(contour_lines, fig, ax=ax)
 
     def fill(self, x, y, color=None, label=None):
         """
@@ -530,7 +610,7 @@ class MatplotlibBackend(PlotBackend):
             scatter["c"] = colors
         return scatter
 
-    def show_table(self, header, values, title):
+    def show_table(self, header, values, title, fig=None, ax=None):
         """
         Display tabular data in a standalone Matplotlib figure.
 
@@ -545,11 +625,18 @@ class MatplotlibBackend(PlotBackend):
             Table contents.
         title : str
             Table title.
+        fig : matplotlib.figure.Figure, optional
+            Figure for plotting. If not provided a new figure is created.
+        ax : matplotlib axis object, optional
+            Axis for plotting. If not provided the current axis is used.
         """
         for i, val in enumerate(values):
             values[i] = [val[0], ", ".join(val[1].astype(str))]
 
-        fig, ax = self.plt.subplots(figsize=(6, 2), dpi=100)
+        if fig is None:
+            fig = self.plt.figure(figsize=(6, 2), dpi=100)
+
+        ax = ax or fig.gca()
 
         # Remove axis decorations so only the table is displayed.
         ax.axis("off")
@@ -562,10 +649,9 @@ class MatplotlibBackend(PlotBackend):
             colColours=["lightsteelblue", "lightsteelblue"],
         )
         ax.set_title(title)
-        fig.tight_layout()
-        self.plt.show()
+        return fig
 
-    def vline(self, fig, x, style=None):
+    def vline(self, fig, x, style=None, ax=None):
         """
         Add a vertical reference line to the current axis.
 
@@ -577,7 +663,9 @@ class MatplotlibBackend(PlotBackend):
             The position of the vertical line on the axis
         style: dict, optional
             matplotlib arguments for axvline method
+        ax: matplotlib axis object, optional
+            Specity an axis for plotting. Otherwise current axis is used.
         """
-        fig.gca()
+        ax = ax or fig.gca()
         style = style or {}
-        self.plt.axvline(x, **style)
+        ax.axvline(x, **style)

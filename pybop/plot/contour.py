@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pybop.plot.util import get_backend
+from pybop.plot.util import get_backend_from_figure
 from pybop.problems.problem import Problem
 
 if TYPE_CHECKING:
@@ -20,6 +20,8 @@ def contour(
     title="Cost Landscape",
     show: bool = True,
     backend: str = None,
+    figures=None,
+    axes=None,
 ):
     """
     Plot a 2D visualisation of a cost landscape using Plotly.
@@ -48,6 +50,13 @@ def contour(
         If True, the figure is shown upon creation (default: True).
     backend: str, optional
         The plotting backend to be used.
+    figures: figure object or list of figure objects, optional
+        Either a single figure or the same number of figures as axes.
+    axes: single axis or list of axes, optional
+        plotly: axes expected to be of the form tuple(row, col)
+        If gradient is false this must be a single axis. If gradient is
+        true this must be one axis for the cost contour plot and one
+        axis for each parameter to plot the gradient.
 
     Returns
     -------
@@ -59,8 +68,7 @@ def contour(
     ValueError
         If the cost function does not return a valid cost when called with a parameter list.
     """
-    backend_module = get_backend(backend)
-
+    backend = get_backend_from_figure(backend, figures)
     plot_optim = False
     problem = call_object
 
@@ -98,6 +106,23 @@ def contour(
         bounds = parameters.get_bounds_for_plotly()
     else:
         bounds = np.asarray(bounds)
+
+    # Process input figures and axes
+    num_plots = 1 + len(parameters) if gradient else 1
+    figures, axes, create_figure, _ = backend.parse_input_axes(
+        figures, axes, num_plots=num_plots, allow_single_axis=False
+    )
+    if create_figure:
+        fig = backend.create_figure(
+            style={
+                "width": 600,
+                "height": 600,
+            },
+        )
+        ax = None
+    else:
+        fig = figures[0]
+        ax = axes[0]
 
     # Generate grid
     x = np.linspace(bounds[0, 0], bounds[0, 1], steps)
@@ -146,41 +171,37 @@ def contour(
     bounds[0] = transform_array_of_values(bounds[0], parameters[names[0]])
     bounds[1] = transform_array_of_values(bounds[1], parameters[names[1]])
 
-    figure_style = {
-        "width": 600,
-        "height": 600,
-        "xaxis_range": bounds[0],
-        "yaxis_range": bounds[1],
-    }
-
-    fig = backend_module.create_figure(
-        title=title,
-        xaxis_title="Transformed " + names[0] if transformed else names[0],
-        yaxis_title="Transformed " + names[1] if transformed else names[1],
-        style=figure_style,
+    backend.update_axes_titles(
+        fig,
+        ax,
+        "Transformed " + names[0] if transformed else names[0],
+        "Transformed " + names[1] if transformed else names[1],
     )
+    backend.update_plot_titles(fig, ax, title, pad=30)
+    backend.update_axes_ranges(fig, ax, bounds[0], bounds[1])
 
     # Create contour plot and update the layout
-    backend_module.plot_trace(backend_module.contour_plot(x=x, y=y, z=costs), fig)
+    backend.contour_plot(x=x, y=y, z=costs, fig=fig, ax=ax)
 
     if plot_optim:
         # Plot the optimisation trace
         optim_trace = np.asarray([item[:2] for item in result.x_model])
         optim_trace = optim_trace.reshape(-1, 2)
-        backend_module.plot_trace(
-            backend_module.scatter(
+        backend.plot_trace(
+            backend.scatter(
                 transform_array_of_values(optim_trace[:, 0], parameters[names[0]]),
                 transform_array_of_values(optim_trace[:, 1], parameters[names[1]]),
                 [i / optim_trace.shape[0] for i in range(optim_trace.shape[0])],
             ),
             fig,
+            ax=ax,
         )
 
         # Plot the initial guess
         if len(result.x_model) > 0:
             x0 = result.x_model[0]
-            backend_module.plot_trace(
-                backend_module.line(
+            backend.plot_trace(
+                backend.line(
                     x=transform_array_of_values([x0[0]], parameters[names[0]]),
                     y=transform_array_of_values([x0[1]], parameters[names[1]]),
                     label="Initial values",
@@ -194,13 +215,14 @@ def contour(
                     ),
                 ),
                 fig,
+                ax=ax,
             )
 
         # Plot optimised value
         if result.x is not None:
             x_best = result.x
-            backend_module.plot_trace(
-                backend_module.line(
+            backend.plot_trace(
+                backend.line(
                     x=transform_array_of_values([x_best[0]], parameters[names[0]]),
                     y=transform_array_of_values([x_best[1]], parameters[names[1]]),
                     style=dict(
@@ -214,41 +236,51 @@ def contour(
                     label="Final values",
                 ),
                 fig,
+                ax=ax,
             )
 
-    backend_module.legend(
+    backend.legend(
         fig,
         style={
             "horizontal": True,
             "loc": "lower right",
             "coords": (1, 1),
         },
+        axes=ax,
     )
-    # display the figure
-    if show:
-        backend_module.show_figure(fig)
 
     if gradient:
-        grad_figs = []
+        if create_figure:
+            figures = np.asarray([fig])
+
         for i, grad_costs in enumerate(grad_parameter_costs):
             # Create fig
-            grad_fig = backend_module.create_figure(
-                title=f"Gradient for Parameter: {i + 1}",
-                xaxis_title="Transformed " + names[0] if transformed else names[0],
-                yaxis_title="Transformed " + names[1] if transformed else names[1],
-                style=figure_style,
+            if create_figure:
+                grad_fig = backend.create_figure()
+                figures = np.append(figures, grad_fig)
+                ax = None
+            else:
+                ax = axes[i + 1]
+                grad_fig = figures[i + 1]
+
+            backend.update_plot_titles(grad_fig, ax, f"Gradient for Parameter: {i + 1}")
+            backend.update_axes_titles(
+                grad_fig,
+                ax,
+                "Transformed " + names[0] if transformed else names[0],
+                "Transformed " + names[1] if transformed else names[1],
             )
 
-            backend_module.plot_trace(
-                backend_module.contour_plot(x=x, y=y, z=grad_costs), grad_fig
-            )
+            backend.contour_plot(x=x, y=y, z=grad_costs, fig=grad_fig, ax=ax)
 
-            if show:
-                backend_module.show_figure(grad_fig)
+        # display the figures
+        if show:
+            backend.show_figure(figures)
 
-            # append grad_fig to list
-            grad_figs.append(grad_fig)
+        return fig, figures[1:]
 
-        return fig, grad_figs
+    # display the figure
+    if show:
+        backend.show_figure(fig)
 
     return fig
