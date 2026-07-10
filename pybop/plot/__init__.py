@@ -5,6 +5,7 @@ current_backend=DEFAULT_BACKEND
 from .util import (
     use_backend,
     get_backend,
+    get_backend_from_figure,
     parse_data,
     remove_brackets,
     wrap_text

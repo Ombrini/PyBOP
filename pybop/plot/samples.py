@@ -46,6 +46,8 @@ def chains(result: "SamplingResult", show=True, backend=None, figures=None, axes
 
     if show:
         backend.show_figure(fig)
+    else:
+        return fig
 
 
 def trace(result: "SamplingResult", show=True, backend=None, figures=None, axes=None):
@@ -79,8 +81,8 @@ def trace(result: "SamplingResult", show=True, backend=None, figures=None, axes=
 
     if show:
         backend.show_figure(figures)
-
-    return figures
+    else:
+        return figures
 
 
 def posterior(
@@ -123,6 +125,8 @@ def posterior(
 
     if show:
         backend.show_figure(fig)
+    else:
+        return fig
 
 
 def summary_table(

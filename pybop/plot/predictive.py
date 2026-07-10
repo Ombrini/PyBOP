@@ -104,7 +104,7 @@ def predictive(
                 backend.line(
                     x=pdf_plot[0],
                     y=pdf_plot[1],
-                    labels=pdf_label,
+                    label=pdf_label,
                 ),
                 fig,
                 ax=ax,

@@ -2,6 +2,7 @@
 
 ## Features
 
+- [#928](https://github.com/pybop-team/PyBOP/pull/928) - Adds the option to choose `matplotlib` as the plotting library for plotting functions. Additionally, figures and axes can be created manually and passed as keyword arguments to plotting functions. An example notebook `plotting.ipynb` was added to the `getting_started` directory to demonstrate usage of the new features.
 - [#918](https://github.com/pybop-team/PyBOP/pull/918) - Adds a plot for predictions sampled from a posterior distribution (`pybop.plot.predictive`).
 - [#940](https://github.com/pybop-team/PyBOP/pull/940) - Adds support for Python 3.14 (EP-BOLFI optimiser and PyProBE still restricted to Python 3.12 or below).
 

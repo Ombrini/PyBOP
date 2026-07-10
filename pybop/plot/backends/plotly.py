@@ -138,27 +138,6 @@ class PlotlyBackend(PlotBackend):
         fig = self.plotly_manager.go.Figure(data=traces, layout=layout)
         return fig
 
-    def _check_empty(self, specs, row, col):
-        """
-        Validate that a subplot grid location is available.
-
-        Parameters
-        ----------
-        specs : list[list]
-            Plotly subplot specification grid.
-        row : int
-            Row index (1-based).
-        col : int
-            Column index (1-based).
-
-        Raises
-        ------
-        ValueError
-            If the requested subplot location overlaps an existing subplot.
-        """
-        if specs[row - 1][col - 1] is None or len(specs[row - 1][col - 1]) > 0:
-            raise ValueError("Overlapping axes are not supported")
-
     def make_subplots(
         self,
         num_rows: int,
@@ -724,6 +703,10 @@ class PlotlyBackend(PlotBackend):
         """
 
         style = style or {}
+
+        if y is None:
+            raise ValueError("y must be provided")
+
         linestyle = style.get("linestyle", "solid")
         marker = style.get("marker", "none")
         opts = {}

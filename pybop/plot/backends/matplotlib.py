@@ -198,6 +198,11 @@ class MatplotlibBackend(PlotBackend):
         else:
             axes = [fig.gca()]
 
+        if "loc" in style:
+            anchors = style.get("loc").split(" ")
+            if len(anchors) != 2:
+                raise ValueError("loc property must consist of 2 keywords")
+
         # Configure external legend placement and reserve layout space.
         if "outside" in style.keys():
             side, offset = style.get("outside")

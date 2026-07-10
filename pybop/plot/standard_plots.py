@@ -209,7 +209,7 @@ class StandardSubplot(StandardPlot):
         self.num_cols = None
 
         if self.fig is not None:
-            _, self.axes, _, _ = backend.parse_input_axes(
+            _, self.axes, _, _ = self.backend.parse_input_axes(
                 self.fig, axes, num_plots=self.num_lines
             )
         else:
@@ -224,7 +224,7 @@ class StandardSubplot(StandardPlot):
             elif self.num_cols is None:
                 self.num_cols = int(math.ceil(self.num_lines / self.num_rows))
 
-    def __call__(self, show):
+    def __call__(self, show=True):
         """
         Generate and show the set of figures.
 
