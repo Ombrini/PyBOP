@@ -6,6 +6,12 @@ from matplotlib.figure import Figure
 
 import pybop
 
+GROUPED_MODEL = (
+    pybop.lithium_ion.GroupedSPM
+    | pybop.lithium_ion.GroupedSPMe
+    | pybop.lithium_ion.GroupedDFN
+)
+
 
 class TestModels:
     """
@@ -51,12 +57,7 @@ class TestModels:
         fig = solution.plot()
         assert isinstance(fig, pybamm.QuickPlot)
 
-        if isinstance(
-            model,
-            pybop.lithium_ion.GroupedSPM
-            | pybop.lithium_ion.GroupedSPMe
-            | pybop.lithium_ion.GroupedDFN,
-        ):
+        if isinstance(model, GROUPED_MODEL):
             for split in [False, True]:
                 fig, ax = solution.plot_voltage_components(split_by_electrode=split)
                 assert isinstance(fig, Figure)
