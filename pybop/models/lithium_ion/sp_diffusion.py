@@ -1,3 +1,4 @@
+import numpy as np
 import pybamm
 from pybamm import (
     Event,
@@ -206,11 +207,15 @@ class SPDiffusion(BaseGroupedModel):
 
         # Unpack physical parameters
         F = pybamm.constants.F.value
+        T = param["Ambient temperature [K]"]
         alpha = param["Positive electrode active material volume fraction"]
         c_max = param["Maximum concentration in positive electrode [mol.m-3]"]
         L = param["Positive electrode thickness [m]"]
         R = param["Positive particle radius [m]"]
         D = param["Positive particle diffusivity [m2.s-1]"]
+        m = param.evaluate(
+            param["Positive electrode exchange-current density [A.m-2]"](1, 1, 2, T)
+        )  # (A/m2)(m3/mol)**1.5
         sto_init = (
             param["Initial concentration in positive electrode [mol.m-3]"] / c_max
         )
@@ -223,6 +228,13 @@ class SPDiffusion(BaseGroupedModel):
         Q_th = F * alpha * c_max * L * A
         tau_d = R**2 / D
 
+        # Estimate the series resistance, neglecting conductivity losses
+        RT_F = pybamm.constants.R.value * param["Ambient temperature [K]"] / F
+        ce0 = param["Initial concentration in electrolyte [mol.m-3]"]
+        tau_ct = F * R / (m * np.sqrt(ce0))
+        Rct_typ = (2 * RT_F * tau_ct) / (3 * Q_th)
+        R0 = Rct_typ + param["Contact resistance [Ohm]"]
+
         parameter_dictionary = {
             "Nominal cell capacity [A.h]": param["Nominal cell capacity [A.h]"],
             "Current function [A]": param["Current function [A]"],
@@ -230,7 +242,7 @@ class SPDiffusion(BaseGroupedModel):
             "Electrode OCP [V]": ocp,
             "Theoretical electrode capacity [A.s]": Q_th,
             "Particle diffusion time scale [s]": tau_d,
-            "Series resistance [Ohm]": 1,
+            "Series resistance [Ohm]": R0,
         }
         parameter_values = ParameterValues(values=parameter_dictionary)
         parameter_values._set_initial_state = SPDiffusion.set_initial_state  # noqa: SLF001

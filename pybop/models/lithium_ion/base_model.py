@@ -77,10 +77,10 @@ class BaseGroupedModel(pybamm_lithium_ion.BaseModel):
         if isinstance(initial_value, str) and initial_value.endswith("V"):
             V_init = float(initial_value[:-1])
             V_min = parameter_values.evaluate(
-                pybamm.Parameter("Lower voltage cut-off [V]"), inputs=inputs
+                Parameter("Lower voltage cut-off [V]"), inputs=inputs
             )
             V_max = parameter_values.evaluate(
-                pybamm.Parameter("Upper voltage cut-off [V]"), inputs=inputs
+                Parameter("Upper voltage cut-off [V]"), inputs=inputs
             )
 
             if not V_min - tol <= V_init <= V_max + tol:

@@ -590,11 +590,11 @@ class GroupedSPMe(BaseGroupedModel):
         b_n = param["Negative electrode Bruggeman coefficient (electrolyte)"]
         Cdl_p = param["Positive electrode double-layer capacity [F.m-2]"]
         Cdl_n = param["Negative electrode double-layer capacity [F.m-2]"]
-        m_p = param["Positive electrode exchange-current density [A.m-2]"](
-            1, 1, 2, T
+        m_p = param.evaluate(
+            param["Positive electrode exchange-current density [A.m-2]"](1, 1, 2, T)
         )  # (A/m2)(m3/mol)**1.5
-        m_n = param["Negative electrode exchange-current density [A.m-2]"](
-            1, 1, 2, T
+        m_n = param.evaluate(
+            param["Negative electrode exchange-current density [A.m-2]"](1, 1, 2, T)
         )  # (A/m2)(m3/mol)**1.5
         sigma_p = (
             param["Positive electrode conductivity [S.m-1]"]
