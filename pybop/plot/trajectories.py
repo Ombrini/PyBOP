@@ -15,7 +15,7 @@ def trajectories(
     axes=None,
 ):
     """
-    Quickly plot one or more trajectories using Plotly.
+    Quickly plot one or more trajectories.
 
     Parameters
     ----------
