@@ -55,8 +55,12 @@ for model, param, linestyle in zip(
     ).solve(initial_soc=init_soc)
     dataset = pybop.import_pybamm_solution(solution)
     plt.plot(
-        dataset["Time [s]"], dataset["Voltage [V]"], label=None, linestyle=linestyle
+        dataset["Time [s]"],
+        dataset["Voltage [V]"],
+        label=model.name,
+        linestyle=linestyle,
     )
+plt.legend()
 
 # Set up figure
 fig, ax = plt.subplots()
