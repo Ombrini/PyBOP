@@ -167,10 +167,15 @@ class TestPlots:
         )
         return pybop.Problem(simulator)
 
-    def test_problem_plots(self, fitting_problem, design_problem, backend):
+    def test_problem_plots(
+        self, fitting_problem, design_problem, backend, figure_input
+    ):
         pybop.plot.use_backend(backend)
+        fig, ax = figure_input
         # Test plot of Problem objects
-        pybop.plot.problem(fitting_problem, title="Optimised Comparison")
+        pybop.plot.problem(
+            fitting_problem, title="Optimised Comparison", figures=fig, axes=[ax]
+        )
         pybop.plot.problem(design_problem)
 
         # Test conversion of values into inputs
@@ -235,15 +240,15 @@ class TestPlots:
         result.plot_contour(steps=3, bounds=bounds)
 
         # Plot gradient cost landscape
-        fig, grad_figs = result.plot_contour(gradient=True, steps=5, show=False)
-        assert fig is not None
+        fig2, grad_figs = result.plot_contour(gradient=True, steps=5, show=False)
+        assert fig2 is not None
         assert len(grad_figs) == len(result.problem.parameters)
 
         # Plot voronoi
         result.plot_surface(normalise=False)
 
         # Plot voronoi w/ bounds
-        result.plot_surface(bounds=bounds)
+        result.plot_surface(bounds=bounds, figures=fig, axes=[ax])
 
         with pytest.raises(
             ValueError, match="Lower bounds must be strictly less than upper bounds."
@@ -372,7 +377,7 @@ class TestPlots:
         with pytest.warns(UserWarning, match="more than 2 parameters"):
             pybop.plot.contour(fitting_problem)
 
-    def test_nyquist(self, backend):
+    def test_nyquist(self, backend, figure_input):
         pybop.plot.use_backend(backend)
         # Define model
         model = pybamm.lithium_ion.SPM(options={"surface form": "differential"})
@@ -409,8 +414,11 @@ class TestPlots:
         problem = pybop.Problem(simulator, cost)
 
         # Plot the nyquist
+        fig, ax = figure_input
         inputs = problem.parameters.to_dict([60e-6])
-        pybop.plot.nyquist(problem, inputs=inputs, title="Optimised Comparison")
+        pybop.plot.nyquist(
+            problem, inputs=inputs, title="Optimised Comparison", figures=fig, axes=[ax]
+        )
 
         # Without inputs
         pybop.plot.nyquist(problem, title="Optimised Comparison")
@@ -478,6 +486,10 @@ class TestPlots:
     def test_backend(self, backend):
         backend = pybop.plot.get_backend(backend)
         fig = backend.create_figure()
+
+        if backend.name == "plotly":
+            with pytest.raises(ValueError, match="Axis must be a tuple"):
+                backend.parse_input_axes(fig, "not a tuple")
 
         # loc property for legend
         with pytest.raises(ValueError, match="loc property must consist of 2 keywords"):

@@ -59,7 +59,7 @@ class PlotBackend(ABC):
         object
             Backend-specific figure object.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def make_subplots(
@@ -93,7 +93,7 @@ class PlotBackend(ABC):
         axes : list
             List of subplot axes.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def legend(self, fig, ax=None, style: dict = None):
@@ -109,7 +109,7 @@ class PlotBackend(ABC):
         ax : object, optional
             Subplot axis to apply the legend to (if applicable).
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def show_figure(self, fig):
@@ -121,7 +121,7 @@ class PlotBackend(ABC):
         fig : object
             Figure to display.
         """
-        pass
+        raise NotImplementedError
 
     def parse_input_axes(self, figures, axes, num_plots=None, allow_single_axis=True):
         """
@@ -199,7 +199,7 @@ class PlotBackend(ABC):
         max_width : int, optional
             Maximum width for the axis titles before wrapping. Default is 40 characters.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def update_plot_titles(self, figs, axes, titles, pad):
@@ -219,7 +219,7 @@ class PlotBackend(ABC):
         pad : int, optional
             Padding between the title and the subplot. Default is 0.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def update_axes_ranges(self, fig, ax, xaxis_range, yaxis_range):
@@ -237,7 +237,7 @@ class PlotBackend(ABC):
         yaxis_range : tuple
             Range for the y-axis.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def plot_trace(self, traces: dict | list[dict], fig, ax=None, color_cycle=None):
@@ -255,7 +255,7 @@ class PlotBackend(ABC):
         color_cycle : iterable, optional
             Sequence of colours used when plotting multiple traces.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def sample_color_scale(self, data, scale="viridis", d_min=None, d_max=None):
@@ -278,7 +278,7 @@ class PlotBackend(ABC):
         array-like
             Colours corresponding to the supplied data.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def colorbar(self, fig, data, colorscale="viridis", label=None):
@@ -296,7 +296,7 @@ class PlotBackend(ABC):
         label : str, optional
             Colour bar label.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def contour_plot(self, x, y, z, fig, ax=None, colorscale="viridis"):
@@ -321,7 +321,7 @@ class PlotBackend(ABC):
         object
             Backend-specific contour trace or figure.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def fill(self, x, y, color=None, label=None):
@@ -337,7 +337,7 @@ class PlotBackend(ABC):
         label : str, optional
             Legend label.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def fill_between(self, x, y_upper, y_lower, color):
@@ -355,7 +355,7 @@ class PlotBackend(ABC):
         color : str
             Fill colour.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def histogram_plot(self, x, name, style=None):
@@ -371,7 +371,7 @@ class PlotBackend(ABC):
         style : dict, optional
             Histogram styling options.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def line(self, x=None, y=None, label=None, style=None):
@@ -392,7 +392,7 @@ class PlotBackend(ABC):
         object
             Backend-specific line trace.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def scatter(self, x, y, colors, labels=None, colorscale="Greys"):
@@ -410,7 +410,7 @@ class PlotBackend(ABC):
         colorscale : str, optional
             Colour scale name.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def show_table(self, header, values, title):
@@ -426,7 +426,7 @@ class PlotBackend(ABC):
         title : str
             Table title.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def vline(self, fig, x, style=None):
@@ -442,4 +442,4 @@ class PlotBackend(ABC):
         style : dict, optional
             Line styling options.
         """
-        pass
+        raise NotImplementedError
