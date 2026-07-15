@@ -358,6 +358,27 @@ class PlotBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def heatmap(self, x, y, z, colorscale="viridis"):
+        """
+        Create a heatmap.
+
+        Parameters
+        ----------
+        x, y : array-like
+            Coordinate values.
+        z : array-like
+            Heatmap values.
+        colorscale : str, optional
+            Colour scale name.
+
+        Returns
+        -------
+        object
+            Backend-specific heatmap trace or figure.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def histogram_plot(self, x, name, style=None):
         """
         Create a histogram.

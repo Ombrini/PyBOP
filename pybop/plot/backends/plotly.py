@@ -624,6 +624,28 @@ class PlotlyBackend(PlotBackend):
             fillcolor=color,
         )
 
+    def heatmap(self, x, y, z, colorscale="viridis"):
+        """
+        Create a heatmap trace.
+
+        Parameters
+        ----------
+        x, y : array-like
+            Coordinate values.
+        z : array-like
+            Heatmap values.
+        colorscale : str, optional
+            Plotly colour scale.
+
+        Returns
+        -------
+        plotly.graph_objects.Heatmap
+            Heatmap trace.
+        """
+        return self.plotly_manager.go.Heatmap(
+            x=x, y=y, z=z, colorscale=colorscale, zsmooth="best", showscale=False
+        )
+
     def histogram_plot(self, x, name, style=None):
         """
         Create a histogram trace.

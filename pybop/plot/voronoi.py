@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.spatial import Voronoi
+from scipy.spatial import Voronoi, cKDTree
 
 from pybop.plot.util import get_backend_from_figure
 
@@ -196,11 +196,43 @@ def interpolate_point(p, q, axis, boundary_val):
     return np.array([boundary_val, s]) if axis == 0 else np.array([s, boundary_val])
 
 
+def assign_nearest_value(x, y, f, xi, yi):
+    """
+    Computes an array of values given by the score of the nearest point.
+
+    Parameters
+    ----------
+    x : array-like
+        The x coordinates of points with known scores.
+    y : array-like
+        The y coordinates of points with known scores.
+    f : array-like
+        The score function at the given x and y coordinates.
+    xi : array-like
+        The x coordinates of grid points.
+    yi : array-like
+        The y coordinates of grid points.
+
+    Returns
+    -------
+        A numpy array containing the scores corresponding to the grid points.
+    """
+    # Create a KD-tree for efficient nearest neighbor search
+    tree = cKDTree(np.column_stack((x, y)))
+
+    # Find the nearest point for each grid point
+    _, indices = tree.query(np.column_stack((xi.ravel(), yi.ravel())))
+    zi = f[indices].reshape(xi.shape)
+
+    return zi
+
+
 def surface(
     result: "Result",
     title="Voronoi Cost Landscape",
     bounds=None,
     normalise=True,
+    resolution=250,
     show=True,
     backend=None,
     figures=None,
@@ -221,6 +253,8 @@ def surface(
     normalise : bool, optional
         If True, the voronoi regions are computed using the Euclidean distance between
         points normalised with respect to the bounds (default: True).
+    resolution : int, optional
+        Resolution of the plot. Default is 500.
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
     backend: str, optional
@@ -241,6 +275,11 @@ def surface(
         bounds if bounds is not None else [param.bounds for param in parameters]
     )[:2]
 
+    # Create a grid for plot
+    xi = np.linspace(xlim[0], xlim[1], resolution)
+    yi = np.linspace(ylim[0], ylim[1], resolution)
+    xi, yi = np.meshgrid(xi, yi)
+
     if normalise:
         if xlim[1] <= xlim[0] or ylim[1] <= ylim[0]:
             raise ValueError("Lower bounds must be strictly less than upper bounds.")
@@ -256,6 +295,13 @@ def surface(
             norm_x_optim, norm_y_optim, f, (0, 1), (0, 1)
         )
 
+        # Create a normalised grid
+        norm_xi = np.linspace(0, 1, resolution)
+        norm_xi, norm_yi = np.meshgrid(norm_xi, norm_xi)
+
+        # Assign a value to each point in the grid
+        zi = assign_nearest_value(norm_x, norm_y, f, norm_xi, norm_yi)
+
         # Rescale for plotting
         regions = []
         for norm_region in norm_regions:
@@ -267,6 +313,15 @@ def surface(
     else:
         # Compute regions
         x, y, f, regions = _voronoi_regions(x_optim, y_optim, f, xlim, ylim)
+
+        # Assign a value to each point in the grid
+        zi = assign_nearest_value(x, y, f, xi, yi)
+
+    # Calculate the size of each Voronoi region
+    region_sizes = np.array([len(region) for region in regions])
+    relative_sizes = (region_sizes - region_sizes.min()) / (
+        region_sizes.max() - region_sizes.min()
+    )
 
     # Construct figure
     names = parameters.names
@@ -290,25 +345,25 @@ def surface(
     backend.update_plot_titles(fig, ax, title, pad=30)
     backend.update_axes_ranges(fig, ax, xlim, ylim)
 
-    # Add Voronoi edges and fill Voronoi regions
-    colors = backend.sample_color_scale(f)
-    for j, region in enumerate(regions):
+    backend.plot_trace(
+        backend.heatmap(xi[0], yi[:, 0], zi, colorscale="viridis"), fig, ax=ax
+    )
+    backend.colorbar(fig, f, ax=ax)
+
+    # Add Voronoi edges
+    for region, size in zip(regions, relative_sizes, strict=False):
         x_region = region[:, 0].tolist() + [region[0, 0]]
         y_region = region[:, 1].tolist() + [region[0, 1]]
 
         backend.plot_trace(
-            backend.fill(x_region, y_region, color=colors[j], label=f"f={f[j]:.2f}"),
+            backend.line(
+                x_region,
+                y_region,
+                style=dict(color="white", linewidth=0.5 + size * 0.1),
+            ),
             fig,
             ax=ax,
         )
-
-        backend.plot_trace(
-            backend.line(x_region, y_region, style=dict(color="white", linewidth=0.5)),
-            fig,
-            ax=ax,
-        )
-
-    backend.colorbar(fig, f, ax=ax)
 
     # Add original points
     backend.plot_trace(

@@ -256,7 +256,12 @@ def contour(
         for i, grad_costs in enumerate(grad_parameter_costs):
             # Create fig
             if create_figure:
-                grad_fig = backend.create_figure()
+                grad_fig = backend.create_figure(
+                    style={
+                        "width": 600,
+                        "height": 600,
+                    },
+                )
                 figures = np.append(figures, grad_fig)
                 ax = None
             else:

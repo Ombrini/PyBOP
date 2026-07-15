@@ -450,18 +450,29 @@ class MatplotlibBackend(PlotBackend):
         ax: matplotlib axis object, optional
             Specity an axis for plotting. Otherwise current axis is used.
         """
+        # Get axis
+        ax = ax or fig.gca()
+
         # Create a normalisation matching the supplied data range.
         f_min = np.nanmin(data[np.isfinite(data)])
         f_max = np.nanmax(data[np.isfinite(data)])
         norm = self.mpl.colors.Normalize(vmin=f_min, vmax=f_max, clip=True)
 
+        # Use AxisDivider to adjust position and size of the colourbar relative to the target axis.
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+
         # Create and attach a standalone colourbar.
         cmap = self.mpl.colormaps[colorscale]
         self.plt.colorbar(
             self.mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
-            ax=ax or fig.gca(),
+            ax=ax,
             label=label,
+            cax=cax,
         )
+        fig.sca(ax)
 
     def contour_plot(self, x, y, z, fig, ax=None, colorscale="viridis"):
         """
@@ -531,6 +542,28 @@ class MatplotlibBackend(PlotBackend):
             "positional_args": (x, y_upper, y_lower),
             "plot_type": "fill_between",
             "color": color,
+        }
+
+    def heatmap(self, x, y, z, colorscale="viridis"):
+        """
+        Return a trace definition for a heatmap.
+
+        Parameters
+        ----------
+        x, y : array-like
+            Coordinate values.
+        z : array-like
+            Surface values.
+        colorscale : str, optional
+            Colour scale name.
+        """
+        return {
+            "positional_args": [z],
+            "plot_type": "imshow",
+            "cmap": colorscale,
+            "extent": (np.min(x), np.max(x), np.min(y), np.max(y)),
+            "origin": "lower",
+            "interpolation": "nearest",
         }
 
     def histogram_plot(self, x, name, style: dict = None):
