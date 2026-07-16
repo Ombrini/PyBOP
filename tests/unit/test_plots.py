@@ -26,53 +26,6 @@ class TestPlots:
             ax = (1, 1)
             return fig, ax
 
-    def test_standard_plot(self, backend, figure_input):
-        # Test standard plot
-        labels = pybop.plot.remove_brackets(["Trace [1]", "Trace [2]"])
-        plot_dict = pybop.plot.StandardPlot(
-            x=np.ones((2, 10)),
-            y=np.ones((2, 10)),
-            labels=labels,
-            backend=backend,
-        )
-        fig = plot_dict(show=False)
-        assert fig is not None
-
-        fig, ax = figure_input
-        plot_dict = pybop.plot.StandardPlot(
-            x=np.ones((2, 10)),
-            y=np.ones((2, 10)),
-            labels=labels,
-            backend=backend,
-            figures=fig,
-            axes=ax,
-        )
-        plot_dict()
-
-        # The same for subplots
-        labels = pybop.plot.remove_brackets(["Trace [1]", "Trace [2]"])
-        plot_dict = pybop.plot.StandardSubplot(
-            x=np.ones((2, 10)),
-            y=np.ones((2, 10)),
-            labels=labels,
-            backend=backend,
-        )
-        fig = plot_dict(show=False)
-        assert fig is not None
-
-        fig, ax = figure_input
-        plot_dict = pybop.plot.StandardSubplot(
-            x=np.ones((2, 10)),
-            y=np.ones((2, 10)),
-            num_rows=1,
-            num_cols=2,
-            labels=labels,
-            backend=backend,
-            figures=fig,
-            axes=ax,
-        )
-        plot_dict()
-
     @pytest.fixture
     def model(self):
         return pybamm.lithium_ion.SPM()

@@ -129,24 +129,9 @@ def dataset(plotly_installed):
 
 
 @pytest.mark.unit
-def test_standard_plot(dataset, plotly_installed):
+def test_trajectories_plot(dataset, plotly_installed):
     # Set plotting backend
     pybop.plot.use_backend("plotly")
-
-    # Check the StandardPlot class
-    pybop.plot.StandardPlot(dataset["Time [s]"], dataset["Voltage [V]"])
-
-    # Check the StandardSubplot class
-    pybop.plot.StandardSubplot(
-        dataset["Time [s]"],
-        [dataset["Voltage [V]"], dataset["Current [A]"]],
-        num_rows=1,
-    )
-    pybop.plot.StandardSubplot(
-        dataset["Time [s]"],
-        [dataset["Voltage [V]"], dataset["Current [A]"]],
-        num_cols=1,
-    )
 
     # Check plot numpy arrays, lists, and lists of numpy arrays
     pybop.plot.trajectories(dataset["Time [s]"], dataset["Voltage [V]"])

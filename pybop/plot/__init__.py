@@ -14,7 +14,6 @@ from .util import (
 #
 # Import plots
 #
-from .standard_plots import StandardPlot, StandardSubplot
 from .trajectories import trajectories
 from .contour import contour
 from .dataset import dataset

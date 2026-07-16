@@ -1,13 +1,13 @@
 import numpy as np
 
 from pybop.parameters.parameter import Parameters
-from pybop.plot.standard_plots import StandardSubplot
-from pybop.plot.util import get_backend_from_figure
+from pybop.plot.util import get_backend_from_figure, parse_data
 
 
 def distribution(
     parameters: Parameters,
     posterior: Parameters | None = None,
+    title: str = "Prior and Posterior Distributions",
     n_samples: int = 100,
     transformed: bool = False,
     show: bool = True,
@@ -37,23 +37,38 @@ def distribution(
         values.append(parameter_range)
         probability.append([d.pdf(s) for s in values[-1]])
 
+    values, probability = parse_data(values, probability)
+
     # Get plotting backend
     backend = get_backend_from_figure(backend, figures)
 
-    # Create a plot dictionary
-    plot_dict = StandardSubplot(
-        x=values,
-        y=probability,
-        xaxis_titles=xaxis_titles,
-        yaxis_titles=yaxis_titles,
-        labels=labels,
-        style={"width": 1024, "height": 576},
-        backend=backend,
-        figures=figures,
-        axes=axes,
+    # Parse figures
+    num_plots = len(probability)
+    figures, axes, create_figure, _ = backend.parse_input_axes(
+        figures, axes, num_plots=len(labels)
     )
 
-    fig = plot_dict(show=False)
+    # Create subplots for each parameter
+    if create_figure:
+        num_cols = int(np.ceil(np.sqrt(num_plots)))
+        num_rows = int(np.ceil(num_plots / num_cols))
+        fig, axes = backend.make_subplots(
+            num_rows=num_rows,
+            num_cols=num_cols,
+            num_plots=num_plots,
+            title=title,
+            style={"bg_color": "white", "width": 1600, "height": 800},
+        )
+        figures = [fig]
+
+    backend.update_axes_titles(figures, axes, xaxis_titles, yaxis_titles)
+
+    for i in range(num_plots):
+        backend.plot_trace(
+            backend.line(values[i], probability[i], labels[i]),
+            figures[i % len(figures)],
+            ax=axes[i % len(axes)],
+        )
 
     if posterior is not None:
         for idx, p in enumerate(posterior):
@@ -64,12 +79,12 @@ def distribution(
             probability.append([d.pdf(s) for s in values[-1]])
 
             line = backend.line(values[-1], probability[-1], label="Posterior")
-            ax = plot_dict.axes[idx % len(plot_dict.axes)]
-            backend.plot_trace(line, fig, ax=ax)
+            ax = axes[idx % len(axes)]
+            backend.plot_trace(line, figures[idx % len(figures)], ax=ax)
 
-    for ax in plot_dict.axes:
+    for i, ax in enumerate(axes):
         backend.legend(
-            fig,
+            figures[i % len(figures)],
             style=dict(
                 horizontal=True,
                 outside=("top", 0.1),
@@ -80,6 +95,6 @@ def distribution(
             axes=ax,
         )
     if show:
-        backend.show_figure(fig)
+        backend.show_figure(figures)
     else:
-        return fig
+        return figures

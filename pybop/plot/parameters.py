@@ -1,15 +1,20 @@
+import math
 from typing import TYPE_CHECKING
 
 from pybop.costs.log_likelihoods import GaussianLogLikelihood
-from pybop.plot.standard_plots import StandardSubplot
-from pybop.plot.util import get_backend_from_figure
+from pybop.plot.util import get_backend_from_figure, parse_data
 
 if TYPE_CHECKING:
     from pybop._result import Result
 
 
 def parameters(
-    result: "Result", show: bool = True, backend: str = None, figures=None, axes=None
+    result: "Result",
+    title: str = "Parameter Convergence",
+    show: bool = True,
+    backend: str = None,
+    figures=None,
+    axes=None,
 ):
     """
     Plot the evolution of parameters during the optimisation process using Plotly.
@@ -18,6 +23,8 @@ def parameters(
     ----------
     result : pybop.Result
         Optimisation result containing the history of parameter values and associated cost.
+    title : str, optional
+        The title of the plot (default: "Parameter Convergence").
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
     backend: str, optional
@@ -42,6 +49,7 @@ def parameters(
     parameters = result.problem.parameters
     x = list(range(len(result.x_model)))
     y = [list(item) for item in zip(*result.x_model, strict=False)]
+    x, y = parse_data(x, y)
 
     # Create lists of axis titles and trace names
     xaxis_titles = []
@@ -50,7 +58,9 @@ def parameters(
     if isinstance(result.problem, GaussianLogLikelihood):
         labels.append("Sigma")
 
-    figures, axes, _, _ = backend.parse_input_axes(figures, axes, num_plots=len(labels))
+    figures, axes, create_figure, _ = backend.parse_input_axes(
+        figures, axes, num_plots=len(labels)
+    )
 
     for name in labels:
         xaxis_titles.append("Evaluation")
@@ -68,28 +78,33 @@ def parameters(
         else {}
     )
 
-    # Create a plot dictionary
-    plot_dict = StandardSubplot(
-        x,
-        y,
-        title="Parameter Convergence",
-        xaxis_titles=xaxis_titles,
-        yaxis_titles=yaxis_titles,
-        style=dict(bg_color="white", width=1600, height=800),
-        labels=labels,
-        backend=backend,
-        figures=figures,
-        axes=axes,
-    )
+    if create_figure:
+        # Create a subplot for each parameter
+        num_cols = int(math.ceil(math.sqrt(len(labels))))
+        num_rows = int(math.ceil(len(labels) / num_cols))
+        fig, axes = backend.make_subplots(
+            num_rows=num_rows,
+            num_cols=num_cols,
+            num_plots=len(labels),
+            title=title,
+            style=dict(bg_color="white", width=1600, height=800),
+        )
+        figures = [fig]
 
-    fig = plot_dict(show=False)
+    backend.update_axes_titles(figures, axes, xaxis_titles, yaxis_titles)
+    for i in range(len(labels)):
+        backend.plot_trace(
+            backend.line(x[i % len(x)], y[i], labels[i]),
+            figures[i % len(figures)],
+            ax=axes[i],
+        )
 
     # add legend
-    for ax in plot_dict.axes:
+    for ax in axes:
         backend.legend(fig, style=style, axes=ax)
 
     # Generate the figure and update the layout
     if show:
         backend.show_figure(fig)
-
-    return fig
+    else:
+        return fig

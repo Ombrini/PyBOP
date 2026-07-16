@@ -19,6 +19,7 @@
 
 ## Breaking Changes
 
+- [#928](https://github.com/pybop-team/PyBOP/pull/928) - Deprecates `StandardPlot` and `StandardSubplot` in favour of new standardised backend functionality.
 - [#960](https://github.com/pybop-team/PyBOP/pull/960) - Remove `asv` benchmarking.
 - [#938](https://github.com/pybop-team/PyBOP/pull/938) - Make SALib an optional dependency and remove `sensitivity_analysis` in favour of using SALib directly.
 - [#942](https://github.com/pybop-team/PyBOP/pull/942) - Adds `evaluate_batch` to the costs and ensures that an `Evaluation` is returned.
