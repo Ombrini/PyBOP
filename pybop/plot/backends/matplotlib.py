@@ -508,21 +508,6 @@ class MatplotlibBackend(PlotBackend):
         self.plot_trace(contour, fig, ax=ax)
         self.plot_trace(contour_lines, fig, ax=ax)
 
-    def fill(self, x, y, color=None, label=None):
-        """
-        Return a trace definition for a filled polygon.
-
-        Parameters
-        ----------
-        x, y : array-like
-            Coordinates defining the filled area.
-        color : str, optional
-            Fill colour.
-        label : str, optional
-            Ignored by the matplotlib implementation.
-        """
-        return dict(positional_args=(x, y), plot_type="fill", color=color)
-
     def fill_between(self, x, y_upper, y_lower, color):
         """
         Return a trace definition for a filled region between two curves.

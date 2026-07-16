@@ -1,7 +1,6 @@
 import math
 from typing import TYPE_CHECKING
 
-from pybop.costs.log_likelihoods import GaussianLogLikelihood
 from pybop.plot.util import get_backend_from_figure, parse_data
 
 if TYPE_CHECKING:
@@ -55,8 +54,6 @@ def parameters(
     xaxis_titles = []
     yaxis_titles = []
     labels = parameters.names
-    if isinstance(result.problem, GaussianLogLikelihood):
-        labels.append("Sigma")
 
     figures, axes, create_figure, _ = backend.parse_input_axes(
         figures, axes, num_plots=len(labels)
@@ -96,15 +93,15 @@ def parameters(
         backend.plot_trace(
             backend.line(x[i % len(x)], y[i], labels[i]),
             figures[i % len(figures)],
-            ax=axes[i],
+            ax=axes[i % len(axes)],
         )
 
     # add legend
-    for ax in axes:
-        backend.legend(fig, style=style, axes=ax)
+    for i, ax in enumerate(axes):
+        backend.legend(figures[i % len(figures)], style=style, axes=ax)
 
     # Generate the figure and update the layout
     if show:
-        backend.show_figure(fig)
+        backend.show_figure(figures)
     else:
-        return fig
+        return figures[0] if len(figures) == 1 else figures

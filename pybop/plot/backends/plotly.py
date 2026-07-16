@@ -563,34 +563,6 @@ class PlotlyBackend(PlotBackend):
         )
         self.plot_trace(trace, fig, ax=ax)
 
-    def fill(self, x, y, color=None, label=None):
-        """
-        Create a filled polygon trace.
-
-        Parameters
-        ----------
-        x, y : array-like
-            Polygon coordinates.
-        color : str, optional
-            Fill colour.
-        label : str, optional
-            Legend label.
-
-        Returns
-        -------
-        plotly.graph_objects.Scatter
-            Filled polygon trace.
-        """
-        opts = {}
-        if color is not None:
-            opts["fillcolor"] = color
-        if label is not None:
-            opts["name"] = label
-
-        return self.plotly_manager.go.Scatter(
-            x=x, y=y, fill="toself", mode="text", showlegend=False, **opts
-        )
-
     def fill_between(self, x, y_upper, y_lower, color):
         """
         Create a filled region between two curves.

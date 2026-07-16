@@ -376,11 +376,16 @@ class TestPlots:
         # Without inputs
         pybop.plot.nyquist(problem, title="Optimised Comparison")
 
-    def test_util(self, backend):
+    def test_util(self, backend, figure_input):
         # Test the utility functions
         pybop.plot.use_backend(backend)
         assert pybop.plot.remove_brackets(["Trace [1]", "Trace [2]"])[0] == "Trace  / 1"
         assert pybop.plot.remove_brackets(10) == 10
+
+        x, y = pybop.plot.parse_data(np.zeros((3, 20)), np.zeros((3, 20)))
+        assert (
+            isinstance(x, list) and isinstance(y, list) and len(x) == 3 and len(y) == 3
+        )
 
         if backend.lower() == "matplotlib":
             backend_inputs = [
@@ -436,13 +441,94 @@ class TestPlots:
         ):
             pybop.plot.use_backend("nonsense")
 
+        # Use figure's backend if backend is different from the figure's backend
+        with pytest.warns(
+            UserWarning,
+            match="Backend wrong backend does not match the provided figure's backend",
+        ):
+            fig = figure_input[0]
+            pybop.plot.get_backend_from_figure("wrong backend", [fig])
+
     def test_backend(self, backend):
         backend = pybop.plot.get_backend(backend)
-        fig = backend.create_figure()
+        traces = []
+        for i in range(3):
+            traces.append(
+                backend.line(
+                    [1, 2],
+                    [1 + i, 2 + i],
+                    style=dict(
+                        linestyle="solid",
+                        marker="o",
+                        xaxis_title=f"X-axis {i}",
+                        yaxis_title=f"Y-axis {i}",
+                    ),
+                )
+            )
+        fig = backend.create_figure(
+            title="Test Figure",
+            xaxis_title="X-axis",
+            yaxis_title="Y-axis",
+            traces=traces,
+        )
+
+        # Test error handling for invalid inputs for parse_input_axes
+        with pytest.raises(
+            ValueError, match="This plot requires 5 axes. 2 axes provided."
+        ):
+            axes = (
+                [fig.gca(), fig.gca()]
+                if backend.name == "matplotlib"
+                else [(1, 1), (1, 2)]
+            )
+            backend.parse_input_axes(fig, axes, num_plots=5, allow_single_axis=False)
+
+        with pytest.raises(
+            ValueError,
+            match="This plot requires either 5 axes or a single axis. 2 axes provided.",
+        ):
+            axes = (
+                [fig.gca(), fig.gca()]
+                if backend.name == "matplotlib"
+                else [(1, 1), (1, 2)]
+            )
+            backend.parse_input_axes(fig, axes, num_plots=5, allow_single_axis=True)
+
+        with pytest.raises(
+            ValueError,
+            match="Please provide the same number of figures and axes or only one figure.",
+        ):
+            backend.parse_input_axes(
+                [fig, fig],
+                [fig.gca() if backend.name == "matplotlib" else (1, 1)],
+                num_plots=2,
+                allow_single_axis=False,
+            )
+
+        with pytest.warns(
+            UserWarning, match="Axes argument ignored if no figure provided."
+        ):
+            backend.parse_input_axes(
+                None,
+                [fig.gca() if backend.name == "matplotlib" else (1, 1)],
+                num_plots=1,
+                allow_single_axis=False,
+            )
 
         if backend.name == "plotly":
             with pytest.raises(ValueError, match="Axis must be a tuple"):
-                backend.parse_input_axes(fig, "not a tuple")
+                backend.parse_input_axes(fig, (1, 3, 4))
+
+        # Axes from figures
+        figures, axes, create_figure, single_axis = backend.parse_input_axes(
+            [fig, fig], None, num_plots=2, allow_single_axis=False
+        )
+        assert (
+            len(figures) == 2
+            and len(axes) == 2
+            and create_figure is False
+            and single_axis is False
+        )
 
         # loc property for legend
         with pytest.raises(ValueError, match="loc property must consist of 2 keywords"):

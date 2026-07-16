@@ -92,7 +92,7 @@ def get_backend_from_figure(backend=None, figures=None):
 
             if backend_str != figure_backend:
                 warnings.warn(
-                    f"Backend {backend} does not match the provided figure's backend {figure_backend}."
+                    f"Backend {backend} does not match the provided figure's backend {figure_backend}. "
                     "Using the figure's backend.",
                     UserWarning,
                     stacklevel=2,

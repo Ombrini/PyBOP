@@ -324,22 +324,6 @@ class PlotBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def fill(self, x, y, color=None, label=None):
-        """
-        Create a filled region plot.
-
-        Parameters
-        ----------
-        x, y : array-like
-            Coordinates defining the filled area.
-        color : str, optional
-            Fill colour.
-        label : str, optional
-            Legend label.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def fill_between(self, x, y_upper, y_lower, color):
         """
         Create a filled region between upper and lower bounds.
