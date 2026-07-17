@@ -1002,7 +1002,7 @@ if create_plot["eis"]:
         title="",
         show=False,
     )
-    parameter_fig[0].update_layout(
+    parameter_fig.update_layout(
         width=600,
         height=600,
         margin=dict(t=60, b=84, r=50, l=15),
@@ -1019,8 +1019,8 @@ if create_plot["eis"]:
             linecolor="black",
         ),
     )
-    parameter_fig[0].data[1].update(line=dict(color="#00CC97"))
-    parameter_fig[0].write_image("figures/individual/impedance_spectrum.pdf")
+    parameter_fig.data[1].update(line=dict(color="#00CC97"))
+    parameter_fig.write_image("figures/individual/impedance_spectrum.pdf")
 
     landscape_fig = pybop.plot.contour(
         problem,

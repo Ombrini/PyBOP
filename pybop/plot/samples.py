@@ -82,7 +82,7 @@ def trace(result: "SamplingResult", show=True, backend=None, figures=None, axes=
     if show:
         backend.show_figure(figures)
     else:
-        return figures
+        return figures[0] if len(figures) == 1 else figures
 
 
 def posterior(

@@ -62,5 +62,5 @@ def dataset(
 
     if show:
         backend.show_figure(fig)
-
-    return fig
+    else:
+        return fig

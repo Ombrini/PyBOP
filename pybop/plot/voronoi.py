@@ -431,3 +431,5 @@ def surface(
 
     if show:
         backend.show_figure(fig)
+    else:
+        return fig

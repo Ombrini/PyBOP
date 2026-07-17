@@ -122,13 +122,12 @@ if create_plot["gravimetric"]:
 if create_plot["prediction"]:
     # Plot the timeseries output
     problem.set_target("Voltage [V]")
-    figs = pybop.plot.problem(
+    prediction_fig = pybop.plot.problem(
         problem,
         inputs=result.best_inputs,
         title=None,
         show=False,
     )
-    prediction_fig = figs[0]
     prediction_fig.update_layout(
         legend=dict(
             orientation="h",

@@ -97,4 +97,4 @@ def distribution(
     if show:
         backend.show_figure(figures)
     else:
-        return figures
+        return figures[0] if len(figures) == 1 else figures

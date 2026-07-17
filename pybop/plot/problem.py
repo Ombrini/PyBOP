@@ -138,4 +138,5 @@ def problem(
         if show:
             backend.show_figure(fig)
 
-    return figures
+    if not show:
+        return figures[0] if len(figures) == 1 else figures

@@ -118,5 +118,5 @@ def nyquist(
 
     if show:
         backend.show_figure(figures)
-
-    return figures
+    else:
+        return figures[0] if len(figures) == 1 else figures
