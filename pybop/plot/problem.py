@@ -34,13 +34,21 @@ def problem(
         The title of the plot (default: "Scatter Plot")
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    backend: str, optional
+    backend: str or pybop.plot.backends.PlotBackend, optional
         The plotting backend to be used.
+    figures: figure object, optional
+        Figure for plotting. If not provided a new figure is created for each problem.
+        Can be a single figure or one figure per target.
+    axes: axis, optional
+        The axes to be used for plotting. One axis per target is expected.
+        plotly: axes expected to be of the form list of tuple(row, col)
 
     Returns
     -------
-    plotly.graph_objs.Figure or matplotlib.Figure.figure
-        The figure object for the scatter plot.
+    None: if show is True
+    Figure or list of figures: if show is False
+        A single figure or a list of figures containing the plots for each target in the
+        problem. If show is True, the figures will be displayed and None will be returned.
     """
     if inputs is None:
         inputs = problem.parameters.to_dict()

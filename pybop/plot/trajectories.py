@@ -36,7 +36,7 @@ def trajectories(
         Maximum length of the labels before text wrapping is used (default: 20).
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    backend: str, optional
+    backend: str or pybop.plot.backends.PlotBackend, optional
         The plotting backend to be used.
     figures: figure object, optional
         Figure for plotting. If not provided a new figure is created
@@ -46,8 +46,8 @@ def trajectories(
 
     Returns
     -------
-    plotly.graph_objs.Figure
-        The Plotly figure object for the scatter plot.
+    fig : if show is False; plotly.graph_objs.Figure or matplotlib.figure.Figure
+    None : if show is True
     """
     backend = get_backend_from_figure(backend, figures)
     figures, axes, create_figure, _ = backend.parse_input_axes(

@@ -17,6 +17,36 @@ def distribution(
 ):
     """
     Plot the posterior on top of the prior distribution for a Bayesian optimisation result.
+
+    Parameters
+    ----------
+    parameters : pybop.Parameters
+        The prior distribution of the parameters.
+    posterior : pybop.Parameters, optional
+        The posterior distribution of the parameters (default: None).
+    title : str, optional
+        The title of the figure (default: "Prior and Posterior Distributions").
+    n_samples : int, optional
+        The number of samples to use for plotting the distributions (default: 100).
+    transformed : bool, optional
+        If True, the transformed distributions are plotted (default: False).
+    show : bool, optional
+        If True, the figure is shown upon creation (default: True).
+    backend : str or pybop.plot.backends.PlotBackend, optional
+        Select a plotting backend. If None, the current default backend is used.
+    figures: figure object, optional
+        Figure for plotting. If not provided a new figure is created.
+        Can be a single figure or one figure per parameter.
+    axes: axis, optional
+        The axes to be used for plotting. One axis per parameter is expected.
+        plotly: axes expected to be of the form list of tuple(row, col)
+
+    Returns
+    -------
+    fig : if show is False; plotly.graph_objs.Figure or matplotlib.figure.Figure
+        The figure object for the distribution plot.
+        Returns a list of figures if multiple figures are provided for plotting.
+    None : if show is True
     """
 
     # Create lists of axis titles and trace names

@@ -18,6 +18,8 @@ def dataset(
         Name(s) for the trace(s) (default: "Data").
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
+    backend: str or pybop.plot.backends.PlotBackend, optional
+        The plotting backend to be used.
     figures: figure object, optional
         Figure for plotting. If not provided a new figure is created
     axes: axis, optional
@@ -26,8 +28,9 @@ def dataset(
 
     Returns
     -------
-    fig : plotly.graph_objs.Figure or matplotlib.figure.Figure
+    fig : if show is False; plotly.graph_objs.Figure or matplotlib.figure.Figure
         The figure object for the scatter plot.
+    None : if show is True
     """
     backend = get_backend_from_figure(backend, figures)
 

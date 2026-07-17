@@ -26,10 +26,11 @@ def parameters(
         The title of the plot (default: "Parameter Convergence").
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    backend: str, optional
+    backend: str or pybop.plot.backends.PlotBackend, optional
         The plotting backend to be used
     figures: figure object , optional
-        The figure for plotting.
+        Figure for plotting. If not provided a new figure is created.
+        Can be a single figure or one figure per parameter.
     axes: single axis or list of axes, optional
         axes for plotting
         plotly: axes expected to be of the form tuple(row, col)
@@ -38,8 +39,10 @@ def parameters(
 
     Returns
     -------
-    plotly.graph_objs.Figure or matplotlib.figure.Figure
-        A figure object showing the parameter evolution over iterations.
+    fig : if show is False; plotly.graph_objs.Figure or matplotlib.figure.Figure
+        The figure object for the parameter plot.
+        Returns a list of figures if multiple figures are provided for plotting.
+    None : if show is True
     """
     # import plotting backend
     backend = get_backend_from_figure(backend, figures)

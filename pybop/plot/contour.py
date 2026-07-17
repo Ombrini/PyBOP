@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from pybop.plot.backends import PlotBackend
 from pybop.plot.util import get_backend_from_figure
 from pybop.problems.problem import Problem
 
@@ -19,7 +20,7 @@ def contour(
     steps: int = 10,
     title="Cost Landscape",
     show: bool = True,
-    backend: str = None,
+    backend: str | PlotBackend = None,
     figures=None,
     axes=None,
 ):
@@ -48,7 +49,7 @@ def contour(
         The number of grid points to divide the parameter space into along each dimension (default: 10).
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    backend: str, optional
+    backend: str or pybop.plot.backends.PlotBackend, optional
         The plotting backend to be used.
     figures: figure object or list of figure objects, optional
         Either a single figure or the same number of figures as axes.
@@ -60,8 +61,11 @@ def contour(
 
     Returns
     -------
-    fig : plotly.graph_objs.Figure or matplotlib.figure.Figure
-        The figure object containing the cost landscape plot.
+    None: if show is True
+    figure object containing the cost landscape: if show is False and gradient is False
+    tuple (fig, grad_figs): if show is False and gradient is True
+        fig - figure object containing the cost landscape
+        grad_figs - list of figure objects containing the gradient for each parameter
 
     Raises
     ------

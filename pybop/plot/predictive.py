@@ -26,6 +26,40 @@ def predictive(
 ):
     """
     Plot the predictive posterior of a Bayesian optimisation result.
+
+    Parameters
+    ----------
+    result : pybop.BayesianOptimisationResult or pybop.SamplingResult
+        The result of the Bayesian optimisation or sampling process.
+    number_of_traces : int, optional
+        The number of posterior predictive traces to plot (default: 8).
+    data_legend_entry : str, optional
+        The legend entry for the observed data (default: None).
+    rvs_legend_entry : str, optional
+        The legend entry for the random variable samples (default: None).
+    pdf_plot : tuple, optional
+        A tuple containing the x and y values for a PDF plot to overlay on the predictive plot (default: None).
+    pdf_label : str, optional
+        The label for the PDF plot (default: "PDF").
+    colour_scale : str, optional
+        The colour scale to use for the predictive traces (default: "viridis").
+    show : bool, optional
+        If True, the figure is shown upon creation (default: True).
+    backend : str or pybop.plot.backends.PlotBackend, optional
+        Select a plotting backend. If None, the current default backend is used.
+    figures: figure object, optional
+        Figure for plotting. If not provided a new figure is created for each problem.
+        Can be a single figure or one figure per problem.
+    axes: axis, optional
+        The axes to be used for plotting. One axis per problem is expected.
+        plotly: axes expected to be of the form list of tuple(row, col)
+
+    Returns
+    -------
+    None: if show is True
+    Figure or list of figures: if show is False
+        If show is False, returns a single figure or a list of figures containing the predictive posterior
+        for each problem.
     """
 
     # Create a plot for each problem

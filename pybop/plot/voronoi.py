@@ -257,8 +257,18 @@ def surface(
         Resolution of the plot. Default is 500.
     show : bool, optional
         If True, the figure is shown upon creation (default: True).
-    backend: str, optional
+    backend: str or pybop.plot.backends.PlotBackend, optional
         The plotting backend to be used.
+    figures: figure object, optional
+        Figure for plotting. If not provided a new figure is created.
+    axes: axis, optional
+        The axes to be used for plotting. A single axis is expected.
+
+    Returns
+    -------
+    None: if show is True
+    Figure object: if show is False
+
     """
     backend = get_backend_from_figure(backend, figures)
     points = result.x_model

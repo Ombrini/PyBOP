@@ -11,6 +11,25 @@ if TYPE_CHECKING:
 def chains(result: "SamplingResult", show=True, backend=None, figures=None, axes=None):
     """
     Plot posterior distributions for each chain.
+
+    Parameters
+    ----------
+    result : pybop.SamplingResult
+        The result of the sampling process.
+    show : bool, optional
+        If True, the figure is shown upon creation (default: True).
+    backend : str or pybop.plot.backends.PlotBackend, optional
+        Select a plotting backend. If None, the current default backend is used.
+    figures: figure object, optional
+        Figure for plotting. If not provided a new figure is created.
+    axes: axis, optional
+        The axes to be used for plotting. A single axis is expected.
+
+    Returns
+    -------
+    None: if show is True
+    Figure object: if show is False
+        The figure object for the chain plots.
     """
     # Import backend
     backend = get_backend_from_figure(backend, figures)
@@ -53,6 +72,30 @@ def chains(result: "SamplingResult", show=True, backend=None, figures=None, axes
 def trace(result: "SamplingResult", show=True, backend=None, figures=None, axes=None):
     """
     Plot trace plots for the posterior samples.
+
+    Parameters
+    ----------
+    result : pybop.SamplingResult
+        The result of the sampling process.
+    show : bool, optional
+        If True, the figure is shown upon creation (default: True).
+    backend : str or pybop.plot.backends.PlotBackend, optional
+        Select a plotting backend. If None, the current default backend is used.
+    figures: figure object, optional
+        Figure for plotting. If not provided a new figure is created.
+        Can be a single figure or one figure per parameter.
+    axes: single axis or list of axes, optional
+        axes for plotting
+        plotly: axes expected to be of the form tuple(row, col)
+        Number of axis must either agree with the number of parameters or
+        be a single axis for all parameters.
+
+    Returns
+    -------
+    None: if show is True
+    Figure or list of figures: if show is False
+        If show is False, returns a single figure or a list of figures containing the trace plots
+        for each parameter.
     """
     # Import plotting backend
     backend = get_backend_from_figure(backend, figures)
@@ -95,6 +138,25 @@ def posterior(
 ):
     """
     Plot the summed posterior distribution across chains.
+
+    Parameters
+    ----------
+    result : pybop.SamplingResult
+        The result of the sampling process.
+    show : bool, optional
+        If True, the figure is shown upon creation (default: True).
+    backend : str or pybop.plot.backends.PlotBackend, optional
+        Select a plotting backend. If None, the current default backend is used.
+    figures: figure object, optional
+        Figure for plotting. If not provided a new figure is created.
+    axes: axis, optional
+        The axes to be used for plotting. A single axis is expected.
+
+    Returns
+    -------
+    None: if show is True
+    Figure object: if show is False
+        The figure object for the posterior distribution plot.
     """
     # Import backend
     backend = get_backend_from_figure(backend, figures)
@@ -140,6 +202,25 @@ def summary_table(
 ):
     """
     Display summary statistics in a table.
+
+    Parameters
+    ----------
+    result : pybop.SamplingResult
+        The result of the sampling process.
+    backend : str or pybop.plot.backends.PlotBackend, optional
+        Select a plotting backend. If None, the current default backend is used.
+    figures: figure object, optional
+        Figure for plotting. If not provided a new figure is created.
+    axes: axis, optional
+        The axes to be used for plotting. A single axis is expected.
+    show : bool, optional
+        If True, the figure is shown upon creation (default: True).
+
+    Returns
+    -------
+    None: if show is True
+    Figure object: if show is False
+        The figure object for the summary statistics table.
     """
 
     summary_stats = result.get_summary_statistics()

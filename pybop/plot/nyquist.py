@@ -28,7 +28,7 @@ def nyquist(
         instance will be used. These parameters are verified before use (default is None).
     show : bool, optional
         If True, the plots will be displayed.
-    backend: str, optional
+    backend: str or pybop.plot.backends.PlotBackend, optional
         The plotting backend to be used.
     figures: figure object or list of figure objects, optional
         Either a single figure or the same number of figures as axes.
@@ -38,9 +38,9 @@ def nyquist(
 
     Returns
     -------
-    list
-        A list of plotly or matplotlib `Figure` objects, each representing a Nyquist plot for the model's output and target values.
-
+    fig or list of figs : plotly.graph_objs.Figure or matplotlib.figure.Figure
+        A single figure or a list of figures containing the Nyquist plots for each target in the
+        problem. If show is True, the figures will be displayed and None will be returned.
     Notes
     -----
     - The function extracts the real part of the impedance from the model's output and the real and imaginary parts
