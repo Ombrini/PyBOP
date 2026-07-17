@@ -129,7 +129,8 @@ class TestPlots:
         pybop.plot.problem(
             fitting_problem, title="Optimised Comparison", figures=fig, axes=[ax]
         )
-        pybop.plot.problem(design_problem)
+        fig = pybop.plot.problem(design_problem, show=False)
+        assert fig is not None
 
         # Test conversion of values into inputs
         pybop.plot.problem(
@@ -184,7 +185,8 @@ class TestPlots:
         result.plot_convergence(figures=fig, axes=[ax])
 
         # Plot the parameter traces
-        result.plot_parameters()
+        fig2 = result.plot_parameters(show=False)
+        assert fig2 is not None
 
         # Plot the cost landscape with optimisation path
         result.plot_contour(steps=3)
@@ -198,7 +200,8 @@ class TestPlots:
         assert len(grad_figs) == len(result.problem.parameters)
 
         # Plot voronoi
-        result.plot_surface(normalise=False)
+        fig2 = result.plot_surface(normalise=False, show=False)
+        assert fig2 is not None
 
         # Plot voronoi w/ bounds
         result.plot_surface(bounds=bounds, figures=fig, axes=[ax])
@@ -374,7 +377,8 @@ class TestPlots:
         )
 
         # Without inputs
-        pybop.plot.nyquist(problem, title="Optimised Comparison")
+        fig = pybop.plot.nyquist(problem, title="Optimised Comparison", show=False)
+        assert fig is not None
 
     def test_util(self, backend, figure_input):
         # Test the utility functions

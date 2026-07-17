@@ -22,13 +22,13 @@ def chains(result: "SamplingResult", show=True, backend=None, figures=None, axes
 
     backend.update_axes_titles(fig, ax, "Value", "Density")
     backend.update_plot_titles(fig, ax, "Posterior Distribution")
-
+    parameter_names = result.problem.parameters.names
     for i, chain in enumerate(result.chains):
         for j in range(chain.shape[1]):
             backend.plot_trace(
                 backend.histogram_plot(
                     x=chain[:, j],
-                    name=f"Chain {i} - Parameter {j}",
+                    name=f"Chain {i} - {parameter_names[j]}",
                     style=dict(alpha=0.75),
                 ),
                 fig,
@@ -62,9 +62,14 @@ def trace(result: "SamplingResult", show=True, backend=None, figures=None, axes=
         figures, axes, num_plots=result.n_parameters
     )
 
+    parameter_names = result.problem.parameters.names
     for i in range(result.n_parameters):
         ax = axes[i % len(axes)]
-        title = "Parameter Trace Plot" if single_axis else f"Parameter {i} Trace Plot"
+        title = (
+            "Parameter Trace Plot"
+            if single_axis
+            else f"Trace Plot - {parameter_names[i]}"
+        )
         if create_figure:
             fig = backend.create_figure()
             figures = np.append(figures, fig)
@@ -75,7 +80,7 @@ def trace(result: "SamplingResult", show=True, backend=None, figures=None, axes=
             backend.update_plot_titles(fig, ax, title)
 
         for j, chain in enumerate(result.chains):
-            label = f"Parameter {i} Chain {j}" if single_axis else f"Chain {j}"
+            label = f"{parameter_names[i]} - Chain {j}" if single_axis else f"Chain {j}"
             backend.plot_trace(backend.line(y=chain[:, i], label=label), fig, ax=ax)
         backend.legend(fig)
 
@@ -103,12 +108,13 @@ def posterior(
 
     backend.update_axes_titles(fig, ax, "Value", "Density")
     backend.update_plot_titles(fig, ax, "Posterior Distribution")
+    parameter_names = result.problem.parameters.names
 
     for j in range(result.all_samples.shape[1]):
         backend.plot_trace(
             backend.histogram_plot(
                 x=result.all_samples[:, j],
-                name=f"Parameter {j}",
+                name=f"{parameter_names[j]}",
                 style=dict(alpha=0.75),
             ),
             fig,
