@@ -60,7 +60,9 @@ gitt_fit = pybop.GITTFit(
 gitt_parameter_data = gitt_fit()
 
 # Plot the functional parameters
-pybop.plot.dataset(gitt_parameter_data, signal=["Particle diffusion time scale [s]"])
+pybop.plot.dataset(
+    gitt_parameter_data, signal=["Positive particle diffusion time scale [s]"]
+)
 pybop.plot.dataset(gitt_parameter_data, signal=["Series resistance [Ohm]"])
 
 # Run the identified model
@@ -76,7 +78,7 @@ fitted_values = pybamm.Simulation(
 # Return to the original model and update the diffusivity value
 diffusivity = np.mean(
     parameter_values["Positive particle radius [m]"] ** 2
-    / gitt_parameter_data["Particle diffusion time scale [s]"]
+    / gitt_parameter_data["Positive particle diffusion time scale [s]"]
 )
 parameter_values.update({"Positive particle diffusivity [m2.s-1]": diffusivity})
 

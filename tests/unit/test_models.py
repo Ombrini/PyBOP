@@ -83,17 +83,12 @@ class TestModels:
                 param.set_initial_state(0.5)
 
         else:
-            if isinstance(model, pybop.lithium_ion.SPDiffusion):
-                initial_state = "Initial stoichiometry"
-            else:
-                initial_state = "Initial SoC"
-
             param = model.default_parameter_values
             param.set_initial_state(0.5)
-            assert param[initial_state] == 0.5
+            assert param["Initial SoC"] == 0.5
 
-            param.set_initial_state("2.8 V")
-            assert 0 <= param[initial_state] <= 1
+            param.set_initial_state("3.8 V")
+            assert 0 <= param["Initial SoC"] <= 1
 
             with pytest.raises(
                 ValueError,

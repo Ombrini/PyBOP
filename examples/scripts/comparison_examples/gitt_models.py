@@ -61,7 +61,7 @@ for model in [pybop.lithium_ion.WeppnerHuggins(), pybop.lithium_ion.SPDiffusion(
         # Fitting parameters
         grouped_parameter_values.update(
             {
-                "Particle diffusion time scale [s]": diffusion_parameter,
+                "Positive particle diffusion time scale [s]": diffusion_parameter,
                 "Reference voltage [V]": pybop.Parameter(
                     initial_value=grouped_parameter_values["Reference voltage [V]"],
                 ),
@@ -77,7 +77,7 @@ for model in [pybop.lithium_ion.WeppnerHuggins(), pybop.lithium_ion.SPDiffusion(
         # Fitting parameters
         grouped_parameter_values.update(
             {
-                "Particle diffusion time scale [s]": diffusion_parameter,
+                "Positive particle diffusion time scale [s]": diffusion_parameter,
                 "Series resistance [Ohm]": pybop.Parameter(
                     initial_value=grouped_parameter_values["Series resistance [Ohm]"],
                 ),
@@ -103,7 +103,8 @@ for model in [pybop.lithium_ion.WeppnerHuggins(), pybop.lithium_ion.SPDiffusion(
     result = optim.run()
     print(result)
     print(
-        "Diffusion time [s]:", result.best_inputs["Particle diffusion time scale [s]"]
+        "Diffusion time [s]:",
+        result.best_inputs["Positive particle diffusion time scale [s]"],
     )
 
     # Plot the timeseries output
