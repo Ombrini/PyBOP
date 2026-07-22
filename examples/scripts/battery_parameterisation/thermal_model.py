@@ -29,7 +29,9 @@ solution = pybamm.Simulation(
 parameter_values.update(
     {
         "Cell thermal mass [J/K]": 20,
-        "Heat transfer coefficient [W/K]": 0.05,
+        "Surface thermal mass [J/K]": 20,
+        "Cell heat transfer coefficient [W/K]": 0.05,
+        "Surface heat transfer coefficient [W/K]": 0.05,
         "Current function [A]": pybamm.Interpolant(
             solution.t, solution["Current [A]"].data, pybamm.t
         ),
@@ -60,4 +62,4 @@ thermal_model = pybop.lithium_ion.CellTemperature()
 solution = pybamm.Simulation(
     thermal_model, parameter_values=grouped_parameter_values, cache_esoh=False
 ).solve(initial_soc=init_soc, t_eval=solution.t)
-solution.plot(["Current [A]", "SoC", "Voltage [V]", "Cell temperature [K]"])
+solution.plot()
