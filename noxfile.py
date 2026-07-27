@@ -51,7 +51,7 @@ def coverage(session):
 @nox.session
 def plots(session):
     """Run the tests that generate plots."""
-    session.install("-e", ".[plot]", "--upgrade", silent=False)
+    session.install("-e", ".[plotly]", "--upgrade", silent=False)
     session.install(*nox.project.dependency_groups(PYPROJECT, "dev"), silent=False)
     session.install("pip")
     session.run("pytest", "--plots", "-n", "0")
@@ -76,7 +76,7 @@ def examples(session):
 @nox.session
 def notebooks(session):
     """Run the Jupyter notebooks."""
-    session.install("openpyxl", "ipywidgets", "SciencePlots")
+    session.install("openpyxl", "ipywidgets")
     session.install("-e", ".[all]", "--upgrade", silent=False)
     session.install(*nox.project.dependency_groups(PYPROJECT, "dev"), silent=False)
     if PYBOP_SCHEDULED:
@@ -93,7 +93,7 @@ def notebooks(session):
 @nox.session(name="notebooks-overwrite")
 def notebooks_overwrite(session):
     """Run the Jupyter notebooks."""
-    session.install("openpyxl", "ipywidgets", "SciencePlots")
+    session.install("openpyxl", "ipywidgets")
     session.install("-e", ".[all]", "--upgrade", silent=False)
     session.install(*nox.project.dependency_groups(PYPROJECT, "dev"), silent=False)
     if PYBOP_SCHEDULED:
@@ -111,7 +111,7 @@ def notebooks_overwrite(session):
 @nox.session(name="tests")
 def run_tests(session):
     """Run all or a user-defined set of tests."""
-    session.install("openpyxl", "ipywidgets", "SciencePlots")
+    session.install("openpyxl", "ipywidgets")
     session.install("-e", ".[all]", "--upgrade", silent=False)
     session.install(*nox.project.dependency_groups(PYPROJECT, "dev"), silent=False)
     if PYBOP_SCHEDULED:
@@ -135,7 +135,7 @@ def run_doc_tests(session):
     Checks if the documentation can be built, runs any doctests (currently not
     used).
     """
-    session.install("-e", ".[plot]", "--upgrade", silent=False)
+    session.install("-e", ".[plotly]", "--upgrade", silent=False)
     session.install(
         *nox.project.dependency_groups(PYPROJECT, "dev", "docs"), silent=False
     )
