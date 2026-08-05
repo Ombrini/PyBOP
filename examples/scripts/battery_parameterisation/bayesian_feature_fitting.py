@@ -45,17 +45,7 @@ simulator = pybop.pybamm.Simulator(
             "Rest for 15 minutes (1 second period)",
         ]
     ),
-    solver=pybamm.CasadiSolver(
-        rtol=1e-5,
-        atol=1e-5,
-        root_tol=1e-3,
-        max_step_decrease_count=10,
-        extra_options_setup={
-            "disable_internal_warnings": True,
-            "newton_scheme": "tfqmr",
-        },
-        return_solution_if_failed_early=True,
-    ),
+    solver=pybamm.IDAKLUSolver(rtol=1e-5, atol=1e-5, root_tol=1e-3),
     output_variables=["Voltage [V]"],
     submesh_types=submesh_types,
     var_pts=var_pts,
@@ -117,8 +107,18 @@ if __name__ == "__main__":
     print("True values:", [original_D_n, original_D_p])
 
     # Plot the optimisation result
-    result.plot_convergence(yaxis={"type": "log"})
-    result.plot_parameters(yaxis={"type": "log"}, yaxis2={"type": "log"})
+    pybop.plot.use_backend("plotly")
+    fig1 = result.plot_convergence(show=False)
+    fig1.update_layout(
+        yaxis={"type": "log"}
+    )  # use ax.set_yscale('log') if using matplotlib (where ax = fig1.gca())
+    fig1.show()
+
+    fig2 = result.plot_parameters(show=False)
+    fig2.update_layout(
+        yaxis={"type": "log"}, yaxis2={"type": "log"}
+    )  # use ax.set_yscale('log') if using matplotlib (for ax in fig2.axes)
+    fig2.show()
 
     # Plot the prior and posterior distributions
     pybop.plot.distribution(result.problem.parameters, result.posterior)

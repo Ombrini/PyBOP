@@ -33,6 +33,9 @@ class CellTemperature(BaseGroupedModel):
     def __init__(self, name="Cell Temperature Model", **model_kwargs):
         super().__init__(name=name, **model_kwargs)
 
+        # Voltage is an input to this model, not a state
+        self.options["voltage as a state"] = "false"
+
         ######################
         # Variables
         ######################
@@ -41,6 +44,7 @@ class CellTemperature(BaseGroupedModel):
         Qt = Variable("Throughput capacity [A.h]")
 
         T_cell = Variable("Cell temperature [K]")
+        T_surf = Variable("Surface temperature [K]")
 
         ######################
         # Parameters
@@ -62,8 +66,10 @@ class CellTemperature(BaseGroupedModel):
         S_n = Parameter("Negative electrode OCP entropic change [V.K-1]")
         S_p = Parameter("Positive electrode OCP entropic change [V.K-1]")
 
-        c_th = Parameter("Cell thermal mass [J/K]")
-        h = Parameter("Heat transfer coefficient [W/K]")
+        c_th_c = Parameter("Cell thermal mass [J/K]")
+        c_th_s = Parameter("Surface thermal mass [J/K]")
+        h_c = Parameter("Cell heat transfer coefficient [W/K]")
+        h_s = Parameter("Surface heat transfer coefficient [W/K]")
 
         ######################
         # Input current (positive on discharge)
@@ -113,8 +119,10 @@ class CellTemperature(BaseGroupedModel):
         )
 
         # Cell temperature
-        self.rhs[T_cell] = (Q_irr + Q_rev - h * (T_cell - T_amb)) / c_th
+        self.rhs[T_cell] = (Q_irr + Q_rev - h_c * (T_cell - T_surf)) / c_th_c
+        self.rhs[T_surf] = (h_c * (T_cell - T_surf) - h_s * (T_surf - T_amb)) / c_th_s
         self.initial_conditions[T_cell] = T_init
+        self.initial_conditions[T_surf] = T_init
 
         ######################
         # (Some) variables
@@ -132,6 +140,7 @@ class CellTemperature(BaseGroupedModel):
             "Open-circuit voltage [V]": U,
             "Ambient temperature [K]": T_amb,
             "Cell temperature [K]": T_cell,
+            "Surface temperature [K]": T_surf,
         }
 
     def U(self, sto, domain):
@@ -165,7 +174,9 @@ class CellTemperature(BaseGroupedModel):
             {
                 "Voltage function [V]": param.evaluate(self.param.ocv_init),
                 "Cell thermal mass [J/K]": 20,
-                "Heat transfer coefficient [W/K]": 0.05,
+                "Surface thermal mass [J/K]": 20,
+                "Cell heat transfer coefficient [W/K]": 0.05,
+                "Surface heat transfer coefficient [W/K]": 0.05,
             },
             check_already_exists=False,
         )
@@ -179,7 +190,11 @@ class CellTemperature(BaseGroupedModel):
             "Current [A]",
             "SoC",
             {"Open-circuit voltage [V]", "Voltage [V]"},
-            {"Ambient temperature [K]", "Cell temperature [K]"},
+            {
+                "Ambient temperature [K]",
+                "Cell temperature [K]",
+                "Surface temperature [K]",
+            },
         ]
 
     @property
@@ -272,7 +287,13 @@ class CellTemperature(BaseGroupedModel):
                 "Positive electrode OCP entropic change [V.K-1]"
             ],
             "Cell thermal mass [J/K]": param["Cell thermal mass [J/K]"],
-            "Heat transfer coefficient [W/K]": param["Heat transfer coefficient [W/K]"],
+            "Surface thermal mass [J/K]": param["Surface thermal mass [J/K]"],
+            "Cell heat transfer coefficient [W/K]": param[
+                "Cell heat transfer coefficient [W/K]"
+            ],
+            "Surface heat transfer coefficient [W/K]": param[
+                "Surface heat transfer coefficient [W/K]"
+            ],
         }
         parameter_values = ParameterValues(values=parameter_dictionary)
         parameter_values._set_initial_state = CellTemperature.set_initial_state  # noqa: SLF001
