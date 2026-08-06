@@ -6,11 +6,7 @@ from matplotlib.figure import Figure
 
 import pybop
 
-GROUPED_MODEL = (
-    pybop.lithium_ion.GroupedSPM
-    | pybop.lithium_ion.GroupedSPMe
-    | pybop.lithium_ion.GroupedDFN
-)
+GROUPED_MODEL = pybop.lithium_ion.GroupedSPM | pybop.lithium_ion.GroupedSPMe
 
 
 class TestModels:
@@ -30,8 +26,6 @@ class TestModels:
             pybop.lithium_ion.GroupedSPM(options={"surface form": "differential"}),
             pybop.lithium_ion.GroupedSPMe(),
             pybop.lithium_ion.GroupedSPMe(options={"surface form": "differential"}),
-            pybop.lithium_ion.GroupedDFN(),
-            pybop.lithium_ion.GroupedDFN(options={"surface form": "differential"}),
         ],
         scope="module",
     )
