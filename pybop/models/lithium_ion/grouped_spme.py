@@ -325,13 +325,13 @@ class GroupedSPMe(BaseGroupedModel):
         ######################
         # Include the following variables to enable plotting via PyBaMM's plot_voltage_components
         ocp_n_bulk = self.U(
-            pybamm.x_average(zeta_n * pybamm.r_average(sto_n))
-            / pybamm.x_average(zeta_n),
+            pybamm.x_average(Q_th_n * pybamm.r_average(sto_n))
+            / pybamm.x_average(Q_th_n),
             "negative",
         )
         ocp_p_bulk = self.U(
-            pybamm.x_average(zeta_p * pybamm.r_average(sto_p))
-            / pybamm.x_average(zeta_p),
+            pybamm.x_average(Q_th_p * pybamm.r_average(sto_p))
+            / pybamm.x_average(Q_th_p),
             "positive",
         )
         voltage_components = {

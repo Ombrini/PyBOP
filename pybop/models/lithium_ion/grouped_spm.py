@@ -236,8 +236,16 @@ class GroupedSPM(BaseGroupedModel):
         # Voltage components
         ######################
         # Include the following variables to enable plotting via PyBaMM's plot_voltage_components
-        ocp_n_bulk = self.U(pybamm.x_average(pybamm.r_average(sto_n)), "negative")
-        ocp_p_bulk = self.U(pybamm.x_average(pybamm.r_average(sto_p)), "positive")
+        ocp_n_bulk = self.U(
+            pybamm.x_average(Q_th_n * pybamm.r_average(sto_n))
+            / pybamm.x_average(Q_th_n),
+            "negative",
+        )
+        ocp_p_bulk = self.U(
+            pybamm.x_average(Q_th_p * pybamm.r_average(sto_p))
+            / pybamm.x_average(Q_th_p),
+            "positive",
+        )
         voltage_components = {
             "Battery voltage [V]": V,
             "Battery open-circuit voltage [V]": ocp_p_bulk - ocp_n_bulk,
