@@ -14,6 +14,11 @@ from pybamm.models.full_battery_models.lithium_ion.electrode_soh import (
     get_min_max_stoichiometries,
 )
 
+from pybop.models.lithium_ion.alternative_functions import (
+    AsymmetricButlerVolmer,
+    FunctionalDiffusionTime,
+    MultiphaseButlerVolmer,
+)
 from pybop.models.lithium_ion.base_model import BaseGroupedModel
 
 
@@ -166,8 +171,8 @@ class GroupedSPM(BaseGroupedModel):
         eta_p = PrimaryBroadcast(v_s_p - U_p, "positive electrode")
 
         # Exchange rates
-        j_n = self.j(sto_n_surf, eta_n / RT_F, "negative") / tau_ct_n
-        j_p = self.j(sto_p_surf, eta_p / RT_F, "positive") / tau_ct_p
+        j_n = self.j(sto_n_surf, 1.0, eta_n / RT_F, "negative") / tau_ct_n
+        j_p = self.j(sto_p_surf, 1.0, eta_p / RT_F, "positive") / tau_ct_p
 
         ######################
         # Double layer
@@ -340,13 +345,14 @@ class GroupedSPM(BaseGroupedModel):
         inputs = {f"{Domain} particle surface stoichiometry": sto, "Temperature [K]": T}
         return FunctionParameter(f"{Domain} particle diffusion time scale [s]", inputs)
 
-    def j(self, sto_surf, eta_RT_F, domain):
+    def j(self, sto_surf, sto_e, eta_RT_F, domain):
         """
         Dimensionless exchange rate.
         """
         Domain = domain.capitalize()
         inputs = {
             f"{Domain} particle surface stoichiometry": sto_surf,
+            f"{Domain} electrode electrolyte stoichiometry": sto_e,
             f"{Domain} electrode dimensionless overpotential": eta_RT_F,
         }
         return FunctionParameter(
@@ -539,8 +545,15 @@ class GroupedSPM(BaseGroupedModel):
         # Grouped parameters
         Q_meas = (Q_meas_n + Q_meas_p) / 2
 
-        tau_d_p = R_p**2 / D_p
-        tau_d_n = R_n**2 / D_n
+        try:
+            tau_d_p = R_p**2 / D_p
+        except TypeError:
+            tau_d_p = FunctionalDiffusionTime(R_p**2, D_p, c_max_p)
+
+        try:
+            tau_d_n = R_n**2 / D_n
+        except TypeError:
+            tau_d_n = FunctionalDiffusionTime(R_n**2, D_n, c_max_n)
 
         tau_ct_p = F * R_p / (m_p * np.sqrt(ce0))
         tau_ct_n = F * R_n / (m_n * np.sqrt(ce0))
@@ -583,7 +596,7 @@ class GroupedSPM(BaseGroupedModel):
         return parameter_values
 
     @staticmethod
-    def symmetric_butler_volmer(sto_surf, eta_RT_F):
+    def symmetric_butler_volmer(sto_surf, sto_e, eta_RT_F):
         """
         Dimensionless Butler-Volmer exchange rate.
         """
@@ -612,27 +625,3 @@ class GroupedSPM(BaseGroupedModel):
         omega = pybamm.Parameter(f"{Domain} electrode charge transfer ideality factor")
 
         return MultiphaseButlerVolmer(alpha, omega)
-
-
-""" Alternative, dimensionless exchange rate functions written as classes to allow pickling. """
-
-
-class AsymmetricButlerVolmer:
-    def __init__(self, alpha):
-        self.alpha = alpha  # cathodic transfer coefficient
-
-    def __call__(self, sto_surf, eta_RT_F):
-        alpha = self.alpha
-        j0 = sto_surf**alpha * (1 - sto_surf) ** (1 - alpha)
-        return j0 * (pybamm.exp((1 - alpha) * eta_RT_F) - pybamm.exp(-alpha * eta_RT_F))
-
-
-class MultiphaseButlerVolmer:
-    def __init__(self, alpha, omega):
-        self.alpha = alpha
-        self.omega = omega
-
-    def __call__(self, sto_surf, eta_RT_F):
-        alpha, omega = self.alpha, self.omega
-        j0 = sto_surf ** (alpha * omega) * (1 - sto_surf) ** ((1 - alpha) * omega)
-        return j0 * (pybamm.exp((1 - alpha) * eta_RT_F) - pybamm.exp(-alpha * eta_RT_F))

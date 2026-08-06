@@ -14,6 +14,11 @@ from pybamm.models.full_battery_models.lithium_ion.electrode_soh import (
     get_min_max_stoichiometries,
 )
 
+from pybop.models.lithium_ion.alternative_functions import (
+    AsymmetricButlerVolmer,
+    FunctionalDiffusionTime,
+    MultiphaseButlerVolmer,
+)
 from pybop.models.lithium_ion.base_model import BaseGroupedModel
 
 
@@ -661,8 +666,15 @@ class GroupedDFN(BaseGroupedModel):
         zeta_p = epsilon_p / epsilon_sep
         zeta_n = epsilon_n / epsilon_sep
 
-        tau_d_p = R_p**2 / D_p
-        tau_d_n = R_n**2 / D_n
+        try:
+            tau_d_p = R_p**2 / D_p
+        except TypeError:
+            tau_d_p = FunctionalDiffusionTime(R_p**2, D_p, c_max_p)
+
+        try:
+            tau_d_n = R_n**2 / D_n
+        except TypeError:
+            tau_d_n = FunctionalDiffusionTime(R_n**2, D_n, c_max_n)
 
         tau_e = epsilon_sep * L**2 / (epsilon_sep**b_sep * De)
         beta_p = epsilon_p**b_p / epsilon_sep**b_sep
@@ -746,31 +758,3 @@ class GroupedDFN(BaseGroupedModel):
         omega = pybamm.Parameter(f"{Domain} electrode charge transfer ideality factor")
 
         return MultiphaseButlerVolmer(alpha, omega)
-
-
-""" Alternative, dimensionless exchange rate functions written as classes to allow pickling. """
-
-
-class AsymmetricButlerVolmer:
-    def __init__(self, alpha):
-        self.alpha = alpha  # cathodic transfer coefficient
-
-    def __call__(self, sto_surf, sto_e, eta_RT_F):
-        alpha = self.alpha
-        j0 = sto_surf**alpha * (sto_e * (1 - sto_surf)) ** (1 - alpha)
-        return j0 * (pybamm.exp((1 - alpha) * eta_RT_F) - pybamm.exp(-alpha * eta_RT_F))
-
-
-class MultiphaseButlerVolmer:
-    def __init__(self, alpha, omega):
-        self.alpha = alpha
-        self.omega = omega
-
-    def __call__(self, sto_surf, sto_e, eta_RT_F):
-        alpha, omega = self.alpha, self.omega
-        j0 = (
-            sto_surf ** (alpha * omega)
-            * (1 - sto_surf) ** ((1 - alpha) * omega)
-            * sto_e ** (1 - alpha)
-        )
-        return j0 * (pybamm.exp((1 - alpha) * eta_RT_F) - pybamm.exp(-alpha * eta_RT_F))
