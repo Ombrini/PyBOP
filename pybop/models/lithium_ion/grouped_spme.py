@@ -247,21 +247,25 @@ class GroupedSPMe(BaseGroupedModel):
         ######################
         # The div and grad operators will be converted to the appropriate matrix
         # multiplication at the discretisation stage
-        self.rhs[sto_n] = pybamm.div(pybamm.grad(sto_n) / self.tau_d(sto_n, "negative"))
-        self.rhs[sto_p] = pybamm.div(pybamm.grad(sto_p) / self.tau_d(sto_p, "positive"))
+        self.rhs[sto_n] = pybamm.div(
+            pybamm.grad(sto_n) / self.tau_d(sto_n, T, "negative")
+        )
+        self.rhs[sto_p] = pybamm.div(
+            pybamm.grad(sto_p) / self.tau_d(sto_p, T, "positive")
+        )
 
         # Boundary conditions must be provided for equations with spatial derivatives
         self.boundary_conditions[sto_n] = {
             "left": (Scalar(0), "Neumann"),
             "right": (
-                -self.tau_d(sto_n_surf, "negative") * pybamm.x_average(j_n),
+                -self.tau_d(sto_n_surf, T, "negative") * pybamm.x_average(j_n),
                 "Neumann",
             ),
         }
         self.boundary_conditions[sto_p] = {
             "left": (Scalar(0), "Neumann"),
             "right": (
-                -self.tau_d(sto_p_surf, "positive") * pybamm.x_average(j_p),
+                -self.tau_d(sto_p_surf, T, "positive") * pybamm.x_average(j_p),
                 "Neumann",
             ),
         }
@@ -432,12 +436,12 @@ class GroupedSPMe(BaseGroupedModel):
             out.print_name = r"U_\mathrm{p}(c^\mathrm{surf}_\mathrm{s,p})"
         return out
 
-    def tau_d(self, sto, domain):
+    def tau_d(self, sto, T, domain):
         """
-        Dimensional diffusion time scale [s].
+        Dimensional solid-state diffusion time scale [s].
         """
         Domain = domain.capitalize()
-        inputs = {f"{Domain} particle surface stoichiometry": sto}
+        inputs = {f"{Domain} particle surface stoichiometry": sto, "Temperature [K]": T}
         return FunctionParameter(f"{Domain} particle diffusion time scale [s]", inputs)
 
     def j(self, sto_surf, sto_e, eta_RT_F, domain):
