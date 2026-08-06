@@ -339,7 +339,7 @@ class GroupedSPM(BaseGroupedModel):
 
     def tau_d(self, sto, T, domain):
         """
-        Dimensional diffusion time scale [s].
+        Dimensional solid-state diffusion time scale [s].
         """
         Domain = domain.capitalize()
         inputs = {f"{Domain} particle surface stoichiometry": sto, "Temperature [K]": T}
