@@ -52,12 +52,22 @@ class TestModels:
         assert isinstance(fig, pybamm.QuickPlot)
 
         if isinstance(
-            model, pybop.lithium_ion.GroupedSPMe | pybop.lithium_ion.GroupedDFN
+            model,
+            pybop.lithium_ion.GroupedSPM
+            | pybop.lithium_ion.GroupedSPMe
+            | pybop.lithium_ion.GroupedDFN,
         ):
             for split in [False, True]:
                 fig, ax = solution.plot_voltage_components(split_by_electrode=split)
                 assert isinstance(fig, Figure)
                 assert isinstance(ax, Axes)
+
+        if not isinstance(model, pybop.ExponentialDecayModel):
+            experiment = pybamm.Experiment(["Discharge at 1C for 1 minute"])
+            solution = pybamm.Simulation(model, experiment=experiment).solve(
+                calc_esoh=False
+            )
+            assert solution["Time [s]"].data[-1] == 60
 
     def test_set_initial_state(self, model):
         if isinstance(model, pybop.ExponentialDecayModel):

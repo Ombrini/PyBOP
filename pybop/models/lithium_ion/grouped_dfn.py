@@ -362,6 +362,7 @@ class GroupedDFN(BaseGroupedModel):
             "positive",
         )
         voltage_components = {
+            "Battery voltage [V]": V,
             "Battery open-circuit voltage [V]": ocp_p_bulk - ocp_n_bulk,
             "Battery particle concentration overpotential [V]": (
                 (pybamm.x_average(self.U(sto_p_surf, "positive")) - ocp_p_bulk)
@@ -423,7 +424,6 @@ class GroupedDFN(BaseGroupedModel):
             "Discharge capacity [A.h]": Q,
             "Throughput capacity [A.h]": Qt,
             "Voltage [V]": V,
-            "Battery voltage [V]": V,
             "Open-circuit voltage [V]": pybamm.boundary_value(U_p, "right")
             - pybamm.boundary_value(U_n, "left"),
             **voltage_components,

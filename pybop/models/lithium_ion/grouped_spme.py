@@ -338,6 +338,7 @@ class GroupedSPMe(BaseGroupedModel):
             "positive",
         )
         voltage_components = {
+            "Battery voltage [V]": V,
             "Battery open-circuit voltage [V]": ocp_p_bulk - ocp_n_bulk,
             "Battery particle concentration overpotential [V]": (
                 (pybamm.x_average(self.U(sto_p_surf, "positive")) - ocp_p_bulk)
@@ -415,7 +416,6 @@ class GroupedSPMe(BaseGroupedModel):
             "Throughput capacity [A.h]": Qt,
             "Voltage [V]": V,
             "Voltage expression [V]": V,  # for compatibility with "voltage as a state"
-            "Battery voltage [V]": V,
             "Open-circuit voltage [V]": U_p - U_n,
             **voltage_components,
         }
