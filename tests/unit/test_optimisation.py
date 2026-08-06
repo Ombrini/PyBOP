@@ -327,7 +327,9 @@ class TestOptimisation:
                 assert optim.optimiser.population_size() == 100
 
         if optimiser == pybop.SciPyDifferentialEvolution:
-            options = pybop.SciPyDifferentialEvolutionOptions(maxiter=3, popsize=5)
+            options = pybop.SciPyDifferentialEvolutionOptions(
+                maxiter=3, popsize=5, vectorized=False
+            )
             pop_maxiter_optim = optimiser(problem, options=options)
             assert pop_maxiter_optim._options.maxiter == 3
             assert pop_maxiter_optim._options.popsize == 5
@@ -754,7 +756,7 @@ class TestOptimisation:
         np.testing.assert_array_equal(result1._time, result2._time)
 
     @pytest.mark.parametrize("to_format", ["json", "matlab", "pickle"])
-    def test_save_result_data(self, result, problem, to_format, tmp_path):
+    def test_save_result_data(self, result, to_format, tmp_path):
         test_stub = tmp_path / "test"
 
         if to_format == "matlab":
@@ -766,14 +768,14 @@ class TestOptimisation:
         # Test save result
         result.save_data(filename, to_format=to_format)
 
-        result_load = OptimisationResult.load_data(filename, file_format=to_format)
+        result_load = pybop.Result.load_data(filename, file_format=to_format)
         self.compare_result_data(result, result_load)
 
         # Test save combined result
-        result_combined = OptimisationResult.combine([result, result])
+        result_combined = pybop.Result.combine([result, result])
         result_combined.save_data(filename, to_format=to_format)
 
-        result_load = OptimisationResult.load_data(filename, file_format=to_format)
+        result_load = pybop.Result.load_data(filename, file_format=to_format)
         self.compare_result_data(result_combined, result_load)
 
     def test_save_result(self, result, tmp_path):
@@ -782,6 +784,6 @@ class TestOptimisation:
         # test save whole result
         filename = f"{test_stub}.pickle"
         result.save(filename)
-        result_load = OptimisationResult.load(filename)
+        result_load = pybop.Result.load(filename)
         self.compare_result_data(result, result_load)
         assert result.problem.parameters.names == result_load.problem.parameters.names
