@@ -488,12 +488,6 @@ class GroupedSPM(BaseGroupedModel):
         b_n = param["Negative electrode Bruggeman coefficient (electrolyte)"]
         Cdl_p = param["Positive electrode double-layer capacity [F.m-2]"]
         Cdl_n = param["Negative electrode double-layer capacity [F.m-2]"]
-        m_p = param.evaluate(
-            param["Positive electrode exchange-current density [A.m-2]"](1, 1, 2, T)
-        )  # (A/m2)(m3/mol)**1.5
-        m_n = param.evaluate(
-            param["Negative electrode exchange-current density [A.m-2]"](1, 1, 2, T)
-        )  # (A/m2)(m3/mol)**1.5
         sigma_p = (
             param["Positive electrode conductivity [S.m-1]"]
             * alpha_p ** param["Positive electrode Bruggeman coefficient (electrode)"]
@@ -509,6 +503,18 @@ class GroupedSPM(BaseGroupedModel):
         epsilon_sep = param["Separator porosity"]
         b_sep = param["Separator Bruggeman coefficient (electrolyte)"]
         kappa_e = param["Electrolyte conductivity [S.m-1]"]  # (ce0, T)
+
+        # Get reaction rates
+        m_p = param.evaluate(
+            param["Positive electrode exchange-current density [A.m-2]"](
+                ce0, c_max_p / 2, c_max_p, T
+            )
+        ) * (2 / (c_max_p * np.sqrt(ce0)))  # (A/m2)(m3/mol)**1.5
+        m_n = param.evaluate(
+            param["Negative electrode exchange-current density [A.m-2]"](
+                ce0, c_max_n / 2, c_max_n, T
+            )
+        ) * (2 / (c_max_n * np.sqrt(ce0)))  # (A/m2)(m3/mol)**1.5
 
         # Compute the cell area and thickness
         A = param["Electrode height [m]"] * param["Electrode width [m]"]

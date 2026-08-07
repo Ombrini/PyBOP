@@ -239,9 +239,14 @@ class SPDiffusion(BaseGroupedModel):
         L_p = param["Positive electrode thickness [m]"]
         R_p = param["Positive particle radius [m]"]
         D_p = param["Positive particle diffusivity [m2.s-1]"]
+
+        # Get reaction rate
+        ce0 = param["Initial concentration in electrolyte [mol.m-3]"]
         m_p = param.evaluate(
-            param["Positive electrode exchange-current density [A.m-2]"](1, 1, 2, T)
-        )  # (A/m2)(m3/mol)**1.5
+            param["Positive electrode exchange-current density [A.m-2]"](
+                ce0, c_max_p / 2, c_max_p, T
+            )
+        ) * (2 / (c_max_p * np.sqrt(ce0)))  # (A/m2)(m3/mol)**1.5
 
         # Compute the cell area
         A = param["Electrode height [m]"] * param["Electrode width [m]"]
@@ -263,7 +268,6 @@ class SPDiffusion(BaseGroupedModel):
 
         # Estimate the series resistance, neglecting conductivity losses
         RT_F = pybamm.constants.R.value * param["Ambient temperature [K]"] / F
-        ce0 = param["Initial concentration in electrolyte [mol.m-3]"]
         tau_ct_p = F * R_p / (m_p * np.sqrt(ce0))
         Rct_typ = (2 * RT_F * tau_ct_p) / (3 * Q_th_p)
         R0 = Rct_typ + param["Contact resistance [Ohm]"]
