@@ -99,6 +99,27 @@ class TestModels:
                 ):
                     param.set_initial_state("-1 V")
 
+    def test_alternative_functions(self, model):
+        if isinstance(model, GROUPED_MODEL):
+            parameter_values = model.default_parameter_values
+
+            # Use alternative Butler-Volmer kinetics
+            parameter_values["Negative electrode charge transfer coefficient"] = 0.6
+            parameter_values["Negative electrode dimensionless exchange rate"] = (
+                model.get_asymmetric_butler_volmer("negative")
+            )
+            parameter_values["Positive electrode charge transfer coefficient"] = 0.6
+            parameter_values["Positive electrode charge transfer ideality factor"] = 0.6
+            parameter_values["Positive electrode dimensionless exchange rate"] = (
+                model.get_multiphase_butler_volmer("positive")
+            )
+
+            t_eval = np.linspace(0, 10, 11)
+            solution = pybamm.Simulation(
+                model, parameter_values=parameter_values
+            ).solve(t_eval=t_eval, t_interp=t_eval)
+            np.testing.assert_allclose(solution["Time [s]"].data, t_eval)
+
 
 class TestModelUtils:
     """
