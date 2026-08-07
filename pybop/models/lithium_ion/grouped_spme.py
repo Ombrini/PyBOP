@@ -16,9 +16,7 @@ from pybamm.models.full_battery_models.lithium_ion.electrode_soh import (
 )
 
 from pybop.models.lithium_ion.alternative_functions import (
-    AsymmetricButlerVolmer,
     FunctionalDiffusionTime,
-    MultiphaseButlerVolmer,
 )
 from pybop.models.lithium_ion.base_model import BaseGroupedModel
 
@@ -720,34 +718,3 @@ class GroupedSPMe(BaseGroupedModel):
         parameter_values = ParameterValues(values=parameter_dictionary)
         parameter_values._set_initial_state = GroupedSPMe.set_initial_state  # noqa: SLF001
         return parameter_values
-
-    @staticmethod
-    def symmetric_butler_volmer(sto_surf, sto_e, eta_RT_F):
-        """
-        Dimensionless Butler-Volmer exchange rate.
-        """
-        j0 = (sto_surf * sto_e * (1 - sto_surf)) ** 0.5
-        return 2 * j0 * pybamm.sinh(0.5 * eta_RT_F)
-
-    @staticmethod
-    def get_asymmetric_butler_volmer(domain: str):
-        """
-        Get the asymmetric Butler-Volmer exchange rate function for the "positive" or
-        "negative" domain.
-        """
-        Domain = domain.capitalize()
-        alpha = pybamm.Parameter(f"{Domain} electrode charge transfer coefficient")
-
-        return AsymmetricButlerVolmer(alpha)
-
-    @staticmethod
-    def get_multiphase_butler_volmer(domain: str):
-        """
-        Get the multiphase Butler-Volmer exchange rate function for the "positive" or
-        "negative" domain.
-        """
-        Domain = domain.capitalize()
-        alpha = pybamm.Parameter(f"{Domain} electrode charge transfer coefficient")
-        omega = pybamm.Parameter(f"{Domain} electrode charge transfer ideality factor")
-
-        return MultiphaseButlerVolmer(alpha, omega)

@@ -2,6 +2,10 @@ import pybamm
 from pybamm import FunctionParameter, Parameter
 from pybamm import lithium_ion as pybamm_lithium_ion
 
+from pybop.models.lithium_ion.alternative_functions import (
+    AsymmetricButlerVolmer,
+    MultiphaseButlerVolmer,
+)
 from pybop.models.lithium_ion.utils import InverseOCV
 
 
@@ -121,3 +125,34 @@ class BaseGroupedModel(pybamm_lithium_ion.BaseModel):
         parameter_values["Initial SoC"] = soc
 
         return parameter_values
+
+    @staticmethod
+    def symmetric_butler_volmer(sto_surf, sto_e, eta_RT_F):
+        """
+        Dimensionless Butler-Volmer exchange rate.
+        """
+        j0 = (sto_surf * sto_e * (1 - sto_surf)) ** 0.5
+        return 2 * j0 * pybamm.sinh(0.5 * eta_RT_F)
+
+    @staticmethod
+    def get_asymmetric_butler_volmer(domain: str):
+        """
+        Get the asymmetric Butler-Volmer exchange rate function for the "positive" or
+        "negative" domain.
+        """
+        Domain = domain.capitalize()
+        alpha = pybamm.Parameter(f"{Domain} electrode charge transfer coefficient")
+
+        return AsymmetricButlerVolmer(alpha)
+
+    @staticmethod
+    def get_multiphase_butler_volmer(domain: str):
+        """
+        Get the multiphase Butler-Volmer exchange rate function for the "positive" or
+        "negative" domain.
+        """
+        Domain = domain.capitalize()
+        alpha = pybamm.Parameter(f"{Domain} electrode charge transfer coefficient")
+        omega = pybamm.Parameter(f"{Domain} electrode charge transfer ideality factor")
+
+        return MultiphaseButlerVolmer(alpha, omega)
