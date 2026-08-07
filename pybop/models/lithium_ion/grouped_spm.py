@@ -1,4 +1,3 @@
-import numpy as np
 import pybamm
 from pybamm import (
     Event,
@@ -504,17 +503,17 @@ class GroupedSPM(BaseGroupedModel):
         b_sep = param["Separator Bruggeman coefficient (electrolyte)"]
         kappa_e = param["Electrolyte conductivity [S.m-1]"]  # (ce0, T)
 
-        # Get reaction rates
-        m_p = param.evaluate(
+        # Get reference exchange current density [A.m-2]
+        j0_p = param.evaluate(
             param["Positive electrode exchange-current density [A.m-2]"](
                 ce0, c_max_p / 2, c_max_p, T
             )
-        ) * (2 / (c_max_p * np.sqrt(ce0)))  # (A/m2)(m3/mol)**1.5
-        m_n = param.evaluate(
+        )
+        j0_n = param.evaluate(
             param["Negative electrode exchange-current density [A.m-2]"](
                 ce0, c_max_n / 2, c_max_n, T
             )
-        ) * (2 / (c_max_n * np.sqrt(ce0)))  # (A/m2)(m3/mol)**1.5
+        )
 
         # Compute the cell area and thickness
         A = param["Electrode height [m]"] * param["Electrode width [m]"]
@@ -559,8 +558,8 @@ class GroupedSPM(BaseGroupedModel):
         except TypeError:
             tau_d_n = FunctionalDiffusionTime(R_n**2, D_n, c_max_n)
 
-        tau_ct_p = F * R_p / (m_p * np.sqrt(ce0))
-        tau_ct_n = F * R_n / (m_n * np.sqrt(ce0))
+        tau_ct_p = c_max_p * F * R_p / (2 * j0_p)
+        tau_ct_n = c_max_n * F * R_n / (2 * j0_n)
 
         C_p = 3 * alpha_p * Cdl_p * L_p * A / R_p
         C_n = 3 * alpha_n * Cdl_n * L_n * A / R_n
