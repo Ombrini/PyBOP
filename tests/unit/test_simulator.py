@@ -90,9 +90,7 @@ class TestCoupledEISSimulator:
 
     @pytest.fixture
     def model(self):
-        return pybamm.lithium_ion.SPM(
-            options={"surface form": "differential"}
-        )
+        return pybamm.lithium_ion.SPM(options={"surface form": "differential"})
 
     @pytest.fixture
     def parameter_values(self):
