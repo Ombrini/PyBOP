@@ -81,9 +81,9 @@ class TestPybammSimulator:
             simulator.set_output_variables(["Not a variable"])
 
 
-class TestOperandoEISSimulator:
+class TestCoupledEISSimulator:
     """
-    A class to test the operando mode of the pybamm.EISSimulator class.
+    A class to test the pybamm.EISSimulator class when coupled to a protocol.
     """
 
     pytestmark = pytest.mark.unit
@@ -157,7 +157,7 @@ class TestOperandoEISSimulator:
         self, model, parameter_values, dataset, frequencies, impedance_variables
     ):
         """The spectrum at t=0 must match a stationary simulation of the same state."""
-        operando = pybop.pybamm.EISSimulator(
+        coupled = pybop.pybamm.EISSimulator(
             model,
             parameter_values=parameter_values,
             protocol=dataset,
@@ -169,8 +169,8 @@ class TestOperandoEISSimulator:
 
         impedance = np.asarray(
             [
-                operando[impedance_variables[2 * j]].data[0]
-                + 1j * operando[impedance_variables[2 * j + 1]].data[0]
+                coupled[impedance_variables[2 * j]].data[0]
+                + 1j * coupled[impedance_variables[2 * j + 1]].data[0]
                 for j in range(len(frequencies))
             ]
         )

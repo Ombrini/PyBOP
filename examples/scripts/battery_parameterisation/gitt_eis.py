@@ -4,8 +4,8 @@ import pybamm
 import pybop
 
 """
-Example demonstrating parameter estimation from a GITT experiment in which an EIS
-spectrum is acquired at the end of each pulse ("operando" EIS).
+Example demonstrating coupled GITT-EIS parameterisation: a GITT experiment in which an
+EIS spectrum is also acquired at the end of each pulse.
 
 A synthetic dataset is built in two stages: a GITT experiment is simulated to give the
 time-domain voltage, then an impedance spectrum is computed about the state reached at
@@ -15,8 +15,8 @@ and imaginary components of each spectrum at the times of acquisition and zero
 everywhere else.
 
 Diffusivity and the exchange-current density are fitted together, which is the pairing
-operando EIS is meant to separate: the relaxation after each pulse constrains transport,
-while the charge-transfer semicircle of the spectrum constrains kinetics.
+the two measurements are meant to separate: the relaxation after each pulse constrains
+transport, while the charge-transfer semicircle of the spectrum constrains kinetics.
 """
 
 # Define the model

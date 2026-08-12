@@ -44,8 +44,8 @@ class EISSimulator(BaseSimulator):
         variable (e.g. "Current [A]") and the impedance variables given
         by `pybop.get_impedance_variables(f_eval)`. These are non-zero at the times at
         which a spectrum was measured, and zero elsewhere; the simulator computes a
-        spectrum at exactly those times ("operando" EIS). If None, a single spectrum is
-        computed about the initial state ("stationary" EIS).
+        spectrum at exactly those times, coupling the time-domain simulation to the
+        EIS. If None, a single spectrum is computed about the initial state.
     initial_state : dict, optional
         A valid initial state, e.g. `"Initial open-circuit voltage [V]"` or ``"Initial SoC"`.
         Defaults to None, indicating that the existing initial state of charge (for an ECM)
@@ -372,7 +372,7 @@ class EISSimulator(BaseSimulator):
         Run the EIS simulation to calculate impedance at all specified frequencies.
 
         For a stationary simulation, one spectrum is computed about the initial state.
-        For an operando simulation, the time-domain trajectory is solved once and each
+        When coupled to a protocol, the time-domain trajectory is solved once and each
         spectrum is computed by linearising about the state at the requested time.
 
         Parameters
@@ -384,7 +384,7 @@ class EISSimulator(BaseSimulator):
         -------
         Solution
             Complex impedance results, or the voltage and the real and imaginary
-            impedance components over the time domain for an operando simulation.
+            impedance components over the time domain when coupled to a protocol.
         """
         # Rebuild the model only if necessary, then set up the constant matrices
         self._model_rebuild(inputs)
@@ -400,9 +400,9 @@ class EISSimulator(BaseSimulator):
             )
             return solution
 
-        return self._solve_operando(inputs)
+        return self._solve_along_protocol(inputs)
 
-    def _solve_operando(self, inputs: "Inputs") -> Solution:
+    def _solve_along_protocol(self, inputs: "Inputs") -> Solution:
         """
         Solve the time-domain protocol once, then compute a spectrum about the state at
         each of the requested times.

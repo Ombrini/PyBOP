@@ -139,6 +139,9 @@ class TestGroupedModels:
         )
 
     def test_eis_fitting(self, eis_dataset, model_config, parameters):
+        if model_config["model"].options.get("surface form") != "differential":
+            pytest.skip("EIS simulation requires a differential surface form")
+
         parameter_values = model_config["parameter_values"]
         parameter_values.update(parameters)
         simulator = pybop.pybamm.EISSimulator(
