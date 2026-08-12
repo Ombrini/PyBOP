@@ -20,11 +20,11 @@ while the charge-transfer semicircle of the spectrum constrains kinetics.
 """
 
 # Define the model
-model = pybamm.lithium_ion.SPMe(
+model = pybamm.lithium_ion.SPM(
     options={"surface form": "differential", "contact resistance": "true"},
 )
 parameter_values = pybamm.ParameterValues("Chen2020")
-parameter_values["Contact resistance [Ohm]"] = 0.0
+parameter_values["Contact resistance [Ohm]"] = 0.01
 
 
 # The exchange-current density of Chen2020 hard-codes its prefactor, so redefine it with
@@ -73,7 +73,7 @@ voltage = gitt["Voltage [V]"](time)
 
 # Acquire a spectrum at the end of each pulse, meaning at the end of each rest where the
 # cell has relaxed and the current is zero
-f_eval = np.logspace(-2, 4, 50)
+f_eval = np.logspace(-3, 4, 30)
 impedance_variables = pybop.get_impedance_variables(f_eval)
 eis_times = [
     (i + 1) * (pulse_duration + rest_duration) - period for i in range(n_pulses)
@@ -126,7 +126,7 @@ parameter_values.update(
             pybop.Uniform(1e-16, 1e-13)
         ),
         "Positive electrode reference exchange-current density [A.m-2]": pybop.Parameter(
-            pybop.Uniform(1e-7, 1e-4)
+            pybop.Uniform(1e-6, 1e-5)
         ),
     }
 )
