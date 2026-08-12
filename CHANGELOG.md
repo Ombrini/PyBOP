@@ -2,7 +2,7 @@
 
 ## Features
 
-- [#975](https://github.com/pybop-team/PyBOP/pull/973) - Adds coupled GITT-EIS parameterisation: `pybop.pybamm.EISSimulator` accepts a `protocol` and computes an impedance spectrum about the state reached at each acquisition time, solving the time-domain trajectory once. Adds `pybop.get_impedance_variables` and `pybop.parse_impedance_variables` to name the impedance variables of a `Dataset`, plots the acquired spectra as Nyquist subplots in `pybop.plot.problem`, and adds an example script `gitt_eis.py`.
+- [#975](https://github.com/pybop-team/PyBOP/pull/975) - Adds coupled GITT-EIS parameterisation: `pybop.pybamm.EISSimulator` accepts a `protocol` and computes an impedance spectrum about the state reached at each acquisition time, solving the time-domain trajectory once. Adds `pybop.get_impedance_variables` and `pybop.parse_impedance_variables` to name the impedance variables of a `Dataset`, plots the acquired spectra as Nyquist subplots in `pybop.plot.problem`, and adds an example script `gitt_eis.py`.
 - [#969](https://github.com/pybop-team/PyBOP/pull/969) - Updates synthetic data and adds example script for thermal parameterisation.
 - [#965](https://github.com/pybop-team/PyBOP/pull/965) - Adds synthetic data and example scripts for OCV parameterisation.
 - [#963](https://github.com/pybop-team/PyBOP/pull/963) - Adds an example for generating synthetic data from a specification and exporting it to a PyProBE-compatible parquet file.
@@ -13,21 +13,21 @@
 
 ## Optimisations
 
-- [#973](https://github.com/pybop-team/PyBOP/pull/973) - Set up the EIS solver, mass matrix and forcing vector once rather than on every evaluation.
+- [#975](https://github.com/pybop-team/PyBOP/pull/975) - Set up the EIS solver, mass matrix and forcing vector once rather than on every evaluation.
 - [#967](https://github.com/pybop-team/PyBOP/pull/967) - Add `Dataset.get_discontinuities` and update the `pybop.pybamm.RecommendedSolver` options.
 - [#946](https://github.com/pybop-team/PyBOP/pull/946) - Use `vectorized` evaluation for SciPy differential evolution by default instead of multiprocessing `workers`.
 - [#925](https://github.com/pybop-team/PyBOP/pull/925) - Add `UnboundedDistribution` and the `get_transformed_distribution` functionality.
 
 ## Bug Fixes
 
-- [#973](https://github.com/pybop-team/PyBOP/pull/973) - Fixes the ordering of the input parameters when evaluating the EIS Jacobian, which swapped their values for two or more parameters, and ensures that each cost within a `WeightedCost` keeps its own target.
+- [#975](https://github.com/pybop-team/PyBOP/pull/975) - Fixes the ordering of the input parameters when evaluating the EIS Jacobian, which swapped their values for two or more parameters, and ensures that each cost within a `WeightedCost` keeps its own target.
 - [#915](https://github.com/pybop-team/PyBOP/pull/915) - Fixes axis labels for non-standard domain names, adds `Dataset` length property and adds `kind` property to `Interpolant`.
 - [#911](https://github.com/pybop-team/PyBOP/pull/911) - Fixes the passing of the cost log to the Voronoi surface plot.
 - [#905](https://github.com/pybop-team/PyBOP/pull/905) - Remove restriction on numpy.
 
 ## Breaking Changes
 
-- [#973](https://github.com/pybop-team/PyBOP/pull/973) - `pybop.pybamm.EISSimulator` now requires the `surface form` model option and no longer modifies the model passed to it. Adds `equal_aspect` to the plotting backends, removes the unused `Simulator.time_data` property and removes the superseded `operando_eis.py` example.
+- [#975](https://github.com/pybop-team/PyBOP/pull/975) - `pybop.pybamm.EISSimulator` now requires the `surface form` model option and no longer modifies the model passed to it. Adds `equal_aspect` to the plotting backends, removes the unused `Simulator.time_data` property and removes the superseded `operando_eis.py` example.
 - [#928](https://github.com/pybop-team/PyBOP/pull/928) - Deprecates `StandardPlot` and `StandardSubplot` in favour of new standardised backend functionality.
 - [#960](https://github.com/pybop-team/PyBOP/pull/960) - Remove `asv` benchmarking.
 - [#938](https://github.com/pybop-team/PyBOP/pull/938) - Make SALib an optional dependency and remove `sensitivity_analysis` in favour of using SALib directly.
