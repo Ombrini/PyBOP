@@ -373,6 +373,7 @@ class GroupedSPMe(BaseGroupedModel):
             "Discharge capacity [A.h]": Q,
             "Throughput capacity [A.h]": Qt,
             "Voltage [V]": V,
+            "Voltage expression [V]": V,  # for compatibility with "voltage as a state"
             "Battery voltage [V]": V,
             "Open-circuit voltage [V]": U_p - U_n,
         }
@@ -612,6 +613,7 @@ class GroupedSPMe(BaseGroupedModel):
         parameter_dictionary = {
             "Nominal cell capacity [A.h]": param["Nominal cell capacity [A.h]"],
             "Current function [A]": param["Current function [A]"],
+            "Ambient temperature [K]": param["Ambient temperature [K]"],
             "Initial temperature [K]": param["Ambient temperature [K]"],
             "Initial SoC": soc_init,
             "Minimum negative stoichiometry": x_0,

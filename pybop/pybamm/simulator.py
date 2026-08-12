@@ -53,6 +53,9 @@ class Simulator(BaseSimulator):
     discretisation_kwargs : dict, optional
         Any keyword arguments to pass to the Discretisation class.
         See :class:`pybamm.Discretisation` for details.
+    cache_esoh : bool, optional
+        If True, the electrode SOH computation is cached for repeated calls to `pybamm.Simulation.solve`
+        (default: True).
     build_every_time : bool, optional
         If True, the model will be rebuilt every evaluation. Otherwise, the need to rebuild will be
         determined automatically.
@@ -71,6 +74,7 @@ class Simulator(BaseSimulator):
         var_pts: dict | None = None,
         spatial_methods: dict | None = None,
         discretisation_kwargs: dict | None = None,
+        cache_esoh: bool = True,
         build_every_time: bool = False,
     ):
         # Core
@@ -114,6 +118,7 @@ class Simulator(BaseSimulator):
         self._var_pts = var_pts or model.default_var_pts
         self._spatial_methods = spatial_methods or model.default_spatial_methods
         self._discretisation_kwargs = discretisation_kwargs or {"check_model": True}
+        self._cache_esoh = cache_esoh
 
         # State
         self._simulation = None
@@ -178,16 +183,15 @@ class Simulator(BaseSimulator):
             self._t_interp = None
         elif isinstance(protocol, Dataset):
             self._experiment = None
-            time_data = protocol[protocol.domain]
-            self._t_eval = [time_data[0], time_data[-1]]
-            self._t_interp = time_data
+            self._t_eval = protocol.get_discontinuities()
+            self._t_interp = protocol[protocol.domain]
             for key in protocol.control_functions:
                 control = key.replace(" function", "")
                 self._parameter_values[key] = protocol.get_interpolant(control)
         else:
             self._experiment = None
             time_data = protocol
-            self._t_eval = [time_data[0], time_data[-1]]
+            self._t_eval = [time_data[0], time_data[-1]]  # ignores discontinuities
             self._t_interp = time_data
         # else:
         #     raise ValueError(f"Expected an experiment or a dataset. Received {type(protocol)}")
@@ -369,7 +373,9 @@ class Simulator(BaseSimulator):
                             print(f"Ignoring this sample due to: {e}")
                         solutions.append(
                             FailedSolution(
-                                self.output_variables, self._input_parameter_names
+                                self.output_variables
+                                or self._model.default_quick_plot_variables,
+                                self._input_parameter_names,
                             )
                         )
                 return solutions
@@ -388,6 +394,7 @@ class Simulator(BaseSimulator):
             var_pts=self._var_pts,
             spatial_methods=self._spatial_methods,
             discretisation_kwargs=self._discretisation_kwargs,
+            cache_esoh=self._cache_esoh,
         )
 
     def _simulate_without_rebuild(
@@ -424,7 +431,8 @@ class Simulator(BaseSimulator):
         for solution in solutions:
             if hasattr(solution, "termination") and solution.termination == "failure":
                 failed_solution = FailedSolution(
-                    self.output_variables, self._input_parameter_names
+                    self.output_variables or self._model.default_quick_plot_variables,
+                    self._input_parameter_names,
                 )
                 processed_solutions.append(failed_solution)
             else:

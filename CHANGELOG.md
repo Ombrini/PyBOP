@@ -2,6 +2,38 @@
 
 ## Features
 
+- [#969](https://github.com/pybop-team/PyBOP/pull/969) - Updates synthetic data and adds example script for thermal parameterisation.
+- [#965](https://github.com/pybop-team/PyBOP/pull/965) - Adds synthetic data and example scripts for OCV parameterisation.
+- [#963](https://github.com/pybop-team/PyBOP/pull/963) - Adds an example for generating synthetic data from a specification and exporting it to a PyProBE-compatible parquet file.
+- [#928](https://github.com/pybop-team/PyBOP/pull/928) - Adds the option to choose `matplotlib` as the plotting library for plotting functions. Additionally, figures and axes can be created manually and passed as keyword arguments to plotting functions. An example notebook `plotting.ipynb` was added to the `getting_started` directory to demonstrate usage of the new features.
+- [#962](https://github.com/pybop-team/PyBOP/pull/962) - Separate the surface from the bulk temperature in the `CellTemperature` model.
+- [#918](https://github.com/pybop-team/PyBOP/pull/918) - Adds a plot for predictions sampled from a posterior distribution (`pybop.plot.predictive`).
+- [#940](https://github.com/pybop-team/PyBOP/pull/940) - Adds support for Python 3.14 (EP-BOLFI optimiser and PyProBE still restricted to Python 3.12 or below).
+
+## Optimisations
+
+- [#967](https://github.com/pybop-team/PyBOP/pull/967) - Add `Dataset.get_discontinuities` and update the `pybop.pybamm.RecommendedSolver` options.
+- [#946](https://github.com/pybop-team/PyBOP/pull/946) - Use `vectorized` evaluation for SciPy differential evolution by default instead of multiprocessing `workers`.
+- [#925](https://github.com/pybop-team/PyBOP/pull/925) - Add `UnboundedDistribution` and the `get_transformed_distribution` functionality.
+
+## Bug Fixes
+
+- [#915](https://github.com/pybop-team/PyBOP/pull/915) - Fixes axis labels for non-standard domain names, adds `Dataset` length property and adds `kind` property to `Interpolant`.
+- [#911](https://github.com/pybop-team/PyBOP/pull/911) - Fixes the passing of the cost log to the Voronoi surface plot.
+- [#905](https://github.com/pybop-team/PyBOP/pull/905) - Remove restriction on numpy.
+
+## Breaking Changes
+
+- [#928](https://github.com/pybop-team/PyBOP/pull/928) - Deprecates `StandardPlot` and `StandardSubplot` in favour of new standardised backend functionality.
+- [#960](https://github.com/pybop-team/PyBOP/pull/960) - Remove `asv` benchmarking.
+- [#938](https://github.com/pybop-team/PyBOP/pull/938) - Make SALib an optional dependency and remove `sensitivity_analysis` in favour of using SALib directly.
+- [#942](https://github.com/pybop-team/PyBOP/pull/942) - Adds `evaluate_batch` to the costs and ensures that an `Evaluation` is returned.
+
+# [v26.3](https://github.com/pybop-team/PyBOP/tree/v26.3) - 2026-03-05
+
+## Features
+
+- [#897](https://github.com/pybop-team/PyBOP/pull/897) - Adds separate `LogPrior`, `LogPDF` and `LogPosterior` classes and updates `set_target`.
 - [#873](https://github.com/pybop-team/PyBOP/pull/873) - Adds methods for saving result and reconstructing result from saved data. `result.save`: saves entire python object using pickle. `result.save_data`: saves primarily the logger data and any other data required to reconstruct the result from the problem or the sampler (for `SamplingResult`). `Result.load_result`: reconstructs the `Result` object based on the underlying problem (or sampler for `SamplingResult`) and the data saved to file.
 - [#862](https://github.com/pybop-team/PyBOP/pull/862) - Adds pybop.MarginalDistribution, pybop.MultivariateLogNormal.
 - [#889](https://github.com/pybop-team/PyBOP/pull/889) - Adds methods for setting the initial state from a voltage to the grouped models.

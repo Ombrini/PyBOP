@@ -1,9 +1,7 @@
 import numpy as np
 
-from pybop.analysis.sensitivity_analysis import sensitivity_analysis
 from pybop.costs.base_cost import BaseCost
 from pybop.costs.evaluation import Evaluation
-from pybop.costs.likelihoods import LogPosterior
 from pybop.parameters.parameter import Inputs, Parameters
 from pybop.simulators.base_simulator import BaseSimulator, Solution
 from pybop.simulators.failed_solution import FailedSolution
@@ -34,7 +32,7 @@ class Problem:
     """
 
     def __init__(self, simulator: BaseSimulator = None, cost: BaseCost = None):
-        self.parameters = Parameters()
+        self._parameters = Parameters()
 
         # Gather information from the simulator
         self._simulator = simulator.copy() if simulator is not None else BaseSimulator()
@@ -44,34 +42,13 @@ class Problem:
         # Gather information from the cost function
         self._cost = cost or BaseCost()
         self._minimising = self._cost.minimising
-        self.domain = self._cost.domain
-        self.target = self._cost.target
-
-        # Share parameters from model with cost
         self.parameters.join(self._cost.parameters)
-        self._cost.parameters = self.parameters
-        self._cost.set_fail_gradient()
 
-        # Objective-specific configuration
-        if isinstance(self._cost, LogPosterior):
-            self._cost.log_likelihood.parameters = self.parameters
-            self._cost.set_joint_prior()
+        # Update the simulator output variables to match the target
+        self.set_target()
 
     def get_model_inputs(self, inputs: Inputs):
         return {key: inputs[key] for key in self._simulator.parameters.keys()}
-
-    @property
-    def target(self):
-        return self._target
-
-    @target.setter
-    def target(self, value: list[str] | None):
-        self._target = [value] if isinstance(value, str) else value or []
-        self._simulator.set_output_variables(self._target)
-
-    @property
-    def n_outputs(self):
-        return len(self._target)
 
     def __call__(self, inputs: Inputs | list[Inputs]) -> float | list[float]:
         """
@@ -90,7 +67,7 @@ class Problem:
         evaluation = self.evaluate(inputs=inputs, calculate_sensitivities=False)
 
         return (
-            evaluation.values[0]
+            evaluation.values.item()
             if len(evaluation.values) == 1
             else evaluation.values.tolist()
         )
@@ -150,64 +127,13 @@ class Problem:
         if calculate_sensitivities:
             calculate_sensitivities = self._has_sensitivities
 
-        validity = []
-        valid_inputs = []
-        for x in inputs:
-            # Check the validity of the inputs so we only evaluate valid parameters
-            if self.parameters.verify_inputs(x):
-                validity.append(True)
-                valid_inputs.append(x)
-            else:
-                validity.append(False)
-
-        # Run simulations for the valid parameters
         solutions = self.simulate_batch(
-            valid_inputs, calculate_sensitivities=calculate_sensitivities
-        )
-
-        # Preallocate the evaluation results
-        evaluation = Evaluation()
-        evaluation.preallocate(
             inputs=inputs, calculate_sensitivities=calculate_sensitivities
         )
 
-        # Evaluate the cost for the valid parameters
-        valid_indices = [i for i, valid in enumerate(validity) if valid]
-        # TODO: Parallelise the cost computations
-        if calculate_sensitivities:
-            for i, solution in enumerate(solutions):
-                e, de = self._cost.evaluate(
-                    solution,
-                    inputs=valid_inputs[i],
-                    calculate_sensitivities=calculate_sensitivities,
-                )
-                evaluation.insert_result(
-                    i=valid_indices[i], value=np.asarray(e).item(), sensitivities=de
-                )
-        else:
-            for i, solution in enumerate(solutions):
-                e = self._cost.evaluate(
-                    solution,
-                    inputs=valid_inputs[i],
-                    calculate_sensitivities=calculate_sensitivities,
-                )
-                evaluation.insert_result(i=valid_indices[i], value=np.asarray(e).item())
-
-        if False in validity:
-            # Insert failure outputs for the invalid parameters into the lists of results
-            invalid_indices = [i for i, valid in enumerate(validity) if not valid]
-            if calculate_sensitivities:
-                y, dy = self._cost.failure(
-                    self.parameters.names, calculate_sensitivities
-                )
-                for i in invalid_indices:
-                    evaluation.insert_result(i=i, value=y, sensitivities=dy)
-            else:
-                y = self._cost.failure(self.parameters.names, calculate_sensitivities)
-                for i in invalid_indices:
-                    evaluation.insert_result(i=i, value=y)
-
-        return evaluation
+        return self._cost.evaluate_batch(
+            solutions, inputs=inputs, calculate_sensitivities=calculate_sensitivities
+        )
 
     def simulate(
         self, inputs: Inputs | list[Inputs], calculate_sensitivities: bool = False
@@ -256,24 +182,42 @@ class Problem:
             A list of length(inputs) containing the simulated model output y(t) and (optionally)
             the sensitivities dy/dx(t) for output variable(s) y, domain t and parameter(s) x.
         """
-        model_inputs = [self.get_model_inputs(x) for x in inputs]
-        return self._simulator.solve_batch(
+        # Check the validity of the inputs so we only evaluate valid parameters
+        validity = []
+        valid_inputs = []
+        for x in inputs:
+            if self.parameters.verify_inputs(x):
+                validity.append(True)
+                valid_inputs.append(x)
+            else:
+                validity.append(False)
+
+        # Run simulations for the valid parameters
+        model_inputs = [self.get_model_inputs(x) for x in valid_inputs]
+        solutions = self._simulator.solve_batch(
             inputs=model_inputs, calculate_sensitivities=calculate_sensitivities
         )
+
+        # Insert failed solutions for any invalid inputs
+        invalid_indices = [i for i, valid in enumerate(validity) if not valid]
+        for i in invalid_indices:
+            solutions.insert(i, FailedSolution(self.target, inputs[i].keys()))
+
+        return solutions
 
     def get_finite_initial_cost(self):
         """
         Compute the absolute initial cost, resampling the initial parameters if needed.
         """
         x0 = self.parameters.get_initial_values()
-        cost0 = np.abs(self.evaluate(x0).values[0])
+        cost0 = np.abs(self.evaluate(x0).values.item())
         nsamples = 0
         while np.isinf(cost0) and nsamples < 10:
             x0 = self.parameters.sample_from_distribution()[0]
             if x0 is None:
                 break
 
-            cost0 = np.abs(self.evaluate(x0).values[0])
+            cost0 = np.abs(self.evaluate(x0).values.item())
             nsamples += 1
         if nsamples > 0:
             self.parameters.update(initial_values=x0)
@@ -281,34 +225,6 @@ class Problem:
         if np.isinf(cost0):
             raise ValueError("The initial parameter values return an infinite cost.")
         return cost0
-
-    def sensitivity_analysis(
-        self, n_samples: int = 256, calc_second_order: bool = False
-    ) -> dict:
-        """
-        Computes the parameter sensitivities on the combined cost function using
-        SOBOL analysis. See pybop.analysis.sensitivity_analysis for more details.
-
-        Parameters
-        ----------
-        n_samples : int, optional
-            Number of samples for SOBOL sensitivity analysis, performs best as a
-            power of 2, i.e. 128, 256, etc.
-        calc_second_order : bool, optional
-            Whether to calculate second-order sensitivities.
-        """
-        return sensitivity_analysis(
-            problem=self, n_samples=n_samples, calc_second_order=calc_second_order
-        )
-
-    def join_parameters(self, parameters):
-        """
-        Setter for joining parameters. This method sets the fail gradient if the join adds parameters.
-        """
-        original_n_params = self.n_parameters
-        self._parameters.join(parameters)
-        if original_n_params != self.n_parameters:
-            self.set_fail_gradient()
 
     @property
     def cost(self):
@@ -319,20 +235,28 @@ class Problem:
         return self._minimising
 
     @property
-    def target_data(self):
-        return self._cost.target_data
+    def domain(self):
+        return self._cost.domain
 
     @property
     def domain_data(self):
         return self._cost.domain_data
 
     @property
+    def target(self):
+        return self._cost.target
+
+    @property
+    def target_data(self):
+        return self._cost.target_data
+
+    def set_target(self, value: list[str] | str | None = None):
+        self._cost.set_target(value)
+        self._simulator.set_output_variables(self._cost.target)
+
+    @property
     def parameters(self):
         return self._parameters
-
-    @parameters.setter
-    def parameters(self, parameters):
-        self._parameters = parameters
 
     @property
     def n_parameters(self):
@@ -345,7 +269,3 @@ class Problem:
     @property
     def has_sensitivities(self):
         return self._has_sensitivities
-
-    @property
-    def eis(self):
-        return self._eis

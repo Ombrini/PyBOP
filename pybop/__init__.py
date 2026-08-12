@@ -6,7 +6,7 @@
 # (see https://github.com/pints-team/pints)
 #
 import sys
-from os import path
+from pathlib import Path
 
 #
 # Version info
@@ -20,12 +20,12 @@ from pybop._version import __version__
 # loss of information
 FLOAT_FORMAT = "{: .17e}"
 # Absolute path to the pybop repo
-script_path = path.dirname(__file__)
+script_path = Path(__file__).parent
 
 #
 # Utilities
 #
-from ._utils import add_spaces, is_numeric, load_data_dict, save_data_dict
+from ._utils import add_spaces, add_noise, is_numeric, load_data_dict, save_data_dict
 
 #
 # Dataset class
@@ -49,7 +49,7 @@ from .transformation.transformations import (
 # Parameter classes
 #
 from .parameters.parameter import Parameter, Parameters
-from .parameters.distributions import Distribution, Gaussian, Uniform, Exponential, JointDistribution
+from .parameters.distributions import Distribution, Exponential, Gaussian, JointDistribution, LogNormal, LogUniform, Unbounded, Uniform
 from .parameters.multivariate_distributions import MultivariateNonparametric, MultivariateUniform, MultivariateGaussian, MultivariateLogNormal, MarginalDistribution
 
 #
@@ -69,6 +69,7 @@ from . import pybamm
 #
 from .problems.problem import Problem
 from .problems.meta_problem import MetaProblem
+from .problems.log_pdf import LogPDF, LogPosterior
 
 #
 # Simulator classes
@@ -89,12 +90,12 @@ from .costs.error_measures import (
     Minkowski,
     SumOfPower,
 )
-from .costs.likelihoods import (
+from .costs.log_likelihoods import (
     LogLikelihood,
     GaussianLogLikelihood,
     GaussianLogLikelihoodKnownSigma,
-    LogPosterior,
 )
+from .costs.base_cost import LogPrior
 from .costs.weighted_cost import WeightedCost
 from .costs.design_cost import DesignCost
 from .costs.feature_distances import SquareRootFeatureDistance, ExponentialFeatureDistance
