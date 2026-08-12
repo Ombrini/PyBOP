@@ -6,6 +6,7 @@ from pybop.parameters.parameter import Inputs
 from pybop.plot.util import get_backend_from_figure, remove_brackets
 from pybop.problems.meta_problem import MetaProblem
 from pybop.problems.problem import Problem
+from pybop.pybamm.eis_simulator import parse_eis_column_names
 from pybop.simulators.solution import Solution
 
 
@@ -77,15 +78,33 @@ def problem(
         model_output = problem.simulate(inputs)
         model_domain = target_domain[: len(model_output[target].data)]
 
-    # Create a plot for each output
     # Import plotting backend
     backend = get_backend_from_figure(backend, figures)
 
+    # Impedance columns are plotted as a Nyquist plot per acquisition, not as a series
+    # over the domain, so separate them from the remaining targets
+    frequencies, real_names, imaginary_names = parse_eis_column_names(problem.target)
+    variables = [
+        var
+        for var in problem.target
+        if var not in set(real_names) | set(imaginary_names)
+    ]
+    acquisitions = (
+        _eis_acquisitions(target_output, real_names, imaginary_names)
+        if len(frequencies) > 0
+        else []
+    )
+
     # Process input
     figures, axes, create_figure, _ = backend.parse_input_axes(
-        figures, axes, num_plots=len(problem.target), allow_single_axis=False
+        figures,
+        axes,
+        num_plots=len(variables) + len(acquisitions),
+        allow_single_axis=False,
     )
-    for i, var in enumerate(problem.target):
+
+    # Create a plot for each output
+    for i, var in enumerate(variables):
         ax = axes[i % len(axes)]
         if create_figure:
             fig = backend.create_figure(
@@ -146,5 +165,51 @@ def problem(
         if show:
             backend.show_figure(fig)
 
+    # Add a Nyquist plot for each acquired spectrum
+    for j, row in enumerate(acquisitions):
+        i = len(variables) + j
+        ax = axes[i % len(axes)]
+        if create_figure:
+            fig = backend.create_figure(
+                style={"bg_color": "white", "width": 600, "height": 600},
+            )
+            figures = np.append(figures, fig)
+        else:
+            fig = figures[i % len(figures)]
+
+        backend.update_axes_titles(fig, ax, r"$Z_{re} / \Omega$", r"$-Z_{im} / \Omega$")
+        backend.update_plot_titles(
+            fig, ax, f"{title}: {remove_brackets(domain)} = {target_domain[row]:g}"
+        )
+
+        for output, label, style in (
+            (target_output, "Reference", {"linestyle": "none", "marker": "."}),
+            (model_output, "Model", {"linestyle": "solid", "marker": "none"}),
+        ):
+            backend.plot_trace(
+                backend.line(
+                    x=[output[name].data[row] for name in real_names],
+                    y=[-output[name].data[row] for name in imaginary_names],
+                    label=label,
+                    style=style,
+                ),
+                fig,
+                ax=ax,
+            )
+
+        backend.legend(fig, axes=ax)
+        if show:
+            backend.show_figure(fig)
+
     if not show:
         return figures[0] if len(figures) == 1 else figures
+
+
+def _eis_acquisitions(
+    target_output, real_names: list[str], imaginary_names: list[str]
+) -> np.ndarray:
+    """Return the indices of the domain points at which a spectrum was acquired."""
+    measured = np.asarray(
+        [target_output[name].data for name in (*real_names, *imaginary_names)]
+    )
+    return np.flatnonzero(np.any(measured != 0.0, axis=0))
