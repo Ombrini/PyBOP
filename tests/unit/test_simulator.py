@@ -89,75 +89,103 @@ class TestOperandoEISSimulator:
     pytestmark = pytest.mark.unit
 
     @pytest.fixture
-    def setup(self):
-        model = pybamm.lithium_ion.SPM(
-            options={"surface form": "differential", "contact resistance": "true"}
+    def model(self):
+        return pybamm.lithium_ion.SPM(
+            options={"surface form": "differential"}
         )
+
+    @pytest.fixture
+    def parameter_values(self):
         parameter_values = pybamm.ParameterValues("Chen2020")
-        parameter_values["Contact resistance [Ohm]"] = 0.0
         parameter_values.set_initial_state(0.9)
+        return parameter_values
 
+    @pytest.fixture
+    def frequencies(self):
+        return np.logspace(-1, 3, 4)
+
+    @pytest.fixture
+    def impedance_variables(self, frequencies):
+        return pybop.get_impedance_variables(frequencies)
+
+    @pytest.fixture
+    def acquisitions(self):
+        """The rows at which a spectrum is acquired: one at the start, one at rest."""
+        return [0, 40]
+
+    @pytest.fixture
+    def dataset(self, impedance_variables, acquisitions):
         time = np.arange(0, 601, 10.0)
-        f_eval = np.logspace(-1, 3, 4)
-        columns = pybop.pybamm.eis_column_names(f_eval)
-
-        # Two spectra: one at the start, one part-way through the rest
-        eis_rows = [0, 40]
         data = {
             "Time [s]": time,
             "Current [A]": np.zeros_like(time),
             "Voltage [V]": np.zeros_like(time),
         }
-        for name in columns:
-            column = np.zeros(len(time))
-            column[eis_rows] = 1.0
-            data[name] = column
+        for name in impedance_variables:
+            variable = np.zeros(len(time))
+            variable[acquisitions] = 1.0
+            data[name] = variable
 
-        dataset = pybop.Dataset(data, domain="Time [s]")
-        return model, parameter_values, dataset, f_eval, columns, eis_rows
+        return pybop.Dataset(data, domain="Time [s]")
 
-    def test_output_shape_and_zero_padding(self, setup):
-        model, parameter_values, dataset, f_eval, columns, eis_rows = setup
+    def test_output_shape_and_zero_padding(
+        self,
+        model,
+        parameter_values,
+        dataset,
+        frequencies,
+        impedance_variables,
+        acquisitions,
+    ):
         simulator = pybop.pybamm.EISSimulator(
-            model, parameter_values=parameter_values, protocol=dataset, f_eval=f_eval
+            model,
+            parameter_values=parameter_values,
+            protocol=dataset,
+            f_eval=frequencies,
         )
         solution = simulator.solve()
 
         n_time = len(dataset["Time [s]"])
         assert len(solution["Voltage [V]"].data) == n_time
-        for name in columns:
+        for name in impedance_variables:
             data = solution[name].data
             assert len(data) == n_time
             # Non-zero only at the times of acquisition
-            np.testing.assert_array_equal(np.flatnonzero(data), eis_rows)
+            np.testing.assert_array_equal(np.flatnonzero(data), acquisitions)
 
-    def test_matches_stationary_at_initial_state(self, setup):
+    def test_matches_stationary_at_initial_state(
+        self, model, parameter_values, dataset, frequencies, impedance_variables
+    ):
         """The spectrum at t=0 must match a stationary simulation of the same state."""
-        model, parameter_values, dataset, f_eval, columns, _ = setup
         operando = pybop.pybamm.EISSimulator(
-            model, parameter_values=parameter_values, protocol=dataset, f_eval=f_eval
+            model,
+            parameter_values=parameter_values,
+            protocol=dataset,
+            f_eval=frequencies,
         ).solve()
         stationary = pybop.pybamm.EISSimulator(
-            model, parameter_values=parameter_values, f_eval=f_eval
+            model, parameter_values=parameter_values, f_eval=frequencies
         ).solve()
 
         impedance = np.asarray(
             [
-                operando[columns[2 * j]].data[0]
-                + 1j * operando[columns[2 * j + 1]].data[0]
-                for j in range(len(f_eval))
+                operando[impedance_variables[2 * j]].data[0]
+                + 1j * operando[impedance_variables[2 * j + 1]].data[0]
+                for j in range(len(frequencies))
             ]
         )
         np.testing.assert_allclose(impedance, stationary["Impedance"].data, rtol=1e-10)
 
-    def test_builds_once(self, setup):
+    def test_builds_once(self, model, parameter_values, dataset, frequencies):
         """The model and the constant matrices are set up once, not per evaluation."""
-        model, parameter_values, dataset, f_eval, _, _ = setup
         parameter_values["Negative electrode active material volume fraction"] = (
             pybop.Parameter(pybop.Uniform(0.4, 0.75))
         )
         simulator = pybop.pybamm.EISSimulator(
-            model, parameter_values=parameter_values, protocol=dataset, f_eval=f_eval
+            model,
+            parameter_values=parameter_values,
+            protocol=dataset,
+            f_eval=frequencies,
         )
 
         calls = {"create": 0, "set_up": 0}
@@ -182,40 +210,59 @@ class TestOperandoEISSimulator:
         assert calls["create"] == 0  # built during construction
         assert calls["set_up"] == 1
 
-    def test_column_names_round_trip(self):
-        f_eval = np.logspace(-2, 4, 5)
-        columns = pybop.pybamm.eis_column_names(f_eval)
-        # Names may reach the parser in any order, e.g. via a set
-        frequencies, real, imaginary = pybop.pybamm.parse_eis_column_names(
-            ["Voltage [V]", *reversed(columns)]
+    def test_model_is_not_modified(self, model, parameter_values, dataset, frequencies):
+        """Setting up for EIS must copy the model, not modify the caller's."""
+        n_algebraic = len(model.algebraic)
+        pybop.pybamm.EISSimulator(
+            model,
+            parameter_values=parameter_values,
+            protocol=dataset,
+            f_eval=frequencies,
         )
-        np.testing.assert_allclose(frequencies, f_eval, rtol=1e-6)
-        assert real == columns[::2]
-        assert imaginary == columns[1::2]
+        assert len(model.algebraic) == n_algebraic
 
-        # No impedance columns present
-        frequencies, real, imaginary = pybop.pybamm.parse_eis_column_names(
+    def test_surface_form_required(self, parameter_values, dataset, frequencies):
+        with pytest.raises(ValueError, match="surface form"):
+            pybop.pybamm.EISSimulator(
+                pybamm.lithium_ion.SPM(),
+                parameter_values=parameter_values,
+                protocol=dataset,
+                f_eval=frequencies,
+            )
+
+    def test_impedance_variables_round_trip(self, frequencies, impedance_variables):
+        # Variables may reach the parser in any order, e.g. via a set
+        parsed, real, imaginary = pybop.parse_impedance_variables(
+            ["Voltage [V]", *reversed(impedance_variables)]
+        )
+        # The names carry six significant figures, which bounds the round trip
+        np.testing.assert_allclose(parsed, frequencies, rtol=1e-5)
+        assert real == impedance_variables[::2]
+        assert imaginary == impedance_variables[1::2]
+
+        # No impedance variables present
+        parsed, real, imaginary = pybop.parse_impedance_variables(
             ["Voltage [V]", "Current [A]"]
         )
-        assert len(frequencies) == 0 and real == [] and imaginary == []
+        assert len(parsed) == 0 and real == [] and imaginary == []
 
-    def test_dataset_errors(self, setup):
-        model, parameter_values, dataset, f_eval, columns, _ = setup
-
-        with pytest.raises(ValueError, match="missing impedance columns"):
+    def test_dataset_errors(
+        self, model, parameter_values, dataset, frequencies, impedance_variables
+    ):
+        with pytest.raises(ValueError, match="missing impedance variables"):
             pybop.pybamm.EISSimulator(
                 model,
                 parameter_values=parameter_values,
                 protocol=dataset,
-                f_eval=np.append(f_eval, 1e4),
+                f_eval=np.append(frequencies, 1e4),
             )
 
-        for name in columns:
+        for name in impedance_variables:
             dataset[name] = np.zeros(len(dataset["Time [s]"]))
         with pytest.raises(ValueError, match="zero everywhere"):
             pybop.pybamm.EISSimulator(
                 model,
                 parameter_values=parameter_values,
                 protocol=dataset,
-                f_eval=f_eval,
+                f_eval=frequencies,
             )

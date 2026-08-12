@@ -10,7 +10,7 @@ spectrum is acquired at the end of each pulse ("operando" EIS).
 A synthetic dataset is built in two stages: a GITT experiment is simulated to give the
 time-domain voltage, then an impedance spectrum is computed about the state reached at
 the end of each pulse. Both data types are stored in a single dataset on the time
-domain: the voltage is recorded at every time, and the impedance columns hold the real
+domain: the voltage is recorded at every time, and the impedance variables hold the real
 and imaginary components of each spectrum at the times of acquisition and zero
 everywhere else.
 
@@ -20,7 +20,7 @@ while the charge-transfer semicircle of the spectrum constrains kinetics.
 """
 
 # Define the model
-model = pybamm.lithium_ion.SPM(
+model = pybamm.lithium_ion.SPMe(
     options={"surface form": "differential", "contact resistance": "true"},
 )
 parameter_values = pybamm.ParameterValues("Chen2020")
@@ -74,13 +74,13 @@ voltage = gitt["Voltage [V]"](time)
 # Acquire a spectrum at the end of each pulse, meaning at the end of each rest where the
 # cell has relaxed and the current is zero
 f_eval = np.logspace(-2, 4, 50)
-columns = pybop.pybamm.eis_column_names(f_eval)
+impedance_variables = pybop.get_impedance_variables(f_eval)
 eis_times = [
     (i + 1) * (pulse_duration + rest_duration) - period for i in range(n_pulses)
 ]
 eis_rows = [int(np.argmin(np.abs(time - t))) for t in eis_times]
 
-# Assemble the dataset. The impedance columns start as a marker of which times were
+# Assemble the dataset. The impedance variables start as a marker of which times were
 # acquired, which is how the simulator learns where to compute a spectrum; the measured
 # values replace the markers once they have been simulated below.
 acquired = np.isin(np.arange(len(time)), eis_rows)
@@ -89,7 +89,7 @@ dataset = pybop.Dataset(
         "Time [s]": time,
         "Current [A]": current,
         "Voltage [V]": voltage,
-        **{name: acquired.astype(float) for name in columns},
+        **{name: acquired.astype(float) for name in impedance_variables},
     },
     domain="Time [s]",
 )
@@ -105,7 +105,7 @@ solution = pybop.pybamm.EISSimulator(
 # Complete the synthetic dataset with the simulated spectra, adding noise to both data
 # types. Only the acquired spectra carry noise; the remaining entries stay at zero
 dataset["Voltage [V]"] = pybop.add_noise(voltage, sigma_v)
-for name in columns:
+for name in impedance_variables:
     dataset[name] = np.where(
         acquired, pybop.add_noise(solution[name].data, sigma_z), 0.0
     )
@@ -133,13 +133,13 @@ parameter_values.update(
 
 # Build the problem. The two error measures share the dataset and the time domain, so
 # they can be combined with a weight setting their relative importance. Sum-based
-# measures are used because the impedance columns are zero at most times, which would
+# measures are used because the impedance variables are zero at most times, which would
 # otherwise dilute the impedance term.
 simulator = pybop.pybamm.EISSimulator(
     model, parameter_values=parameter_values, protocol=dataset, f_eval=f_eval
 )
 voltage_cost = pybop.SumSquaredError(dataset, target=["Voltage [V]"])
-impedance_cost = pybop.SumSquaredError(dataset, target=columns)
+impedance_cost = pybop.SumSquaredError(dataset, target=impedance_variables)
 cost = pybop.WeightedCost(voltage_cost, impedance_cost, weights=[1.0, 1e3])
 problem = pybop.Problem(simulator, cost)
 

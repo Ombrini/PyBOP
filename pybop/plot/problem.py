@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 
 from pybop.costs.design_cost import DesignCost
@@ -6,7 +8,7 @@ from pybop.parameters.parameter import Inputs
 from pybop.plot.util import get_backend_from_figure, remove_brackets
 from pybop.problems.meta_problem import MetaProblem
 from pybop.problems.problem import Problem
-from pybop.pybamm.eis_simulator import parse_eis_column_names
+from pybop.processing.dataset import parse_impedance_variables
 from pybop.simulators.solution import Solution
 
 
@@ -81,16 +83,18 @@ def problem(
     # Import plotting backend
     backend = get_backend_from_figure(backend, figures)
 
-    # Impedance columns are plotted as a Nyquist plot per acquisition, not as a series
+    # Impedance variables are plotted as a Nyquist plot per acquisition, not as a series
     # over the domain, so separate them from the remaining targets
-    frequencies, real_names, imaginary_names = parse_eis_column_names(problem.target)
-    variables = [
+    frequencies, real_variables, imaginary_variables = parse_impedance_variables(
+        problem.target
+    )
+    targets = [
         var
         for var in problem.target
-        if var not in set(real_names) | set(imaginary_names)
+        if var not in set(real_variables) | set(imaginary_variables)
     ]
     acquisitions = (
-        _eis_acquisitions(target_output, real_names, imaginary_names)
+        _acquisition_indices(target_output, real_variables, imaginary_variables)
         if len(frequencies) > 0
         else []
     )
@@ -99,12 +103,12 @@ def problem(
     figures, axes, create_figure, _ = backend.parse_input_axes(
         figures,
         axes,
-        num_plots=len(variables) + len(acquisitions),
+        num_plots=len(targets),
         allow_single_axis=False,
     )
 
     # Create a plot for each output
-    for i, var in enumerate(variables):
+    for i, var in enumerate(targets):
         ax = axes[i % len(axes)]
         if create_figure:
             fig = backend.create_figure(
@@ -165,51 +169,83 @@ def problem(
         if show:
             backend.show_figure(fig)
 
-    # Add a Nyquist plot for each acquired spectrum
-    for j, row in enumerate(acquisitions):
-        i = len(variables) + j
-        ax = axes[i % len(axes)]
-        if create_figure:
-            fig = backend.create_figure(
-                style={"bg_color": "white", "width": 600, "height": 600},
-            )
-            figures = np.append(figures, fig)
-        else:
-            fig = figures[i % len(figures)]
-
-        backend.update_axes_titles(fig, ax, r"$Z_{re} / \Omega$", r"$-Z_{im} / \Omega$")
+    # Collect the acquired spectra into a single figure of Nyquist subplots
+    if len(acquisitions) > 0:
+        num_cols = int(math.ceil(math.sqrt(len(acquisitions))))
+        num_rows = int(math.ceil(len(acquisitions) / num_cols))
+        impedance_figure, impedance_axes = backend.make_subplots(
+            num_rows=num_rows,
+            num_cols=num_cols,
+            num_plots=len(acquisitions),
+            title=title,
+            style={
+                "bg_color": "white",
+                "width": 400 * num_cols,
+                "height": 400 * num_rows,
+            },
+        )
+        backend.update_axes_titles(
+            impedance_figure,
+            impedance_axes,
+            r"$Z_{re} / \Omega$",
+            r"$-Z_{im} / \Omega$",
+        )
         backend.update_plot_titles(
-            fig, ax, f"{title}: {remove_brackets(domain)} = {target_domain[row]:g}"
+            impedance_figure,
+            impedance_axes,
+            [
+                f"{remove_brackets(domain)} = {target_domain[row]:g}"
+                for row in acquisitions
+            ],
         )
 
-        for output, label, style in (
-            (target_output, "Reference", {"linestyle": "none", "marker": "."}),
-            (model_output, "Model", {"linestyle": "solid", "marker": "none"}),
-        ):
-            backend.plot_trace(
-                backend.line(
-                    x=[output[name].data[row] for name in real_names],
-                    y=[-output[name].data[row] for name in imaginary_names],
-                    label=label,
-                    style=style,
-                ),
-                fig,
-                ax=ax,
-            )
+        # Fixed styles, matching plot.nyquist, so that the colours mean the same thing
+        # in every subplot rather than following the shared colour cycle
+        impedance_styles = (
+            (
+                target_output,
+                "Reference",
+                {
+                    "linestyle": "none",
+                    "marker": "o",
+                    "fillstyle": "none",
+                    "markeredgecolor": "#636EFA",
+                    "color": "#636EFA",
+                },
+            ),
+            (model_output, "Model", {"linestyle": "solid", "color": "#00CC96"}),
+        )
 
-        backend.legend(fig, axes=ax)
+        for ax, row in zip(impedance_axes, acquisitions, strict=True):
+            for output, label, style in impedance_styles:
+                backend.plot_trace(
+                    backend.line(
+                        x=[output[name].data[row] for name in real_variables],
+                        y=[-output[name].data[row] for name in imaginary_variables],
+                        label=label,
+                        style=style,
+                    ),
+                    impedance_figure,
+                    ax=ax,
+                )
+
+            # A Nyquist plot is only readable with an equal aspect ratio
+            backend.equal_aspect(impedance_figure, ax=ax)
+            backend.legend(impedance_figure, axes=ax)
+
+        figures = np.append(figures, impedance_figure)
         if show:
-            backend.show_figure(fig)
+            backend.show_figure(impedance_figure)
 
     if not show:
         return figures[0] if len(figures) == 1 else figures
 
 
-def _eis_acquisitions(
-    target_output, real_names: list[str], imaginary_names: list[str]
+def _acquisition_indices(
+    target_output, real_variables: list[str], imaginary_variables: list[str]
 ) -> np.ndarray:
     """Return the indices of the domain points at which a spectrum was acquired."""
     measured = np.asarray(
-        [target_output[name].data for name in (*real_names, *imaginary_names)]
+        [target_output[name].data for name in (*real_variables, *imaginary_variables)]
     )
     return np.flatnonzero(np.any(measured != 0.0, axis=0))
