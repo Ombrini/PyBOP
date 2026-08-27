@@ -178,10 +178,12 @@ class EISSimulator(BaseSimulator):
         """Evaluate the Jacobian of the built model about the state y at time t."""
         built_model = self.simulation.built_model
 
-        # PyBaMM orders the input parameters of the built model alphabetically, so the
-        # values must be stacked in that order and not in the order given by the caller
+        # jac_rhs_algebraic_eval is compiled by solver.set_up() in _set_up_matrices(),
+        # which receives `inputs` exactly as given, so the values must be stacked in
+        # that same order. Do not sort: pybamm's alphabetical convention comes from
+        # BaseSolver._set_up_model_inputs(), which _set_up_matrices() bypasses.
         casadi_inputs = (
-            casadi.vertcat(*[inputs[name] for name in sorted(inputs)])
+            casadi.vertcat(*inputs.values())
             if inputs is not None and built_model.convert_to_format == "casadi"
             else inputs or []
         )
