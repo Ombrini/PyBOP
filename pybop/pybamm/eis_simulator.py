@@ -214,7 +214,7 @@ class EISSimulator(BaseSimulator):
         Raises
         ------
         ValueError
-            If the model is missing required variables or options.
+            If the model is missing required variables.
         """
         # Verify model has required variables
         required_vars = ["Voltage [V]", "Current [A]"]
@@ -224,13 +224,14 @@ class EISSimulator(BaseSimulator):
                     f"Model must contain variable '{var}' for EIS simulation"
                 )
 
-        # Without a surface form, the double layer is absent from the model and the
-        # computed impedance is silently meaningless
-        surface_form = model.options.get("surface form", "false")
-        if surface_form != "differential":
-            raise ValueError(
-                "EIS simulation requires the 'surface form' model option to be "
-                f"'differential', got '{surface_form}'."
+        # Without a differential surface form the model has no double-layer capacitance,
+        # so the impedance contains no charge-transfer arc, only the diffusion response
+        if model.options.get("surface form") != "differential":
+            warnings.warn(
+                "The model does not use a differential surface form, so the impedance "
+                'will not contain a charge-transfer arc. Pass options={"surface form": '
+                '"differential"} to include the double layer.',
+                stacklevel=2,
             )
 
         # Work on a copy, so that the model given by the user is left untouched

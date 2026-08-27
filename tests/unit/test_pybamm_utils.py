@@ -25,8 +25,7 @@ class TestPybammUtils:
     def test_simulate_procedure(self, tmp_path):
         import pyprobe
 
-        # The procedures include an EIS sweep, which requires a surface form
-        model = pybamm.lithium_ion.SPM(options={"surface form": "differential"})
+        model = pybamm.lithium_ion.SPM()
         full_cell_parameters = pybamm.ParameterValues("Chen2020")
         cell_info = {
             "Cell type": "LG M50 Synthetic",

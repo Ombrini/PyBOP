@@ -27,7 +27,7 @@
 
 ## Breaking Changes
 
-- [#975](https://github.com/pybop-team/PyBOP/pull/975) - `pybop.pybamm.EISSimulator` now requires the `surface form` model option and no longer modifies the model passed to it. Adds `equal_aspect` to the plotting backends, removes the unused `Simulator.time_data` property and removes the superseded `operando_eis.py` example.
+- [#975](https://github.com/pybop-team/PyBOP/pull/975) - `pybop.pybamm.EISSimulator` no longer modifies the model passed to it and warns when the model has no differential surface form. Adds `equal_aspect` to the plotting backends, removes the unused `Simulator.time_data` property and removes the superseded `operando_eis.py` example.
 - [#928](https://github.com/pybop-team/PyBOP/pull/928) - Deprecates `StandardPlot` and `StandardSubplot` in favour of new standardised backend functionality.
 - [#960](https://github.com/pybop-team/PyBOP/pull/960) - Remove `asv` benchmarking.
 - [#938](https://github.com/pybop-team/PyBOP/pull/938) - Make SALib an optional dependency and remove `sensitivity_analysis` in favour of using SALib directly.

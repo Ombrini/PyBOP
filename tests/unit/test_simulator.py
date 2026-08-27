@@ -219,14 +219,22 @@ class TestCoupledEISSimulator:
         )
         assert len(model.algebraic) == n_algebraic
 
-    def test_surface_form_required(self, parameter_values, dataset, frequencies):
-        with pytest.raises(ValueError, match="surface form"):
-            pybop.pybamm.EISSimulator(
+    def test_model_without_surface_form(
+        self, parameter_values, dataset, frequencies, impedance_variables
+    ):
+        """Without a surface form there is no double layer, but the diffusion tail is
+        still a valid thing to simulate, so the model must warn rather than be rejected."""
+        with pytest.warns(UserWarning, match="charge-transfer arc"):
+            simulator = pybop.pybamm.EISSimulator(
                 pybamm.lithium_ion.SPM(),
                 parameter_values=parameter_values,
                 protocol=dataset,
                 f_eval=frequencies,
             )
+        solution = simulator.solve()
+
+        for name in impedance_variables:
+            assert np.all(np.isfinite(solution[name].data))
 
     def test_impedance_variables_round_trip(self, frequencies, impedance_variables):
         # Variables may reach the parser in any order, e.g. via a set
