@@ -174,6 +174,61 @@ class TestCoupledEISSimulator:
         )
         np.testing.assert_allclose(impedance, stationary["Impedance"].data, rtol=1e-10)
 
+    @pytest.mark.parametrize("coupled", [False, True])
+    def test_input_parameters_are_not_swapped(
+        self,
+        model,
+        parameter_values,
+        dataset,
+        frequencies,
+        impedance_variables,
+        coupled,
+    ):
+        """
+        Passing values as inputs must give the same spectrum as fixing them in the
+        parameter values, whatever the order of the inputs dictionary. The compiled
+        Jacobian takes a single stacked vector, so an order which disagrees with the
+        one used to compile it silently evaluates the model at the wrong point.
+        """
+        # Deliberately not in alphabetical order
+        inputs = {
+            "Positive particle diffusivity [m2.s-1]": 4e-15,
+            "Negative particle diffusivity [m2.s-1]": 3.0e-14,
+        }
+
+        def solve(values, **kwargs):
+            protocol = dataset if coupled else None
+            simulator = pybop.pybamm.EISSimulator(
+                model,
+                parameter_values=values,
+                protocol=protocol,
+                f_eval=frequencies,
+            )
+            return simulator.solve(**kwargs)
+
+        fixed = copy(parameter_values)
+        fixed.update(inputs)
+        expected = solve(fixed)
+
+        fitted = copy(parameter_values)
+        fitted.update(
+            {
+                name: pybop.Parameter(pybop.Uniform(value / 2, value * 2))
+                for name, value in inputs.items()
+            }
+        )
+        solution = solve(fitted, inputs=inputs)
+
+        if coupled:
+            for name in impedance_variables:
+                np.testing.assert_allclose(
+                    solution[name].data, expected[name].data, rtol=1e-10
+                )
+        else:
+            np.testing.assert_allclose(
+                solution["Impedance"].data, expected["Impedance"].data, rtol=1e-10
+            )
+
     def test_builds_once(self, model, parameter_values, dataset, frequencies):
         """The model and the constant matrices are set up once, not per evaluation."""
         parameter_values["Negative electrode active material volume fraction"] = (

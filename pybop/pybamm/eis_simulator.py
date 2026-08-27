@@ -166,7 +166,13 @@ class EISSimulator(BaseSimulator):
         model has to be rebuilt.
         """
         built_model = self.simulation.built_model
-        self.simulation.solver.set_up(built_model, inputs=inputs)
+        # Sort so the compiled functions expect the same order that
+        # BaseSolver._set_up_model_inputs() will use if the time-domain simulation
+        # recompiles them in _solve_along_protocol(). _jacobian() stacks sorted to match.
+        self.simulation.solver.set_up(
+            built_model,
+            inputs={k: inputs[k] for k in sorted(inputs)} if inputs else inputs,
+        )
 
         self.M = csc_matrix(built_model.mass_matrix.entries)
 
@@ -178,12 +184,10 @@ class EISSimulator(BaseSimulator):
         """Evaluate the Jacobian of the built model about the state y at time t."""
         built_model = self.simulation.built_model
 
-        # jac_rhs_algebraic_eval is compiled by solver.set_up() in _set_up_matrices(),
-        # which receives `inputs` exactly as given, so the values must be stacked in
-        # that same order. Do not sort: pybamm's alphabetical convention comes from
-        # BaseSolver._set_up_model_inputs(), which _set_up_matrices() bypasses.
+        # Stacked in sorted order to match _set_up_matrices() and pybamm's
+        # BaseSolver._set_up_model_inputs() convention.
         casadi_inputs = (
-            casadi.vertcat(*inputs.values())
+            casadi.vertcat(*[inputs[name] for name in sorted(inputs)])
             if inputs is not None and built_model.convert_to_format == "casadi"
             else inputs or []
         )
