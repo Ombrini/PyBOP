@@ -3,6 +3,8 @@
 ## Features
 
 - [#975](https://github.com/pybop-team/PyBOP/pull/975) - Adds coupled GITT-EIS parameterisation: `pybop.pybamm.EISSimulator` accepts a `protocol` and computes an impedance spectrum about the state reached at each acquisition time, solving the time-domain trajectory once. Adds `pybop.get_impedance_variables` and `pybop.parse_impedance_variables` to name the impedance variables of a `Dataset`, plots the acquired spectra as Nyquist subplots in `pybop.plot.problem`, and adds an example script `gitt_eis.py`.
+- [#973](https://github.com/pybop-team/PyBOP/pull/973) - Adds example scripts for EIS parameterisation.
+- [#974](https://github.com/pybop-team/PyBOP/pull/974) - Adds voltage components to each grouped model as well as asymmetric and multiphase Butler-Volmer kinetics.
 - [#969](https://github.com/pybop-team/PyBOP/pull/969) - Updates synthetic data and adds example script for thermal parameterisation.
 - [#965](https://github.com/pybop-team/PyBOP/pull/965) - Adds synthetic data and example scripts for OCV parameterisation.
 - [#963](https://github.com/pybop-team/PyBOP/pull/963) - Adds an example for generating synthetic data from a specification and exporting it to a PyProBE-compatible parquet file.
