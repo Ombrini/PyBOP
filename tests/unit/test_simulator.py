@@ -296,6 +296,58 @@ class TestCoupledEISSimulator:
         assert calls["create"] == 0  # built during construction
         assert calls["set_up"] == 1
 
+    def test_batch_matches_serial(
+        self, model, parameter_values, frequencies, impedance_variables
+    ):
+        """Batching the time-domain solves must not change the spectra.
+
+        Uses its own protocol with a real discharge current, so that the fitted parameter
+        changes the state reached at each acquisition time. With the resting protocol of
+        the `dataset` fixture the trajectory is identical for every input, and a batch
+        paired up with the wrong solutions would go undetected.
+        """
+        time = np.arange(0, 1201, 20.0)
+        acquisitions = [45, 60]  # t = 900 s and 1200 s, once the cell is back at rest
+        data = {
+            "Time [s]": time,
+            "Current [A]": np.where(time < 600, 5.0, 0.0),
+            "Voltage [V]": np.zeros_like(time),
+        }
+        for name in impedance_variables:
+            variable = np.zeros(len(time))
+            variable[acquisitions] = 1.0
+            data[name] = variable
+        dataset = pybop.Dataset(data, domain="Time [s]")
+
+        parameter = "Negative electrode active material volume fraction"
+        parameter_values[parameter] = pybop.Parameter(pybop.Uniform(0.4, 0.75))
+        simulator = pybop.pybamm.EISSimulator(
+            model,
+            parameter_values=parameter_values,
+            protocol=dataset,
+            f_eval=frequencies,
+        )
+        batch = [{parameter: value} for value in [0.5, 0.6, 0.7]]
+
+        serial = [simulator.solve(inputs) for inputs in batch]
+        parallel = simulator.solve_batch(batch)
+
+        for one, many in zip(serial, parallel, strict=True):
+            for name in impedance_variables:
+                np.testing.assert_allclose(one[name].data, many[name].data, rtol=1e-12)
+
+        # Guard against the comparison above passing vacuously: the inputs must actually
+        # move the spectrum, otherwise a mis-paired batch would go unnoticed
+        spectra = [
+            np.array(
+                [solution[name].data[acquisitions[0]] for name in impedance_variables]
+            )
+            for solution in parallel
+        ]
+        assert np.abs(spectra[0] - spectra[-1]).max() > 1e-9
+
+        assert simulator.solve_batch([]) == []
+
     def test_model_is_not_modified(self, model, parameter_values, dataset, frequencies):
         """Setting up for EIS must copy the model, not modify the caller's."""
         n_algebraic = len(model.algebraic)

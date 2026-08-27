@@ -331,7 +331,7 @@ class EISSimulator(BaseSimulator):
         return self._catch_errors(inputs)
 
     def solve_batch(
-        self, inputs: "list[Inputs]" = None, calculate_sensitivities: bool = False
+        self, inputs: "list[Inputs]", calculate_sensitivities: bool = False
     ) -> list[Solution | FailedSolution]:
         """
         Run the EIS simulation for each set of inputs and return dict-like results.
@@ -358,23 +358,30 @@ class EISSimulator(BaseSimulator):
         return self._catch_errors(inputs)
 
     def _catch_errors(self, inputs: "list[Inputs]") -> list[Solution | FailedSolution]:
-        if not self.debug_mode:
-            simulations = []
-            for x in inputs:
-                try:
-                    simulations.append(self._solve(x))
-                except (ZeroDivisionError, RuntimeError, ValueError):
-                    simulations.append(
-                        FailedSolution(self.solution_variables, x.keys())
-                    )
-            return simulations
+        if not inputs:
+            return []
+
+        # A rebuild changes the mesh, so those inputs must be solved one at a time.
+        # Otherwise, mirroring the Simulator, the whole batch of time-domain solves is
+        # handed to PyBaMM in a single call, which solves them in parallel.
+        if self._simulator.requires_model_rebuild or self._acquisition_indices is None:
+            sim_solutions = [None] * len(inputs)
+        else:
+            sim_solutions = self._simulator.solve_batch([x or {} for x in inputs])
 
         simulations = []
-        for x in inputs:
-            simulations.append(self._solve(x))
+        for x, sim_solution in zip(inputs, sim_solutions, strict=True):
+            try:
+                simulations.append(self._solve(x, sim_solution))
+            except (ZeroDivisionError, RuntimeError, ValueError):
+                if self.debug_mode:
+                    raise
+                simulations.append(FailedSolution(self.solution_variables, x.keys()))
         return simulations
 
-    def _solve(self, inputs: "Inputs") -> Solution:
+    def _solve(
+        self, inputs: "Inputs", sim_solution: pybamm.Solution | None = None
+    ) -> Solution:
         """
         Run the EIS simulation to calculate impedance at all specified frequencies.
 
@@ -386,6 +393,9 @@ class EISSimulator(BaseSimulator):
         ----------
         inputs : Inputs
             Input parameters.
+        sim_solution : pybamm.Solution, optional
+            The time-domain solution for these inputs, if it has already been computed as
+            part of a batch. If None, the time-domain simulation is solved here.
 
         Returns
         -------
@@ -406,14 +416,17 @@ class EISSimulator(BaseSimulator):
             )
             return solution
 
-        return self._solve_along_protocol(inputs)
+        return self._solve_along_protocol(inputs, sim_solution)
 
-    def _solve_along_protocol(self, inputs: "Inputs") -> Solution:
+    def _solve_along_protocol(
+        self, inputs: "Inputs", sim_solution: pybamm.Solution | None = None
+    ) -> Solution:
         """
-        Solve the time-domain protocol once, then compute a spectrum about the state at
-        each of the requested times.
+        Compute a spectrum about the state at each of the requested times, solving the
+        time-domain protocol first unless it has already been solved as part of a batch.
         """
-        sim_solution = self._simulator.solve(inputs)
+        if sim_solution is None:
+            sim_solution = self._simulator.solve(inputs)
         if isinstance(sim_solution, FailedSolution):
             raise ValueError("The time-domain simulation failed.")
 

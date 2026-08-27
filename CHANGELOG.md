@@ -15,6 +15,7 @@
 
 ## Optimisations
 
+- [#975](https://github.com/pybop-team/PyBOP/pull/975) - `EISSimulator` now solves the time-domain trajectories for a batch of inputs in a single PyBaMM call rather than one at a time, so population optimisers get the same parallelism as time-domain fitting.
 - [#975](https://github.com/pybop-team/PyBOP/pull/975) - Set up the EIS solver, mass matrix and forcing vector once rather than on every evaluation.
 - [#967](https://github.com/pybop-team/PyBOP/pull/967) - Add `Dataset.get_discontinuities` and update the `pybop.pybamm.RecommendedSolver` options.
 - [#946](https://github.com/pybop-team/PyBOP/pull/946) - Use `vectorized` evaluation for SciPy differential evolution by default instead of multiprocessing `workers`.
