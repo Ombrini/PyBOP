@@ -229,6 +229,39 @@ class TestCoupledEISSimulator:
                 solution["Impedance"].data, expected["Impedance"].data, rtol=1e-10
             )
 
+    def test_geometric_parameter_rebuilds(
+        self, model, parameter_values, dataset, frequencies, impedance_variables
+    ):
+        """
+        A geometric parameter forces a rebuild on every evaluation, which discards the
+        simulation, so the constant matrices must be set up after the time-domain solve.
+        """
+        inputs = {"Negative electrode thickness [m]": 8.0e-05}
+
+        fixed = copy(parameter_values)
+        fixed.update(inputs)
+        expected = pybop.pybamm.EISSimulator(
+            model, parameter_values=fixed, protocol=dataset, f_eval=frequencies
+        ).solve()
+
+        fitted = copy(parameter_values)
+        fitted.update(
+            {
+                name: pybop.Parameter(pybop.Uniform(value / 2, value * 2))
+                for name, value in inputs.items()
+            }
+        )
+        simulator = pybop.pybamm.EISSimulator(
+            model, parameter_values=fitted, protocol=dataset, f_eval=frequencies
+        )
+        assert simulator._simulator.requires_model_rebuild  # noqa: SLF001
+        solution = simulator.solve(inputs)
+
+        for name in impedance_variables:
+            np.testing.assert_allclose(
+                solution[name].data, expected[name].data, rtol=1e-10
+            )
+
     def test_builds_once(self, model, parameter_values, dataset, frequencies):
         """The model and the constant matrices are set up once, not per evaluation."""
         parameter_values["Negative electrode active material volume fraction"] = (

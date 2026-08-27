@@ -393,10 +393,9 @@ class EISSimulator(BaseSimulator):
             Complex impedance results, or the voltage and the real and imaginary
             impedance components over the time domain when coupled to a protocol.
         """
-        # Rebuild the model only if necessary, then set up the constant matrices
-        self._model_rebuild(inputs)
-
         if self._acquisition_indices is None:
+            # Rebuild the model only if necessary, then set up the constant matrices
+            self._model_rebuild(inputs)
             y0 = self.simulation.built_model.concatenated_initial_conditions.evaluate(
                 0, inputs=inputs
             )
@@ -417,6 +416,10 @@ class EISSimulator(BaseSimulator):
         sim_solution = self._simulator.solve(inputs)
         if isinstance(sim_solution, FailedSolution):
             raise ValueError("The time-domain simulation failed.")
+
+        # Set up the constant matrices only after the time-domain solve, which discards
+        # the simulation when the model has to be rebuilt for every set of inputs
+        self._model_rebuild(inputs)
 
         t, y = sim_solution.t, sim_solution.y
         if self._acquisition_indices[-1] >= len(t):
