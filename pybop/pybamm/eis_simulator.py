@@ -361,9 +361,8 @@ class EISSimulator(BaseSimulator):
         if not inputs:
             return []
 
-        # A rebuild changes the mesh, so those inputs must be solved one at a time.
-        # Otherwise, mirroring the Simulator, the whole batch of time-domain solves is
-        # handed to PyBaMM in a single call, which solves them in parallel.
+        # A rebuild changes the mesh, and a stationary simulation has no protocol, so
+        # neither can hand a batch of time-domain solves to PyBaMM
         if self._simulator.requires_model_rebuild or self._acquisition_indices is None:
             sim_solutions = [None] * len(inputs)
         else:
