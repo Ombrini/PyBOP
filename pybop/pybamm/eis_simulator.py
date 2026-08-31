@@ -331,7 +331,7 @@ class EISSimulator(BaseSimulator):
         return self._catch_errors(inputs)
 
     def solve_batch(
-        self, inputs: "list[Inputs]", calculate_sensitivities: bool = False
+        self, inputs: "list[Inputs]" = None, calculate_sensitivities: bool = False
     ) -> list[Solution | FailedSolution]:
         """
         Run the EIS simulation for each set of inputs and return dict-like results.
@@ -358,12 +358,9 @@ class EISSimulator(BaseSimulator):
         return self._catch_errors(inputs)
 
     def _catch_errors(self, inputs: "list[Inputs]") -> list[Solution | FailedSolution]:
-        if not inputs:
-            return []
-
-        # A rebuild changes the mesh, and a stationary simulation has no protocol, so
-        # neither can hand a batch of time-domain solves to PyBaMM
-        if self._simulator.requires_model_rebuild or self._acquisition_indices is None:
+        # A stationary simulation has no protocol, so it has no time-domain solves to
+        # hand to PyBaMM as a batch
+        if self._acquisition_indices is None:
             sim_solutions = [None] * len(inputs)
         else:
             sim_solutions = self._simulator.solve_batch([x or {} for x in inputs])
